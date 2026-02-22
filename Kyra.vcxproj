@@ -58,6 +58,7 @@
     <ClInclude Include="include\renderer\Texture.h" />
     <ClInclude Include="include\renderer\MikkT.h" />
     <ClInclude Include="include\renderer\PostProcessPass.h" />
+    <ClInclude Include="include\renderer\NGXWrapper.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="external\imgui\backends\imgui_impl_dx12.cpp" />
@@ -68,6 +69,7 @@
     <ClCompile Include="external\imgui\imgui_widgets.cpp" />
     <ClCompile Include="external\imgui\misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="external\mikkt\mikktspace.c" />
+    <ClCompile Include="source\renderer\NGXWrapper.cpp" />
     <ClCompile Include="source\renderer\PostProcessPass.cpp" />
     <ClCompile Include="source\renderer\MikkT.cpp" />
     <ClCompile Include="source\renderer\ImGuiWrapper.cpp" />
@@ -210,20 +212,22 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mikkt;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mikkt;$(ProjectDir)external\ngx;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/DNOMINMAX /DGLFW_INCLUDE_NONE %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW\lib;$(ProjectDir)external\slang\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glfw3.lib;d3d12.lib;dxgi.lib;dxguid.lib;slang.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW\lib;$(ProjectDir)external\slang\lib;$(ProjectDir)external\ngx\lib\dev;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;d3d12.lib;dxgi.lib;dxguid.lib;slang.lib;nvsdk_ngx_d_dbg.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/NODEFAULTLIB:MSVCRT %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /D /Y "$(SolutionDir)external\slang\bin\*.dll" "$(OutDir)"
-xcopy /D /Y "$(SolutionDir)external\dxc\bin\*.dll" "$(OutDir)"</Command>
+xcopy /D /Y "$(SolutionDir)external\dxc\bin\*.dll" "$(OutDir)"
+xcopy /D /Y "$(SolutionDir)external\ngx\lib\dev\nvngx_dlss.dll" "$(OutDir)"
+xcopy /D /Y "$(SolutionDir)external\ngx\lib\dev\nvngx_dlssd.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -235,19 +239,21 @@ xcopy /D /Y "$(SolutionDir)external\dxc\bin\*.dll" "$(OutDir)"</Command>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mikkt;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mikkt;$(ProjectDir)external\ngx;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/DNOMINMAX /DGLFW_INCLUDE_NONE %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW\lib;$(ProjectDir)external\slang\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>glfw3.lib;d3d12.lib;dxgi.lib;dxguid.lib;slang.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW\lib;$(ProjectDir)external\slang\lib;$(ProjectDir)external\ngx\lib\rel;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>glfw3.lib;d3d12.lib;dxgi.lib;dxguid.lib;slang.lib;nvsdk_ngx_d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /D /Y "$(SolutionDir)external\slang\bin\*.dll" "$(OutDir)"
-xcopy /D /Y "$(SolutionDir)external\dxc\bin\*.dll" "$(OutDir)"</Command>
+xcopy /D /Y "$(SolutionDir)external\dxc\bin\*.dll" "$(OutDir)"
+xcopy /D /Y "$(SolutionDir)external\ngx\lib\rel\nvngx_dlss.dll" "$(OutDir)"
+xcopy /D /Y "$(SolutionDir)external\ngx\lib\rel\nvngx_dlssd.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

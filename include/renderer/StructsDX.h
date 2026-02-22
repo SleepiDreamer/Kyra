@@ -3,8 +3,23 @@
 #include <glm/vec3.hpp>
 #include <ImReflect.hpp>
 
+struct CameraData
+{
+	glm::vec3 position;
+	float fov;
+	glm::vec3 forward;
+	float jitterX;
+	glm::vec3 right;
+	float jitterY;
+	glm::vec3 up;
+	uint32_t _pad0;
+};
+IMGUI_REFLECT(CameraData, position, fov, forward, right, up)
+
 struct RenderData
 {
+	CameraData camera = {};
+	CameraData prevCamera = {};
 	int32_t hdriIndex = -1;
 	uint32_t frame = 0;
 };
@@ -24,6 +39,15 @@ enum DebugMode
 	TangentW,
 };
 
+enum DLSSQuality
+{
+	UltraPerformance = 0,
+	Performance = 1,
+	Balanced = 2,
+	Quality = 3,
+	DLAA = 4,
+};
+
 struct RenderSettings
 {
 	DebugMode debugMode = None;
@@ -31,9 +55,10 @@ struct RenderSettings
 	float skyIntensity = 1.0f;
 	float lightIntensity = 1.0f;
 	BOOL whiteFurnace = false;
-	BOOL upscaling = false;
+	BOOL upscaling = true;
+	DLSSQuality dlssQuality = Balanced;
 };
-IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteFurnace, upscaling)
+IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteFurnace, upscaling, dlssQuality)
 
 enum TonemapOperator
 {
@@ -50,19 +75,6 @@ struct PostProcessSettings
 	float exposure = 25.0f;
 };
 IMGUI_REFLECT(PostProcessSettings, tonemapper, exposure)
-
-struct CameraData
-{
-	glm::vec3 position;
-	float fov;
-	glm::vec3 forward;
-	uint32_t _pad0;
-	glm::vec3 right;
-	uint32_t _pad1;
-	glm::vec3 up;
-	uint32_t _pad2;
-};
-IMGUI_REFLECT(CameraData, position, fov, forward, right, up)
 
 struct HitGroupRecord
 {

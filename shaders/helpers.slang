@@ -1,5 +1,8 @@
 module helpers;
 
+import structs;
+import settings;
+
 static const float PI = 3.141592653589f;
 
 public float sanitize(float x)
@@ -90,4 +93,63 @@ public float2 DirectionToEquirectangular(float3 dir)
     float u = atan2(dir.z, dir.x) / (2.0 * PI) + 0.5;
     float v = 1.0 - (asin(clamp(dir.y, -1.0, 1.0)) / PI + 0.5);
     return float2(u, v);
+}
+
+public float depthToReverseZ(float rayT)
+{
+    return NEAR_PLANE / max(rayT, NEAR_PLANE);
+}
+
+public float depthLinear(float rayT)
+{
+    return rayT / FAR_PLANE;
+}
+
+public float2 WorldToUV(float3 worldPos, CameraData cam)
+{
+    float3 dir = worldPos - cam.position;
+
+    float z = dot(dir, cam.forward);
+    float x = dot(dir, cam.right);
+    float y = dot(dir, cam.up);
+
+    if (z <= 0.0)
+    { 
+        return float2(-1, -1);
+    }
+
+    float2 res = DispatchRaysDimensions().xy;
+    float aspect = res.x / res.y;
+    float tanHalfFov = tan(radians(cam.fov) * 0.5);
+
+    float ndcX = x / (z * aspect * tanHalfFov);
+    float ndcY = -y / (z * tanHalfFov);
+
+    return (float2(ndcX, ndcY) + 1.0) * 0.5;
+}
+
+// From DLSS-RR integration guide
+public float3 EnvBRDFApprox2(float3 SpecularColor, float alpha, float NoV)
+{
+    NoV = abs(NoV);
+    // [Ray Tracing Gems, Chapter 32]
+    float4 X;
+    X.x = 1.f;
+    X.y = NoV;
+    X.z = NoV * NoV;
+    X.w = NoV * X.z;
+    float4 Y;
+    Y.x = 1.f;
+    Y.y = alpha;
+    Y.z = alpha * alpha;
+    Y.w = alpha * Y.z;
+    float2x2 M1 = float2x2(0.99044f, -1.28514f, 1.29678f, -0.755907f);
+    float3x3 M2 = float3x3(1.f, 2.92338f, 59.4188f, 20.3225f, -27.0302f, 222.592f, 121.563f, 626.13f, 316.627f);
+    float2x2 M3 = float2x2(0.0365463f, 3.32707, 9.0632f, -9.04756);
+    float3x3 M4 = float3x3(1.f, 3.59685f, -1.36772f, 9.04401f, -16.3174f, 9.22949f, 5.56589f, 19.7886f, -20.2123f);
+    float bias = dot(mul(M1, X.xy), Y.xy) * rcp(dot(mul(M2, X.xyw), Y.xyw));
+    float scale = dot(mul(M3, X.xy), Y.xy) * rcp(dot(mul(M4, X.xzw), Y.xyw));
+    // This is a hack for specular reflectance of 0
+    bias *= saturate(SpecularColor.g * 50);
+    return mad(SpecularColor, max(0, scale), max(0, bias));
 }

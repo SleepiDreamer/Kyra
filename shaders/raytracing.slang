@@ -6,13 +6,17 @@ import random.sampling;
 import pbr;
 import camera;
 
-uniform RWTexture2D<float4> accumulationBuffer : register(u0, space0);
+uniform RWTexture2D<float4> rtOutputBuffer : register(u0, space0);
+uniform RWTexture2D<float4> albedoBuffer : register(u1, space0);
+uniform RWTexture2D<float4> specularAlbedoBuffer : register(u2, space0);
+uniform RWTexture2D<float4> normalRoughnessBuffer : register(u3, space0);
+uniform RWTexture2D<float2> motionVectorsBuffer : register(u4, space0);
+uniform RWTexture2D<float> depthBuffer : register(u5, space0);
 uniform RaytracingAccelerationStructure sceneBVH : register(t0, space0);
 StructuredBuffer<Material> materials : register(t1, space0);
 SamplerState linearSampler : register(s0, space0);
-ConstantBuffer<CameraData> camera : register(b0, space0);
-ConstantBuffer<RenderSettings> renderSettings : register(b1, space0);
-ConstantBuffer<RenderData> renderData : register(b2, space0);
+ConstantBuffer<RenderSettings> renderSettings : register(b0, space0);
+ConstantBuffer<RenderData> renderData : register(b1, space0);
 
 StructuredBuffer<Vertex> vertices : register(t0, space1);
 StructuredBuffer<uint> indices : register(t1, space1);
@@ -34,13 +38,13 @@ void RayGen()
     payload.done = false;
     payload.depth = 0;
     payload.rng = RNG.create(idx, uint(size.x), renderData.frame);
-    uv += payload.rng.nextFloat2() / size; // TODO: pass jitter from CPU for DLSS
+    uv += float2(renderData.camera.jitterX, renderData.camera.jitterY) / size;
 
     Camera cam;
 
     RayDesc ray;
-    ray.Origin = camera.position;
-    ray.Direction = cam.PinholeCamera(uv, camera);
+    ray.Origin = renderData.camera.position;
+    ray.Direction = cam.PinholeCamera(uv, renderData.camera);
     ray.TMin = 0.0;
     ray.TMax = MAX_RAY_DEPTH;
 
@@ -86,14 +90,14 @@ void RayGen()
     }
 
     float3 radiance = max(sanitize(payload.radiance), 0.0);
-
-    if (renderData.frame == 0)
+  
+    if (renderData.frame == 0 || renderSettings.upscaling)
     { 
-        accumulationBuffer[idx].rgb = radiance;
+        rtOutputBuffer[idx].rgb = radiance;
     }
     else
     {
-        accumulationBuffer[idx].rgb += radiance;
+        rtOutputBuffer[idx].rgb += radiance;
     }
 }
 
@@ -141,9 +145,9 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
     switch (renderSettings.debugMode)
     {
-    case DebugMode::None: break;
-        case DebugMode::Albedo:     payload.done = true; payload.radiance = albedo; return;
-        case DebugMode::Emissive:   payload.done = true; payload.radiance = emission; return;
+        case DebugMode::None: break;
+        case DebugMode::Albedo: payload.done = true; payload.radiance = LinearToSrgb(albedo); return;
+        case DebugMode::Emissive: payload.done = true; payload.radiance = LinearToSrgb(emission); return;
         case DebugMode::Metallic:   payload.done = true; payload.radiance = metallic; return;
         case DebugMode::Roughness:  payload.done = true; payload.radiance = roughness; return;
         case DebugMode::NormalMap:  payload.done = true; payload.radiance = (normalMap + 1) / 2; return;
@@ -160,6 +164,25 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     payload.throughput *= PBRIndirect(payload.rng, normal, geoNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
     payload.nextDirection = wo;
     payload.nextOrigin = OffsetRay(hitPoint, geoNormal);
+
+    if (payload.depth == 0)
+    {
+        uint2 idx = DispatchRaysIndex().xy;
+        float2 size = DispatchRaysDimensions().xy;
+
+        Camera cam;
+        float2 currentUV = idx / size;
+        float3 unjitteredPos = renderData.camera.position + cam.PinholeCamera(currentUV, renderData.camera) * RayTCurrent();
+        float2 prevUV = WorldToUV(unjitteredPos, renderData.prevCamera);
+        motionVectorsBuffer[idx] = (prevUV - currentUV) * size;
+
+        float depth = 0.5;
+        albedoBuffer[idx].xyz = albedo;
+        normalRoughnessBuffer[idx].xyz = normal;
+        normalRoughnessBuffer[idx].w = roughness;
+        depthBuffer[idx] = RayTCurrent();
+        specularAlbedoBuffer[idx].xyz = EnvBRDFApprox2(lerp(0.04, albedo, metallic), roughness, saturate(dot(normal, -WorldRayDirection())));
+    }
 }
 
 [shader("miss")]
@@ -188,5 +211,22 @@ void Miss(inout Payload payload)
     else
     {
         payload.radiance += float3(0.6, 0.8, 1.0) * renderSettings.skyIntensity * payload.throughput * (WorldRayDirection().y + 1.1) / 2.1;
+    }
+
+    if (payload.depth == 0)
+    {
+        uint2 idx = DispatchRaysIndex().xy;
+        float2 size = DispatchRaysDimensions().xy;
+
+        albedoBuffer[idx] = float4(0.0, 0.0, 0.0, 1.0);
+        specularAlbedoBuffer[idx] = float4(0.5, 0.5, 0.5, 1.0);
+        normalRoughnessBuffer[idx] = float4(0.0, 0.0, 0.0, 1.0);
+        depthBuffer[idx] = MAX_RAY_DEPTH;
+
+        Camera cam;
+        float2 currentUV = idx / size;
+        float3 unjitteredPos = renderData.camera.position + cam.PinholeCamera(currentUV, renderData.camera) * MAX_RAY_DEPTH;
+        float2 prevUV = WorldToUV(unjitteredPos, renderData.prevCamera);
+        motionVectorsBuffer[idx] = (prevUV - currentUV) * size;
     }
 }

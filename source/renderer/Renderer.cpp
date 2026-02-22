@@ -14,6 +14,7 @@
 #include "RTPipeline.h"
 #include "PostProcessPass.h"
 #include "ImGuiWrapper.h"
+#include "NGXWrapper.h"
 #include "Scene.h"
 #include "StructsDX.h"
 #include "CommonDX.h"
@@ -48,28 +49,41 @@ Renderer::Renderer(Window& window, bool debug)
 
 	m_shaderCompiler = std::make_unique<ShaderCompiler>();
 
+	m_ngx = std::make_unique<NGXWrapper>(m_context, window);
+	m_ngx->Initialize();
+
 	const int width = window.GetWidth();
 	const int height = window.GetHeight();
-	m_accumulationBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, L"Accumulation Buffer");
-	m_outputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R10G10B10A2_UNORM, width, height, L"RT Output Buffer");
+	const int renderWidth = m_ngx->GetRenderWidth();
+	const int renderHeight = m_ngx->GetRenderHeight();
+	m_rtOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, L"RT Output Buffer");
+	m_albedoBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R8G8B8A8_UNORM, renderWidth, renderHeight, L"Albedo Buffer");
+	m_specularAlbedoBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R8G8B8A8_UNORM, renderWidth, renderHeight, L"Specular Albedo Buffer");
+	m_normalRoughnessBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, renderWidth, renderHeight, L"Normal Roughness Buffer");
+	m_depthBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32_FLOAT, renderWidth, renderHeight, L"Depth Buffer");
+	m_motionVectorsBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32G32_FLOAT, renderWidth, renderHeight, L"Motion Vectors Buffer");
+	m_dlssOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"DLSS Output Buffer");
+	m_outputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R10G10B10A2_UNORM, width, height, L"Output Buffer");
 
 	m_rootSignature = std::make_unique<RootSignature>();
-	m_rootSignature->AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, "accumulationBuffer"); // u0:0 accumulation buffer
+	m_rootSignature->AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, "rtOutputBuffer");		// u0:0 RT output buffer
+	m_rootSignature->AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 1, 0, "albedoBuffer");			// u1:0 albedo buffer
+	m_rootSignature->AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 2, 0, "specularAlbedoBuffer");	// u2:0 specular albedo buffer
+	m_rootSignature->AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 3, 0, "normalRoughnessBuffer"); // u3:0 normal roughness buffer
+	m_rootSignature->AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 4, 0, "motionVectorsBuffer");	// u4:0 motion vectors buffer
+	m_rootSignature->AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 5, 0, "depthBuffer");			// u5:0 depth buffer
 	m_rootSignature->AddRootSRV(0, 0, "sceneBVH");			 // t0:0 TLAS
 	m_rootSignature->AddRootSRV(1, 0, "materials");			 // t1:0 materials
-	m_rootSignature->AddRootCBV(0, 0, "camera");			 // b0:0 camera
-	m_rootSignature->AddRootCBV(1, 0, "renderSettings");	 // b1:0 render settings
-	m_rootSignature->AddRootCBV(2, 0, "renderData");		 // b2:0 render data
-	m_rootSignature->AddRootCBV(3, 0, "postProcessSettings");// b3:0 post processing settings
+	m_rootSignature->AddRootCBV(0, 0, "renderSettings");	 // b0:0 render settings
+	m_rootSignature->AddRootCBV(1, 0, "renderData");		 // b1:0 render data
+	m_rootSignature->AddRootCBV(2, 0, "postProcessSettings");// b2:0 post processing settings
 	m_rootSignature->AddStaticSampler(0);					 // s0:0 linear sampler
 	m_rootSignature->Build(device, L"RT Root Signature");
 
-	m_rtPipeline = std::make_unique<RTPipeline>(device, m_rootSignature->Get(), *m_shaderCompiler,
-	                                            m_scene->GetHitGroupRecords(), "shaders/raytracing.slang");
+	m_rtPipeline = std::make_unique<RTPipeline>(device, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang");
 
 	m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "CSMain");
 
-	m_cameraCB = std::make_unique<CBVBuffer<CameraData>>(*m_allocator, "Camera CB");
 	m_renderSettingsCB = std::make_unique<CBVBuffer<RenderSettings>>(*m_allocator, "Render Settings CB");
 	m_renderDataCB = std::make_unique<CBVBuffer<RenderData>>(*m_allocator, "Render Data CB");
 	m_postProcessSettingsCB = std::make_unique<CBVBuffer<PostProcessSettings>>(*m_allocator, "Post Process Settings CB");
@@ -83,9 +97,11 @@ Renderer::~Renderer()
 	m_commandQueue->Flush();
 }
 
-void Renderer::ToggleFullscreen() const
+void Renderer::ToggleFullscreen()
 {
+	m_ngx->SetDLSSQuality(m_renderSettings.dlssQuality);
 	m_swapChain->ToggleFullscreen();
+	Resize(m_window.GetWidth(), m_window.GetHeight());
 }
 
 void Renderer::LoadModel(const std::string& path)
@@ -111,19 +127,37 @@ void Renderer::Resize(const int width, const int height)
 	}
 
 	std::cout << "Window resized: " << width << "x" << height << "\n";
+	auto device = m_device->GetDevice();
 	ResetAccumulation();
 	m_commandQueue->Flush();
 	m_swapChain->Resize(width, height, m_device->GetDevice());
-	m_outputBuffer->Resize(m_device->GetDevice(), width, height);
-	m_accumulationBuffer->Resize(m_device->GetDevice(), width, height);
+
+	glm::ivec2 renderSize = m_renderSettings.upscaling ? m_ngx->Resize() : glm::ivec2(width, height);
+	m_outputBuffer->Resize(device, width, height);
+	m_dlssOutputBuffer->Resize(device, width, height);
+	m_rtOutputBuffer->Resize(device, renderSize.x, renderSize.y);
+	m_albedoBuffer->Resize(device, renderSize.x, renderSize.y);
+	m_specularAlbedoBuffer->Resize(device, renderSize.x, renderSize.y);
+	m_normalRoughnessBuffer->Resize(device, renderSize.x, renderSize.y);
+	m_depthBuffer->Resize(device, renderSize.x, renderSize.y);
+	m_motionVectorsBuffer->Resize(device, renderSize.x, renderSize.y);
 }
 
 void Renderer::Render(const float deltaTime)
 {
+	if (m_pendingResize)
+	{
+		m_ngx->SetDLSSQuality(m_renderSettings.dlssQuality);
+		Resize(m_window.GetWidth(), m_window.GetHeight());
+		m_pendingResize = false;
+	}
+
 	auto backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 	auto backBuffer = m_swapChain->GetCurrentBackBuffer();
 	auto commandList = m_commandQueue->GetCommandList();
 	auto commandQueue = m_commandQueue->GetQueue();
+	glm::ivec2 windowSize = glm::ivec2(m_window.GetWidth(), m_window.GetHeight());
+	glm::ivec2 renderSize = m_renderSettings.upscaling ? glm::ivec2(m_ngx->GetRenderWidth(), m_ngx->GetRenderHeight()) : windowSize;
 
 	if (m_reloadTimer >= 0.5f)
 	{
@@ -164,7 +198,7 @@ void Renderer::Render(const float deltaTime)
 			ImGui::End();
 			ImGui::PopStyleColor();
 
-			ImGui::SetNextWindowPos(ImVec2(m_window.GetWidth() / 2.0f - 400.0f, m_window.GetHeight() / 2.0f - 200.0f));
+			ImGui::SetNextWindowPos(ImVec2(windowSize.x / 2.0f - 400.0f, windowSize.y / 2.0f - 200.0f));
 			ImGui::Begin("Shader Compile Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 			ImGui::PushTextWrapPos(800.0f);
 			ImGui::TextWrapped("%s", m_rtPipeline->GetLastCompileError().c_str());
@@ -181,13 +215,14 @@ void Renderer::Render(const float deltaTime)
 		ImGui::Begin("Debug");
 		ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
 		ImGui::Text("Frame: %u", m_renderData.frame);
+		ImGui::Text("Resolution: %ux%u", windowSize.x, windowSize.y);
+		ImGui::Text("Render Resolution: %ux%u", renderSize.x, renderSize.y);
 		auto responseRender = ImReflect::Input("Render Settings", m_renderSettings, config);
 		auto responsePost = ImReflect::Input("Post Process Settings", m_postProcessSettings, config);
 		auto responseCamera = ImReflect::Input("Camera", camData, config2);
-		if (responseRender.get<RenderSettings>().is_changed())
-		{
-			ResetAccumulation();
-		}
+		if (responseRender.get<RenderSettings>().is_changed()) ResetAccumulation();
+		if (responseRender.get_member<&RenderSettings::upscaling>().is_changed()) m_pendingResize = true;
+		if (responseRender.get_member<&RenderSettings::dlssQuality>().is_changed()) m_pendingResize = true;
 		if (responseCamera.get<CameraData>().is_changed())
 		{
 			ResetAccumulation();
@@ -199,11 +234,15 @@ void Renderer::Render(const float deltaTime)
 		ImGui::End();
 	}
 
+	m_renderData.prevCamera = m_prevCamData;
+	m_renderData.camera = camData;
 	m_renderData.hdriIndex = m_scene->GetHDRIDescriptorIndex();
+	glm::vec2 jitter = m_ngx->GetJitter(m_renderData.frame);
+	m_renderData.camera.jitterX = jitter.x;
+	m_renderData.camera.jitterY = jitter.y;
 	m_renderSettingsCB->Update(backBufferIndex, m_renderSettings);
 	m_renderDataCB->Update(backBufferIndex, m_renderData);
 	m_postProcessSettingsCB->Update(backBufferIndex, m_postProcessSettings);
-	m_cameraCB->Update(backBufferIndex, camData);
 
 	// Record commands
 	{
@@ -214,27 +253,66 @@ void Renderer::Render(const float deltaTime)
 			commandList->SetComputeRootSignature(m_rootSignature->Get());
 			commandList->SetPipelineState1(m_rtPipeline->GetPSO());
 
-			m_rootSignature->SetDescriptorTable(commandList.Get(), m_accumulationBuffer->GetUAV().gpuHandle, "accumulationBuffer");
-			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetTLASAddress(), "sceneBVH");
-			m_rootSignature->SetRootCBV(commandList.Get(), m_cameraCB->GetGPUAddress(backBufferIndex), "camera");
-			m_rootSignature->SetRootCBV(commandList.Get(), m_renderSettingsCB->GetGPUAddress(backBufferIndex), "renderSettings");
-			m_rootSignature->SetRootCBV(commandList.Get(), m_renderDataCB->GetGPUAddress(backBufferIndex), "renderData");
+			m_rootSignature->SetDescriptorTable(commandList.Get(), m_rtOutputBuffer->GetUAV().gpuHandle,		"rtOutputBuffer");
+			m_rootSignature->SetDescriptorTable(commandList.Get(), m_albedoBuffer->GetUAV().gpuHandle,			"albedoBuffer");
+			m_rootSignature->SetDescriptorTable(commandList.Get(), m_specularAlbedoBuffer->GetUAV().gpuHandle,	"specularAlbedoBuffer");
+			m_rootSignature->SetDescriptorTable(commandList.Get(), m_normalRoughnessBuffer->GetUAV().gpuHandle, "normalRoughnessBuffer");
+			m_rootSignature->SetDescriptorTable(commandList.Get(), m_motionVectorsBuffer->GetUAV().gpuHandle,	"motionVectorsBuffer");
+			m_rootSignature->SetDescriptorTable(commandList.Get(), m_depthBuffer->GetUAV().gpuHandle,			"depthBuffer");
+
+			m_rootSignature->SetRootCBV(commandList.Get(), m_renderSettingsCB->GetGPUAddress(backBufferIndex),		"renderSettings");
+			m_rootSignature->SetRootCBV(commandList.Get(), m_renderDataCB->GetGPUAddress(backBufferIndex),			"renderData");
 			m_rootSignature->SetRootCBV(commandList.Get(), m_postProcessSettingsCB->GetGPUAddress(backBufferIndex), "postProcessSettings");
-			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(), "materials");
+
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetTLASAddress(),			"sceneBVH");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(),"materials");
 
 			auto dispatchDesc = m_rtPipeline->GetDispatchRaysDesc();
-			dispatchDesc.Width = static_cast<UINT>(m_swapChain->GetViewport().Width);
-			dispatchDesc.Height = static_cast<UINT>(m_swapChain->GetViewport().Height);
+			dispatchDesc.Width = m_renderSettings.upscaling ? renderSize.x : windowSize.x;
+			dispatchDesc.Height = m_renderSettings.upscaling ? renderSize.y : windowSize.y;
 			commandList->DispatchRays(&dispatchDesc);
+		}
+
+		// DLSS pass
+		{
+			if (m_ngx->IsDLSSSupported() && m_renderSettings.upscaling)
+			{
+				D3D12_RESOURCE_BARRIER uavBarriers[] = {
+					CD3DX12_RESOURCE_BARRIER::UAV(m_depthBuffer->GetResource()),
+					CD3DX12_RESOURCE_BARRIER::UAV(m_motionVectorsBuffer->GetResource()),
+					CD3DX12_RESOURCE_BARRIER::UAV(m_rtOutputBuffer->GetResource()),
+					CD3DX12_RESOURCE_BARRIER::UAV(m_albedoBuffer->GetResource()),
+					CD3DX12_RESOURCE_BARRIER::UAV(m_specularAlbedoBuffer->GetResource()),
+					CD3DX12_RESOURCE_BARRIER::UAV(m_normalRoughnessBuffer->GetResource()),
+				};
+				commandList->ResourceBarrier(_countof(uavBarriers), uavBarriers);
+
+				NGXWrapper::DLSSInputs dlssInputs{};
+				dlssInputs.albedo = m_albedoBuffer->GetResource();
+				dlssInputs.specularAlbedo = m_specularAlbedoBuffer->GetResource();
+				dlssInputs.normalRoughness = m_normalRoughnessBuffer->GetResource();
+				dlssInputs.depth = m_depthBuffer->GetResource();
+				dlssInputs.motionVectors = m_motionVectorsBuffer->GetResource();
+				dlssInputs.input = m_rtOutputBuffer->GetResource();
+				dlssInputs.output = m_dlssOutputBuffer->GetResource();
+				dlssInputs.jitterX = m_renderData.camera.jitterX;
+				dlssInputs.jitterY = m_renderData.camera.jitterY;
+
+				m_ngx->EvaluateDLSS(commandList.Get(), dlssInputs);
+
+				ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap() };
+				commandList->SetDescriptorHeaps(1, heaps);
+			}
 		}
 
 		// Tonemapping pass
 		{
-			m_accumulationBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			OutputBuffer& inputBuffer = m_renderSettings.upscaling ? *m_dlssOutputBuffer : *m_rtOutputBuffer;
+			inputBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			m_outputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 			PostProcessPass::PostProcessBindings bindings;
-			bindings.inputSRV = m_accumulationBuffer->GetSRV().gpuHandle;
+			bindings.inputSRV = inputBuffer.GetSRV().gpuHandle;
 			bindings.outputUAV = m_outputBuffer->GetUAV().gpuHandle;
 			bindings.constants[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
 			bindings.constants[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
@@ -245,7 +323,7 @@ void Renderer::Render(const float deltaTime)
 
 			m_tonemappingPass->Dispatch(commandList.Get(), bindings);
 
-			m_accumulationBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			m_rtOutputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 	}
 

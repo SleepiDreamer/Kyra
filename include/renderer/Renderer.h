@@ -21,6 +21,7 @@ class RootSignature;
 class RTPipeline;
 class PostProcessPass;
 class ImGuiWrapper;
+class NGXWrapper;
 class Scene;
 template<typename T>
 class CBVBuffer;
@@ -33,7 +34,7 @@ public:
 	void Render(float deltaTime);
 
 	void SetCamera(std::shared_ptr<Camera> camera) { m_camera = std::move(camera); }
-	void ToggleFullscreen() const;
+	void ToggleFullscreen();
 	void LoadModel(const std::string& path);
 	void LoadHDRI(const std::string& path);
 	void Resize(int width, int height);
@@ -57,17 +58,24 @@ private:
 	std::unique_ptr<RootSignature> m_rootSignature;
 	std::unique_ptr<RTPipeline>	m_rtPipeline;
 	std::unique_ptr<ImGuiWrapper> m_imgui = nullptr;
+	std::unique_ptr<NGXWrapper> m_ngx = nullptr;
+	bool m_pendingResize = false;
 
 	std::unique_ptr<Scene> m_scene;
 	RenderSettings m_renderSettings{};
 	RenderData m_renderData{};
 	PostProcessSettings m_postProcessSettings{};
-	std::unique_ptr<CBVBuffer<CameraData>> m_cameraCB;
 	std::unique_ptr<CBVBuffer<RenderSettings>> m_renderSettingsCB;
 	std::unique_ptr<CBVBuffer<RenderData>> m_renderDataCB;
 	std::unique_ptr<CBVBuffer<PostProcessSettings>> m_postProcessSettingsCB;
 
-	std::unique_ptr<OutputBuffer> m_accumulationBuffer;
+	std::unique_ptr<OutputBuffer> m_rtOutputBuffer;
+	std::unique_ptr<OutputBuffer> m_albedoBuffer;
+	std::unique_ptr<OutputBuffer> m_specularAlbedoBuffer;
+	std::unique_ptr<OutputBuffer> m_normalRoughnessBuffer;
+	std::unique_ptr<OutputBuffer> m_motionVectorsBuffer;
+	std::unique_ptr<OutputBuffer> m_depthBuffer;
+	std::unique_ptr<OutputBuffer> m_dlssOutputBuffer;
 	std::unique_ptr<OutputBuffer> m_outputBuffer;
 
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;

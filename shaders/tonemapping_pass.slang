@@ -17,18 +17,20 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
     outputTexture.GetDimensions(resolution.x, resolution.y);
     if (dtid.x >= resolution.x || dtid.y >= resolution.y) return;
 
-    float3 accumulated = inputTexture[dtid.xy].rgb;
-    float3 result = accumulated / (renderData.frame + 1);
+    float3 result;
+    if (renderSettings.upscaling)
+    {
+        result = inputTexture[dtid.xy].rgb;
+    }
+    else
+    {
+        float3 accumulated = inputTexture[dtid.xy].rgb;
+        result = accumulated / (renderData.frame + 1);
+    }
 
     if (renderSettings.debugMode == DebugMode::None)
     { 
         result = tonemap(result, settings.tonemapper, settings.exposure);
-    }
-
-    if (renderSettings.whiteFurnace)
-    {
-        float2 uv = float2(dtid.xy) / float2(resolution);
-        result = tonemap(uv.x * 5.0, TonemapOperator::GT7, 1.0);
     }
 
     outputTexture[dtid.xy] = float4(result, 1.0);

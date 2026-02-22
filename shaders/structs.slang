@@ -12,8 +12,22 @@ public struct [raypayload] Payload
     public RNG rng : write(caller, closesthit) : read(caller, closesthit);
 };
 
+public struct CameraData
+{
+    public float3 position;
+    public float fov;
+    public float3 forward;
+    public float jitterX;
+    public float3 right;
+    public float jitterY;
+    public float3 up;
+    uint _pad0;
+};
+
 public struct RenderData
 {
+    public CameraData camera;
+    public CameraData prevCamera;
     public int hdriIndex;
     public uint frame;
 }
@@ -33,6 +47,15 @@ public enum DebugMode
     TangentW,
 };
 
+enum DLSSQuality
+{
+    UltraPerformance = 0,
+    Performance = 1,
+    Balanced = 2,
+    Quality = 3,
+    DLAA = 4,
+};
+
 public struct RenderSettings
 {
     public DebugMode debugMode;
@@ -41,6 +64,7 @@ public struct RenderSettings
     public float lightIntensity;
     public bool whiteFurnace;
     public bool upscaling;
+    DLSSQuality dlssQuality;
 };
 
 public enum TonemapOperator
@@ -64,18 +88,6 @@ public struct Vertex
     public float3 normal;
     public float2 uv;
     public float4 tangent;
-};
-
-public struct CameraData
-{
-    public float3 position;
-    public float fov;
-    public float3 forward;
-    uint _pad0;
-    public float3 right;
-    uint _pad1;
-    public float3 up;
-    uint _pad2;
 };
 
 public struct Material
