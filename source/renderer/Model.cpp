@@ -223,12 +223,6 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
             auto imgIdx = asset.textures[texIdx].imageIndex;
             if (imgIdx.has_value()) linearImages.insert(imgIdx.value());
         }
-        if (mat.occlusionTexture.has_value())
-        {
-            auto texIdx = mat.occlusionTexture->textureIndex;
-            auto imgIdx = asset.textures[texIdx].imageIndex;
-            if (imgIdx.has_value()) linearImages.insert(imgIdx.value());
-        }
     }
     int index = 0;
     for (auto& image : asset.images)

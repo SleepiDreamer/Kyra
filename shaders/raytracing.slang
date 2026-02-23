@@ -139,7 +139,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float3 albedo = sampleOrDefault(material.albedoIndex, linearSampler, uv, material.albedoFactor);
     if (renderSettings.whiteFurnace) albedo = float3(1);
     float3 emission = sampleOrDefault(material.emissiveIndex, linearSampler, uv, material.emissiveFactor);
-    float2 metallicRoughness = sampleOrDefault(material.metallicRoughnessIndex, linearSampler, uv, float3(1, material.metallicFactor, material.roughnessFactor)).gb;
+    float2 metallicRoughness = sampleOrDefault(material.metallicRoughnessIndex, linearSampler, uv, float3(1, material.roughnessFactor, material.metallicFactor)).gb;
     float roughness = max(metallicRoughness.x, 0.0001);
     float metallic = metallicRoughness.y;
 

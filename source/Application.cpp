@@ -17,7 +17,7 @@ Application::Application(const bool debugLayer)
 	m_camera->SetDirection(glm::vec3(0.0f, 0.0f, -1.0f));
 	m_camera->m_fov = 60.0f;
 	m_renderer->SetCamera(m_camera);
-	m_renderer->LoadModel("assets/models/Sponza/Sponza.gltf");
+	m_renderer->LoadModel("assets/models/LL94Small.glb");
 	m_renderer->LoadHDRI("assets/environments/cedar_bridge_2_2k.hdr");
 
 	auto glfwWindow = m_window->GetGLFWWindow();
