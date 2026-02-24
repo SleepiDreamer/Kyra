@@ -28,6 +28,7 @@ using namespace Microsoft::WRL;
 // TODO
 // - explicit lights
 // - DLSS SR & RR
+// - HDR tonemapping
 
 Renderer::Renderer(Window& window, bool debug)
 	: m_window(window), m_prevCamData()
@@ -132,7 +133,7 @@ void Renderer::Resize(const int width, const int height)
 	m_commandQueue->Flush();
 	m_swapChain->Resize(width, height, m_device->GetDevice());
 
-	glm::ivec2 renderSize = m_renderSettings.upscaling ? m_ngx->Resize() : glm::ivec2(width, height);
+	glm::ivec2 renderSize = m_renderSettings.denoising ? m_ngx->Resize() : glm::ivec2(width, height);
 	m_outputBuffer->Resize(device, width, height);
 	m_dlssOutputBuffer->Resize(device, width, height);
 	m_rtOutputBuffer->Resize(device, renderSize.x, renderSize.y);
@@ -157,7 +158,7 @@ void Renderer::Render(const float deltaTime)
 	auto commandList = m_commandQueue->GetCommandList();
 	auto commandQueue = m_commandQueue->GetQueue();
 	glm::ivec2 windowSize = glm::ivec2(m_window.GetWidth(), m_window.GetHeight());
-	glm::ivec2 renderSize = m_renderSettings.upscaling ? glm::ivec2(m_ngx->GetRenderWidth(), m_ngx->GetRenderHeight()) : windowSize;
+	glm::ivec2 renderSize = m_renderSettings.denoising ? glm::ivec2(m_ngx->GetRenderWidth(), m_ngx->GetRenderHeight()) : windowSize;
 
 	if (m_reloadTimer >= 0.5f)
 	{
@@ -221,7 +222,7 @@ void Renderer::Render(const float deltaTime)
 		auto responsePost = ImReflect::Input("Post Process Settings", m_postProcessSettings, config);
 		auto responseCamera = ImReflect::Input("Camera", camData, config2);
 		if (responseRender.get<RenderSettings>().is_changed()) ResetAccumulation();
-		if (responseRender.get_member<&RenderSettings::upscaling>().is_changed()) m_pendingResize = true;
+		if (responseRender.get_member<&RenderSettings::denoising>().is_changed()) m_pendingResize = true;
 		if (responseRender.get_member<&RenderSettings::dlssQuality>().is_changed()) m_pendingResize = true;
 		if (responseCamera.get<CameraData>().is_changed())
 		{
@@ -268,14 +269,14 @@ void Renderer::Render(const float deltaTime)
 			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(),"materials");
 
 			auto dispatchDesc = m_rtPipeline->GetDispatchRaysDesc();
-			dispatchDesc.Width = m_renderSettings.upscaling ? renderSize.x : windowSize.x;
-			dispatchDesc.Height = m_renderSettings.upscaling ? renderSize.y : windowSize.y;
+			dispatchDesc.Width = m_renderSettings.denoising ? renderSize.x : windowSize.x;
+			dispatchDesc.Height = m_renderSettings.denoising ? renderSize.y : windowSize.y;
 			commandList->DispatchRays(&dispatchDesc);
 		}
 
 		// DLSS pass
 		{
-			if (m_ngx->IsDLSSSupported() && m_renderSettings.upscaling)
+			if (m_ngx->IsDLSSSupported() && m_renderSettings.denoising)
 			{
 				D3D12_RESOURCE_BARRIER uavBarriers[] = {
 					CD3DX12_RESOURCE_BARRIER::UAV(m_depthBuffer->GetResource()),
@@ -307,7 +308,7 @@ void Renderer::Render(const float deltaTime)
 
 		// Tonemapping pass
 		{
-			OutputBuffer& inputBuffer = m_renderSettings.upscaling ? *m_dlssOutputBuffer : *m_rtOutputBuffer;
+			OutputBuffer& inputBuffer = m_renderSettings.denoising ? *m_dlssOutputBuffer : *m_rtOutputBuffer;
 			inputBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 			m_outputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 

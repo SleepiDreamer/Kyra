@@ -63,7 +63,7 @@ public struct RenderSettings
     public float skyIntensity;
     public float lightIntensity;
     public bool whiteFurnace;
-    public bool upscaling;
+    public bool denoising;
     DLSSQuality dlssQuality;
 };
 

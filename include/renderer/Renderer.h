@@ -38,7 +38,7 @@ public:
 	void LoadModel(const std::string& path);
 	void LoadHDRI(const std::string& path);
 	void Resize(int width, int height);
-	void ResetAccumulation() { if (!m_renderSettings.upscaling) m_renderData.frame = 0; }
+	void ResetAccumulation() { if (!m_renderSettings.denoising) m_renderData.frame = 0; }
 
 private:
 	Window& m_window;

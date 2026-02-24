@@ -18,7 +18,7 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
     if (dtid.x >= resolution.x || dtid.y >= resolution.y) return;
 
     float3 result;
-    if (renderSettings.upscaling)
+    if (renderSettings.denoising)
     {
         result = inputTexture[dtid.xy].rgb;
     }

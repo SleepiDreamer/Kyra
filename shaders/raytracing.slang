@@ -91,7 +91,7 @@ void RayGen()
 
     float3 radiance = max(sanitize(payload.radiance), 0.0);
   
-    if (renderData.frame == 0 || renderSettings.upscaling)
+    if (renderData.frame == 0 || renderSettings.denoising)
     { 
         rtOutputBuffer[idx].rgb = radiance;
     }
