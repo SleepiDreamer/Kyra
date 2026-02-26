@@ -142,6 +142,11 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const
 
 void Scene::LoadHDRI(const std::string& path)
 {
+	if (m_hdri)
+	{
+		m_hdri.reset();
+	}
+
 	std::string extension = path.substr(path.find_last_of('.'));
 	if (extension != ".hdr")
 	{
