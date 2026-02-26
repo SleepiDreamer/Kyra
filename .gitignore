@@ -372,7 +372,9 @@ concatenated.txt
 /enc_temp_folder
 /external/ngx/lib/dev/nvngx_dlss.dll
 /external/ngx/lib/dev/nvngx_dlssd.dll
-/external/ngx/lib/dev/nvsdk_ngx_d_dbg.lib
+/external/ngx/lib/dev/nvngx_dlssg.dll
+/external/ngx/lib/rel/nvngx_dlssg.dll
 /external/ngx/lib/rel/nvngx_dlss.dll
 /external/ngx/lib/rel/nvngx_dlssd.dll
 /external/ngx/lib/rel/nvsdk_ngx_d.lib
+/external/ngx/lib/dev/nvsdk_ngx_d_dbg.lib
