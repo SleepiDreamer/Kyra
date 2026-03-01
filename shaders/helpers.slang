@@ -4,6 +4,8 @@ import structs;
 import settings;
 
 static const float PI = 3.141592653589f;
+public static const float IOR_AIR = 1.0f;
+public static const float IOR_GLASS = 1.5f;
 
 public float sanitize(float x)
 {

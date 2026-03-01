@@ -128,7 +128,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     }
     float3x3 TBN = float3x3(tangent, bitangent, geoNormal);
     normal = normalize(mul(normalMap, TBN));
-    if (HitKind() == HIT_KIND_TRIANGLE_BACK_FACE) 
+    bool backfacing = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
+    if (backfacing)
     {
         normal = -normal;
         geoNormal = -geoNormal;
@@ -162,10 +163,22 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
     payload.radiance += emission * payload.throughput * renderSettings.lightIntensity;
 
-    float3 wo;
-    payload.throughput *= PBRIndirect(payload.rng, normal, geoNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
-    payload.nextDirection = wo;
-    payload.nextOrigin = OffsetRay(hitPoint, geoNormal);
+    if (alpha == 0)
+    {
+        float3 wo;
+        payload.throughput *= PBRIndirect(payload.rng, normal, geoNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
+        payload.nextDirection = wo;
+        payload.nextOrigin = OffsetRay(hitPoint, geoNormal);
+    }
+    else
+    {
+        float3 wo;
+        float3 offsetN;
+        float eta = backfacing ? IOR_GLASS / IOR_AIR : IOR_AIR / IOR_GLASS;
+        payload.throughput *= PBRTransmission(payload.rng, geoNormal, -WorldRayDirection(), albedo, eta, wo, offsetN);
+        payload.nextDirection = wo;
+        payload.nextOrigin = OffsetRay(hitPoint, offsetN);
+    }
 
     if (payload.depth == 0)
     {

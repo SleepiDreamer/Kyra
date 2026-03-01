@@ -1,5 +1,6 @@
 module pbr;
 
+import helpers;
 import rng;
 import random.sampling;
 
@@ -149,6 +150,30 @@ public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 al
     //
     // Contribution: BRDF * NdotL / PDF
     //             = F * G(l)
+}
+
+public float3 PBRTransmission(inout RNG rng, float3 n, float3 v, float3 albedo, float eta, out float3 l, out float3 offsetN)
+{
+    float NdotV = dot(n, v);
+    float3 F = Fresnel(0.04, NdotV);
+    float Favg = (F.x + F.y + F.z) / 3.0;
+
+    float sinTheta = sqrt(max(0.0, 1.0 - NdotV * NdotV));
+    bool TIR = (eta * sinTheta) > 1.0;
+    float specularChance = TIR ? 1 : Favg;
+
+    if (rng.nextFloat() < specularChance)
+    {
+        l = reflect(-v, n);
+        offsetN = n;
+        return F / specularChance;
+    }
+    else
+    {
+        l = normalize(refract(-v, n, eta));
+        offsetN = -n;
+        return albedo * (1.0 - F) / max(1.0 - specularChance, 1e-4);
+    }
 }
 
 public float3 PBRDirect(float3 n, float3 l, float3 v, float3 albedo, float roughness, float metallic)
