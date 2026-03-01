@@ -54,11 +54,12 @@ struct RenderSettings
 	uint32_t bounces = 2;
 	float skyIntensity = 1.0f;
 	float lightIntensity = 1.0f;
-	BOOL whiteFurnace = false;
+	BOOL whiteAlbedo = false;
+	BOOL whiteLighting = false;
 	BOOL denoising = true;
 	DLSSQuality dlssQuality = Balanced;
 };
-IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteFurnace, denoising, dlssQuality)
+IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
 
 enum TonemapOperator
 {
