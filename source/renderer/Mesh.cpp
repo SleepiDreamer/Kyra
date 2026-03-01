@@ -70,11 +70,11 @@ void Mesh::Upload(const RenderContext& context, const std::vector<Vertex>& verti
     context.device->CreateShaderResourceView(m_indexBuffer.resource, &indexSrvDesc, m_indexSRV.cpuHandle);
 }
 
-D3D12_RAYTRACING_GEOMETRY_DESC Mesh::GetGeometryDesc() const
+D3D12_RAYTRACING_GEOMETRY_DESC Mesh::GetGeometryDesc(const bool isAlphaTested) const
 {
     D3D12_RAYTRACING_GEOMETRY_DESC desc = {};
     desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-    desc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+    desc.Flags = isAlphaTested == 0 ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
     desc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer.resource->GetGPUVirtualAddress();
     desc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
     desc.Triangles.VertexCount = m_vertexCount;
@@ -85,10 +85,10 @@ D3D12_RAYTRACING_GEOMETRY_DESC Mesh::GetGeometryDesc() const
     return desc;
 }
 
-void Mesh::BuildBLAS(RenderContext& context, ID3D12GraphicsCommandList4* commandList)
+void Mesh::BuildBLAS(RenderContext& context, ID3D12GraphicsCommandList4* commandList, const bool isAlphaTested)
 {
     m_blas = std::make_unique<BLAS>(context);
-    std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries = { GetGeometryDesc() };
+    std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries = { GetGeometryDesc(isAlphaTested) };
     m_blas->Build(context.device, commandList, geometries);
 }
 

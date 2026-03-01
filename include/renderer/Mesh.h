@@ -1,9 +1,9 @@
 #pragma once
 #include "GPUBuffer.h"
 #include "DescriptorHeap.h"
+#include "StructsDX.h"
 
 #include <DirectXMath.h>
-#include <string>
 
 struct Vertex
 {
@@ -32,9 +32,9 @@ public:
     void Upload(const RenderContext& context, const std::vector<Vertex>& vertices,
                 const std::vector<uint32_t>& indices, const std::string& name);
 
-    void BuildBLAS(RenderContext& context, ID3D12GraphicsCommandList4* commandList);
+    void BuildBLAS(RenderContext& context, ID3D12GraphicsCommandList4* commandList, bool isAlphaTested);
 
-    [[nodiscard]] D3D12_RAYTRACING_GEOMETRY_DESC GetGeometryDesc() const;
+    [[nodiscard]] D3D12_RAYTRACING_GEOMETRY_DESC GetGeometryDesc(bool isAlphaTested) const;
     [[nodiscard]] ID3D12Resource* GetVertexBuffer() const { return m_vertexBuffer.resource; }
     [[nodiscard]] ID3D12Resource* GetIndexBuffer() const { return m_indexBuffer.resource; }
     [[nodiscard]] uint32_t GetVertexCount() const { return m_vertexCount; }

@@ -26,15 +26,21 @@
 using namespace Microsoft::WRL;
 
 // TODO
-// - Anyhit
-// - Glass
-// - Clearcoat
-// - Normal packing
-// - explicit lights
-// - HDR tonemapping
-// - SHaRC
-// - Importance sampling
-// - Fix model loading
+// Rendering:
+//   auto exposure
+//   explicit lights
+//   Importance sampling
+//   Spherical caps VNDF
+//   SHaRC
+// Materials:
+//   Glass
+//   Clearcoat
+// Camera:
+//   DoF
+// Tonemapping:
+//   HDR tonemapping
+// Performance:
+//   Normal packing
 
 Renderer::Renderer(Window& window, bool debug)
 	: m_window(window), m_prevCamData()

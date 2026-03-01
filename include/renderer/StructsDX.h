@@ -56,7 +56,7 @@ struct RenderSettings
 	float lightIntensity = 1.0f;
 	BOOL whiteAlbedo = false;
 	BOOL whiteLighting = false;
-	BOOL denoising = true;
+	BOOL denoising = false;
 	DLSSQuality dlssQuality = Balanced;
 };
 IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
@@ -73,7 +73,7 @@ enum TonemapOperator
 struct PostProcessSettings
 {
 	TonemapOperator tonemapper = AgX;
-	float exposure = 25.0f;
+	float exposure = 10.0f;
 };
 IMGUI_REFLECT(PostProcessSettings, tonemapper, exposure)
 
@@ -82,7 +82,7 @@ struct HitGroupRecord
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBuffer;
 	D3D12_GPU_VIRTUAL_ADDRESS indexBuffer;
 	uint32_t materialIndex;
-	uint32_t _pad0;
+	uint32_t isAlphaTested;
 };
 
 struct MaterialData
@@ -95,6 +95,6 @@ struct MaterialData
 	float roughnessFactor = 1.0f;
 	int32_t metallicRoughnessIndex = -1;
 	int32_t normalIndex = -1;
-	uint32_t _pad0;
+	uint32_t isAlphaTested;
 	uint32_t _pad1;
 };

@@ -67,6 +67,12 @@ void RTPipeline::CreatePSO(ID3D12Device10* device)
     hitGroup->SetHitGroupExport(L"HitGroup");
     hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
+    auto hitGroupAlpha = psoDesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    hitGroupAlpha->SetClosestHitShaderImport(L"ClosestHit");
+    hitGroupAlpha->SetAnyHitShaderImport(L"AnyHit");
+    hitGroupAlpha->SetHitGroupExport(L"HitGroupAlpha");
+    hitGroupAlpha->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
     auto shaderConfig = psoDesc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
     shaderConfig->Config(
         sizeof(float) * 18, // max payload size
@@ -82,6 +88,7 @@ void RTPipeline::CreatePSO(ID3D12Device10* device)
     auto association = psoDesc.CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
     association->SetSubobjectToAssociate(*localRootSig);
     association->AddExport(L"HitGroup");
+    association->AddExport(L"HitGroupAlpha");
 
     auto pipelineConfig = psoDesc.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
     pipelineConfig->Config(2); // max recursion depth
@@ -150,11 +157,15 @@ void RTPipeline::CreateShaderTables(ID3D12Device10* device, const std::vector<Hi
         m_hitGroupTable->Map(0, nullptr, &mapped);
         auto* dst = static_cast<uint8_t*>(mapped);
         auto* shaderId = props->GetShaderIdentifier(L"HitGroup");
+        auto* shaderAlphaId = props->GetShaderIdentifier(L"HitGroupAlpha");
 
         for (UINT i = 0; i < m_hitGroupCount; i++)
         {
+			bool isAlphaTested = hitGroupRecords[i].isAlphaTested == 1;
+			auto* shader = isAlphaTested ? shaderAlphaId : shaderId;
+
             auto* record = dst + i * m_hitGroupRecordSize;
-            memcpy(record, shaderId, shaderIdSize);
+            memcpy(record, shader, shaderIdSize);
             memcpy(record + shaderIdSize, &hitGroupRecords[i], sizeof(HitGroupRecord));
         }
 

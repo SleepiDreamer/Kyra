@@ -190,7 +190,7 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
             MikkT::Generate(vertices, indices);
         }
 
-        Mesh mesh;
+		Mesh mesh;
         mesh.m_materialIndex = primitive.materialIndex.has_value()
             ? static_cast<int32_t>(primitive.materialIndex.value()) : -1;
 
@@ -199,8 +199,14 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
         std::string meshName = m_name + "_" + std::string(gltfMesh.name) +
             "_prim" + std::to_string(m_meshes.size());
 
+        bool isAlphaTested = false;
+        if (primitive.materialIndex.has_value())
+        {
+            const auto& mat = asset.materials[primitive.materialIndex.value()];
+			isAlphaTested = mat.alphaMode != fastgltf::AlphaMode::Opaque;
+        }
         mesh.Upload(m_context, vertices, indices, meshName);
-        mesh.BuildBLAS(m_context, commandList);
+        mesh.BuildBLAS(m_context, commandList, isAlphaTested);
         m_meshes.push_back(std::move(mesh));
     }
 }
@@ -332,6 +338,7 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
         matData.roughnessFactor = mat.pbrData.roughnessFactor;
 		auto& eFactor = mat.emissiveFactor;
 		matData.emissiveFactor = { eFactor[0], eFactor[1], eFactor[2] };
+        matData.isAlphaTested = mat.alphaMode != fastgltf::AlphaMode::Opaque ? 1 : 0;
 
         m_materials.push_back(matData);
     }

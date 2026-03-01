@@ -230,3 +230,21 @@ void Miss(inout Payload payload)
         motionVectorsBuffer[idx] = (prevUV - currentUV) * size;
     }
 }
+
+[shader("anyhit")]
+void AnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    Material material = materials[materialIndex];
+    uint baseIdx = PrimitiveIndex() * 3;
+    uint i0 = indices[baseIdx];
+    uint i1 = indices[baseIdx + 1];
+    uint i2 = indices[baseIdx + 2];
+    float2 uv = sampleTriangle(vertices[i0].uv, vertices[i1].uv, vertices[i2].uv, attr.barycentrics);
+    float alpha = sampleOrDefault(material.albedoIndex, linearSampler, uv, float4(1)).a;
+
+    if (alpha > 0.5f)
+    {
+        return;
+    }
+    IgnoreHit();
+}

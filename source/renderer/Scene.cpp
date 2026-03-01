@@ -132,13 +132,14 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const
 	{
 		for (const auto& mesh : model.GetMeshes())
 		{
-			HitGroupRecord rec{};
-			rec.vertexBuffer = mesh.GetVertexBuffer()->GetGPUVirtualAddress();
-			rec.indexBuffer = mesh.GetIndexBuffer()->GetGPUVirtualAddress();
-			rec.materialIndex = mesh.m_materialIndex >= 0
+			HitGroupRecord record{};
+			record.vertexBuffer = mesh.GetVertexBuffer()->GetGPUVirtualAddress();
+			record.indexBuffer = mesh.GetIndexBuffer()->GetGPUVirtualAddress();
+			record.materialIndex = mesh.m_materialIndex >= 0
 				? materialOffset + static_cast<uint32_t>(mesh.m_materialIndex)
 				: 0;
-			records.push_back(rec);
+			record.isAlphaTested = model.GetMaterials()[mesh.m_materialIndex].isAlphaTested;
+			records.push_back(record);
 		}
 		materialOffset += static_cast<uint32_t>(model.GetMaterials().size());
 	}

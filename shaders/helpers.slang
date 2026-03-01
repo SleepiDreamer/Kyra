@@ -69,6 +69,17 @@ public float3 sampleOrDefault(int texIndex, SamplerState s, float2 uv, float3 fa
     return factor;
 }
 
+[ForceInline]
+public float4 sampleOrDefault(int texIndex, SamplerState s, float2 uv, float4 factor)
+{
+    if (texIndex != -1)
+    {
+        Texture2D tex = DescriptorHandle<Texture2D>(uint2(texIndex, 0));
+        return tex.SampleLevel(s, uv, 0) * factor;
+    }
+    return factor;
+}
+
 public float3 OffsetRay(float3 p, float3 n)
 {
     const float origin = 1.0f / 32.0f;
