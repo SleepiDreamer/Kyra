@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d12.h>
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 #include <ImReflect.hpp>
 
 struct CameraData
@@ -87,7 +88,7 @@ struct HitGroupRecord
 
 struct MaterialData
 {
-	glm::vec3 albedoFactor = glm::vec3(1.0f);
+	glm::vec4 albedoFactor = glm::vec4(1.0f);
 	int32_t albedoIndex = -1;
 	glm::vec3 emissiveFactor = glm::vec3(1.0f);
 	int32_t emissiveIndex = -1;

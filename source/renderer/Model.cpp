@@ -23,7 +23,7 @@ Model::~Model() = default;
 
 void Model::LoadGLTF(ID3D12GraphicsCommandList4* commandList, const std::filesystem::path& path)
 {
-    fastgltf::Parser parser(fastgltf::Extensions::KHR_lights_punctual);
+    fastgltf::Parser parser(fastgltf::Extensions::KHR_lights_punctual | fastgltf::Extensions::KHR_materials_transmission);
 
     auto data = fastgltf::GltfDataBuffer::FromPath(path);
     if (data.error() != fastgltf::Error::None)
@@ -332,8 +332,14 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
             matData.emissiveIndex = m_textures[texIndex].GetDescriptorIndex();
         }
 
+        bool hasTransmission = false;
+        if (mat.transmission)
+        {
+    		hasTransmission = true;
+        }
+
         auto& aFactor = mat.pbrData.baseColorFactor;
-        matData.albedoFactor = { aFactor[0], aFactor[1], aFactor[2] };
+        matData.albedoFactor = { aFactor[0], aFactor[1], aFactor[2], hasTransmission };
         matData.metallicFactor = mat.pbrData.metallicFactor;
         matData.roughnessFactor = mat.pbrData.roughnessFactor;
 		auto& eFactor = mat.emissiveFactor;

@@ -93,7 +93,7 @@ public struct Vertex
 
 public struct Material
 {
-    public float3 albedoFactor;
+    public float4 albedoFactor;
     public int albedoIndex;
     public float3 emissiveFactor;
     public int emissiveIndex;

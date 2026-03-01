@@ -136,7 +136,9 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
     float3 hitPoint = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
 
-    float3 albedo = sampleOrDefault(material.albedoIndex, linearSampler, uv, material.albedoFactor);
+    float4 color = sampleOrDefault(material.albedoIndex, linearSampler, uv, material.albedoFactor);
+    float3 albedo = color.rgb;
+    float alpha = color.a;
     if (renderSettings.whiteAlbedo) albedo = float3(1);
     float3 emission = sampleOrDefault(material.emissiveIndex, linearSampler, uv, material.emissiveFactor);
     float2 metallicRoughness = sampleOrDefault(material.metallicRoughnessIndex, linearSampler, uv, float3(1, material.roughnessFactor, material.metallicFactor)).gb;
