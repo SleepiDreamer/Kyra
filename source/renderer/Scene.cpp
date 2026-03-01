@@ -116,7 +116,12 @@ void Scene::UploadMaterialData()
 
 D3D12_GPU_VIRTUAL_ADDRESS Scene::GetTLASAddress() const
 {
-	return m_tlas->GetResource().resource->GetGPUVirtualAddress();
+	return m_tlas ? m_tlas->GetResource().resource->GetGPUVirtualAddress() : 0;
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Scene::GetMaterialsBufferAddress() const
+{
+	return m_materialData.resource ? m_materialData.resource->GetGPUVirtualAddress() : 0;
 }
 
 std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const

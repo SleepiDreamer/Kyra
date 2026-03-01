@@ -21,8 +21,8 @@ public:
 	[[nodiscard]] const std::vector<Model>& GetModels() const { return m_models; }
 	[[nodiscard]] const TLAS& GetTLAS() const { return *m_tlas; }
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetTLASAddress() const;
+	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetMaterialsBufferAddress() const;
 	[[nodiscard]] std::vector<HitGroupRecord> GetHitGroupRecords() const;
-	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetMaterialsBufferAddress() const { return m_materialData.resource->GetGPUVirtualAddress(); }
 	[[nodiscard]] int32_t GetHDRIDescriptorIndex() const;
 
 private:

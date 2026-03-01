@@ -10,14 +10,14 @@
 
 Application::Application(const bool debugLayer)
 {
-	m_window = std::make_unique<Window>(2560, 1440);
+	m_window = std::make_unique<Window>(1920, 1080);
 	m_renderer = std::make_unique<Renderer>(*m_window, debugLayer);
 	m_camera = std::make_shared<Camera>();
 	m_camera->SetPosition(glm::vec3(0.0f, 0.0f, 2.0f));
 	m_camera->SetDirection(glm::vec3(0.0f, 0.0f, -1.0f));
 	m_camera->m_fov = 60.0f;
 	m_renderer->SetCamera(m_camera);
-	m_renderer->LoadModel("assets/models/C2ME.glb");
+	//m_renderer->LoadModel("assets/models/C2ME.glb");
 	m_renderer->LoadHDRI("assets/environments/cedar_bridge_2_2k.hdr");
 
 	auto glfwWindow = m_window->GetGLFWWindow();
