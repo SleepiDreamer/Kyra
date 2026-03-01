@@ -21,7 +21,11 @@ public struct CameraData
     public float3 right;
     public float jitterY;
     public float3 up;
+    public float aperture;
+    public float focusDistance;
     uint _pad0;
+    uint _pad1;
+    uint _pad2;
 };
 
 public struct RenderData

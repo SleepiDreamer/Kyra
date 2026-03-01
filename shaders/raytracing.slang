@@ -43,8 +43,17 @@ void RayGen()
     Camera cam;
 
     RayDesc ray;
-    ray.Origin = renderData.camera.position;
-    ray.Direction = cam.PinholeCamera(uv, renderData.camera);
+    if (DEPTH_OF_FIELD)
+    {
+        float3 origin;
+        ray.Direction = cam.ThinLensCamera(payload.rng, uv, renderData.camera, origin);
+        ray.Origin = origin;
+    }
+    else
+    {
+        ray.Direction = cam.PinholeCamera(uv, renderData.camera);
+        ray.Origin = renderData.camera.position;
+    }
     ray.TMin = 0.0;
     ray.TMax = MAX_RAY_DEPTH;
 

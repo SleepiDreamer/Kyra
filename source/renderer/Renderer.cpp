@@ -192,6 +192,8 @@ void Renderer::Render(const float deltaTime)
 	camData.up = m_camera->GetUp();
 	camData.position = m_camera->GetPosition();
 	camData.fov = m_camera->m_fov;
+	camData.aperture = m_camera->m_aperture;
+	camData.focusDistance = m_camera->m_focusDistance;
 
 	// Begin frame
 	{
@@ -242,6 +244,8 @@ void Renderer::Render(const float deltaTime)
 			m_camera->SetPosition(camData.position);
 			m_camera->SetDirection(camData.forward);
 			m_camera->m_fov = camData.fov;
+			m_camera->m_aperture = camData.aperture;
+			m_camera->m_focusDistance = camData.focusDistance;
 		}
 		
 		ImGui::End();
