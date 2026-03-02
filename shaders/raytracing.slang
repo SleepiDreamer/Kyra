@@ -184,7 +184,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         float3 wo;
         float3 offsetN;
         float eta = backfacing ? IOR_GLASS / IOR_AIR : IOR_AIR / IOR_GLASS;
-        payload.throughput *= PBRTransmission(payload.rng, geoNormal, -WorldRayDirection(), albedo, eta, wo, offsetN);
+        payload.throughput *= PBRTransmission(payload.rng, geoNormal, -WorldRayDirection(), albedo, eta, RayTCurrent(), wo, offsetN);
         payload.nextDirection = wo;
         payload.nextOrigin = OffsetRay(hitPoint, offsetN);
     }

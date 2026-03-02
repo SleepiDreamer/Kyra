@@ -27,16 +27,15 @@ using namespace Microsoft::WRL;
 
 // TODO
 // Rendering:
+//   auto focus
 //   auto exposure
 //   explicit lights
 //   Importance sampling
 //   Spherical caps VNDF
+//   DLSS specular MVs 
 //   SHaRC
 // Materials:
-//   Glass
 //   Clearcoat
-// Camera:
-//   DoF
 // Tonemapping:
 //   HDR tonemapping
 // Performance:

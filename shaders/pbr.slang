@@ -1,5 +1,6 @@
 module pbr;
 
+import settings;
 import helpers;
 import rng;
 import random.sampling;
@@ -80,6 +81,11 @@ float3 GetGGXMicrofacet(inout RNG rng, float roughness, float3 n, float3 v)
     return T * hLocal.x + B * hLocal.y + n * hLocal.z;
 }
 
+public float3 BeersLaw(float3 absorption, float distance)
+{
+    return exp(-absorption * distance * BEER_ABSORPTION);
+}
+
 public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 albedo, float roughness, float metallic, out float3 l)
 {
     float3 F0 = lerp(0.04, albedo, metallic);
@@ -152,7 +158,7 @@ public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 al
     //             = F * G(l)
 }
 
-public float3 PBRTransmission(inout RNG rng, float3 n, float3 v, float3 albedo, float eta, out float3 l, out float3 offsetN)
+public float3 PBRTransmission(inout RNG rng, float3 n, float3 v, float3 albedo, float eta, float dist, out float3 l, out float3 offsetN)
 {
     float NdotV = dot(n, v);
     float3 F = Fresnel(0.04, NdotV);
@@ -172,7 +178,7 @@ public float3 PBRTransmission(inout RNG rng, float3 n, float3 v, float3 albedo, 
     {
         l = normalize(refract(-v, n, eta));
         offsetN = -n;
-        return albedo * (1.0 - F) / max(1.0 - specularChance, 1e-4);
+        return BeersLaw(1 - albedo, dist) * (1.0 - F) / max(1.0 - specularChance, 1e-4);
     }
 }
 
