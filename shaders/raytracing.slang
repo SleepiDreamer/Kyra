@@ -6,6 +6,10 @@ import random.sampling;
 import pbr;
 import camera;
 
+#define SHARC_UPDATE 0
+#define SHARC_ENABLE_64_BIT_ATOMICS 0
+#include "sharc/SharcCommon.h"
+
 uniform RWTexture2D<float4> rtOutputBuffer : register(u0, space0);
 uniform RWTexture2D<float4> albedoBuffer : register(u1, space0);
 uniform RWTexture2D<float4> specularAlbedoBuffer : register(u2, space0);
@@ -155,11 +159,18 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float roughness = max(metallicRoughness.x, 0.0001);
     float metallic = metallicRoughness.y;
 
+    HashGridParameters gridParameters;
+    gridParameters.cameraPosition = renderData.camera.position;
+    gridParameters.logarithmBase = SHARC_GRID_LOGARITHM_BASE;
+    gridParameters.sceneScale = 1.0;
+    gridParameters.levelBias = SHARC_GRID_LEVEL_BIAS;
+    float3 sharcHashDebug = HashGridDebugColoredHash(hitPoint, geoNormal, gridParameters);
+
     switch (renderSettings.debugMode)
     {
         case DebugMode::None: break;
-        case DebugMode::Albedo: payload.done = true; payload.radiance = LinearToSrgb(albedo); return;
-        case DebugMode::Emissive: payload.done = true; payload.radiance = LinearToSrgb(emission); return;
+        case DebugMode::Albedo:     payload.done = true; payload.radiance = LinearToSrgb(albedo); return;
+        case DebugMode::Emissive:   payload.done = true; payload.radiance = LinearToSrgb(emission); return;
         case DebugMode::Metallic:   payload.done = true; payload.radiance = metallic; return;
         case DebugMode::Roughness:  payload.done = true; payload.radiance = roughness; return;
         case DebugMode::NormalMap:  payload.done = true; payload.radiance = (normalMap + 1) / 2; return;
@@ -168,6 +179,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::Tangent:    payload.done = true; payload.radiance = (tangent + 1) / 2; return;
         case DebugMode::Bitangent:  payload.done = true; payload.radiance = (bitangent + 1) / 2; return;
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
+        case DebugMode::SHaRCVoxels:payload.done = true; payload.radiance = sharcHashDebug; return;
     }
 
     payload.radiance += emission * payload.throughput * renderSettings.lightIntensity;

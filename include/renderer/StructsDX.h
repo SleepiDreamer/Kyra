@@ -43,6 +43,7 @@ enum DebugMode
 	Tangent,
 	Bitangent,
 	TangentW,
+	SHaRCVoxels,
 };
 
 enum DLSSQuality
