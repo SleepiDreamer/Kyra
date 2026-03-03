@@ -1,6 +1,7 @@
 #pragma once
 #include <d3dx12.h>
 #include <glm/glm.hpp>
+#include <fastgltf/types.hpp>
 #include <ImReflect.hpp>
 #include <iostream>
 #include <stdexcept>
@@ -125,5 +126,30 @@ inline D3D12_RESOURCE_STATES InitialStateFromHeapType(const D3D12_HEAP_TYPE heap
     case D3D12_HEAP_TYPE_UPLOAD:   return D3D12_RESOURCE_STATE_GENERIC_READ;
     case D3D12_HEAP_TYPE_READBACK: return D3D12_RESOURCE_STATE_COPY_DEST;
     default:                       return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    }
+}
+
+inline D3D12_FILTER GetGltfFilter(const fastgltf::Filter minFilter, const fastgltf::Filter magFilter)
+{
+    bool minLinear = (minFilter == fastgltf::Filter::Linear ||
+        minFilter == fastgltf::Filter::LinearMipMapLinear ||
+        minFilter == fastgltf::Filter::LinearMipMapNearest);
+    bool magLinear = (magFilter == fastgltf::Filter::Linear);
+    bool mipLinear = (minFilter == fastgltf::Filter::LinearMipMapLinear ||
+        minFilter == fastgltf::Filter::NearestMipMapLinear);
+
+    return static_cast<D3D12_FILTER>(
+        (minLinear ? D3D12_FILTER_MIN_LINEAR_MAG_MIP_POINT : 0) |
+        (magLinear ? D3D12_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT : 0) |
+        (mipLinear ? D3D12_FILTER_MIN_MAG_POINT_MIP_LINEAR : 0));
+}
+
+inline D3D12_TEXTURE_ADDRESS_MODE GetGltfWrap(const fastgltf::Wrap wrap)
+{
+    switch (wrap) {
+    case fastgltf::Wrap::Repeat:         return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    case fastgltf::Wrap::ClampToEdge:    return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    case fastgltf::Wrap::MirroredRepeat: return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+    default:                             return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     }
 }

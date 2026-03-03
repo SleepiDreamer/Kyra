@@ -103,6 +103,6 @@ struct MaterialData
 	float roughnessFactor = 1.0f;
 	int32_t metallicRoughnessIndex = -1;
 	int32_t normalIndex = -1;
+	uint32_t samplerIndex;
 	uint32_t isAlphaTested;
-	uint32_t _pad1;
 };

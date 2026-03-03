@@ -213,6 +213,36 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
 
 void Model::LoadMaterials(const fastgltf::Asset& asset)
 {
+    for (const auto& sampler : asset.samplers)
+    {
+        D3D12_SAMPLER_DESC desc{};
+        desc.Filter = GetGltfFilter(
+            sampler.minFilter.value_or(fastgltf::Filter::Linear),
+            sampler.magFilter.value_or(fastgltf::Filter::Linear));
+        desc.AddressU = GetGltfWrap(sampler.wrapS);
+        desc.AddressV = GetGltfWrap(sampler.wrapT);
+        desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+        desc.MaxAnisotropy = 16;
+        desc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+        desc.MinLOD = 0.0f;
+        desc.MaxLOD = D3D12_FLOAT32_MAX;
+
+        Descriptor samplerDesc = m_context.samplerHeap->Allocate();
+        m_context.device->CreateSampler(&desc, samplerDesc.cpuHandle);
+        m_samplerDescriptors.push_back(samplerDesc);
+    }
+
+    D3D12_SAMPLER_DESC defaultSamplerDesc{};
+    defaultSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    defaultSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    defaultSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    defaultSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    defaultSamplerDesc.MaxAnisotropy = 16;
+    defaultSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+    defaultSamplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+    Descriptor defaultSampler = m_context.samplerHeap->Allocate();
+    m_context.device->CreateSampler(&defaultSamplerDesc, defaultSampler.cpuHandle);
+
     std::unordered_set<size_t> linearImages;
     for (auto& mat : asset.materials)
     {
@@ -310,8 +340,18 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
 
         if (mat.pbrData.baseColorTexture.has_value())
         {
-            auto texIndex = asset.textures[mat.pbrData.baseColorTexture->textureIndex].imageIndex.value();
-            matData.albedoIndex = m_textures[texIndex].GetDescriptorIndex();
+            auto gltfTex = asset.textures[mat.pbrData.baseColorTexture->textureIndex];
+            matData.albedoIndex = m_textures[gltfTex.imageIndex.value()].GetDescriptorIndex();
+
+            if (gltfTex.samplerIndex.has_value())
+            {
+	            matData.samplerIndex =
+			   static_cast<int32_t>(m_samplerDescriptors[gltfTex.samplerIndex.value()].index);
+            }
+            else
+            {
+	            matData.samplerIndex = static_cast<int32_t>(defaultSampler.index);
+            }
         }
 
         if (mat.pbrData.metallicRoughnessTexture.has_value())

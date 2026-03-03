@@ -90,7 +90,8 @@ void Scene::UploadMaterialData()
 				texture.metallicFactor,
 				texture.roughnessFactor,
 				texture.metallicRoughnessIndex,
-				texture.normalIndex
+				texture.normalIndex,
+				texture.samplerIndex
 			});
 		}
 	}

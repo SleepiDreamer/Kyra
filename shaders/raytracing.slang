@@ -119,6 +119,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     uint i2 = indices[baseIdx + 2];
 
     Material material = materials[materialIndex];
+    SamplerState sampler = DescriptorHandle<SamplerState>(uint2(material.samplerIndex, 0));
     float2 uv = sampleTriangle(vertices[i0].uv, vertices[i1].uv, vertices[i2].uv, attr.barycentrics);
 
     float3 geoNormal = sampleTriangle(vertices[i0].normal, vertices[i1].normal, vertices[i2].normal, attr.barycentrics);
@@ -133,7 +134,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     if (material.normalIndex != -1)
     {
          Texture2D normalTex = DescriptorHandle<Texture2D>(uint2(material.normalIndex, 0));
-         normalMap = normalTex.SampleLevel(linearSampler, uv, 0).rgb * 2 - 1;
+         normalMap = normalTex.SampleLevel(sampler, uv, 0).rgb * 2 - 1;
     }
     float3x3 TBN = float3x3(tangent, bitangent, geoNormal);
     normal = normalize(mul(normalMap, TBN));
@@ -146,12 +147,12 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
     float3 hitPoint = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
 
-    float4 color = sampleOrDefault(material.albedoIndex, linearSampler, uv, material.albedoFactor);
+    float4 color = sampleOrDefault(material.albedoIndex, sampler, uv, material.albedoFactor);
     float3 albedo = color.rgb;
     float alpha = color.a;
     if (renderSettings.whiteAlbedo) albedo = float3(1);
-    float3 emission = sampleOrDefault(material.emissiveIndex, linearSampler, uv, material.emissiveFactor);
-    float2 metallicRoughness = sampleOrDefault(material.metallicRoughnessIndex, linearSampler, uv, float3(1, material.roughnessFactor, material.metallicFactor)).gb;
+    float3 emission = sampleOrDefault(material.emissiveIndex, sampler, uv, material.emissiveFactor);
+    float2 metallicRoughness = sampleOrDefault(material.metallicRoughnessIndex, sampler, uv, float3(1, material.roughnessFactor, material.metallicFactor)).gb;
     float roughness = max(metallicRoughness.x, 0.0001);
     float metallic = metallicRoughness.y;
 
@@ -259,12 +260,13 @@ void Miss(inout Payload payload)
 void AnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     Material material = materials[materialIndex];
+    SamplerState sampler = DescriptorHandle<SamplerState>(uint2(material.samplerIndex, 0));
     uint baseIdx = PrimitiveIndex() * 3;
     uint i0 = indices[baseIdx];
     uint i1 = indices[baseIdx + 1];
     uint i2 = indices[baseIdx + 2];
     float2 uv = sampleTriangle(vertices[i0].uv, vertices[i1].uv, vertices[i2].uv, attr.barycentrics);
-    float alpha = sampleOrDefault(material.albedoIndex, linearSampler, uv, float4(1)).a;
+    float alpha = sampleOrDefault(material.albedoIndex, sampler, uv, float4(1)).a;
 
     if (alpha > 0.5f)
     {

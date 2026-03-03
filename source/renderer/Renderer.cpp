@@ -50,10 +50,11 @@ Renderer::Renderer(Window& window, bool debug)
 	m_commandQueue = std::make_unique<CommandQueue>(m_device->GetDevice(), "Main", D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto commandList = m_commandQueue->GetCommandList();
 	m_descriptorHeap = std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4096, true, L"CBV SRV UAV Descriptor Heap");
+	m_samplerHeap = std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 256, true, L"Sampler Descriptor Heap");
 	m_allocator = std::make_unique<GPUAllocator>(device, m_device->GetAdapter());
 	m_uploadContext = std::make_unique<UploadContext>(*m_allocator, device);
 
-	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), m_uploadContext.get() };
+	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), m_samplerHeap.get(), m_uploadContext.get() };
 
 	m_swapChain = std::make_unique<SwapChain>(window, m_context, m_device->GetAdapter());
 	m_imgui = std::make_unique<ImGuiWrapper>(window, m_context, m_swapChain->GetFormat(), NUM_FRAMES_IN_FLIGHT);
@@ -178,12 +179,15 @@ void Renderer::Render(const float deltaTime)
 	glm::ivec2 windowSize = glm::ivec2(m_window.GetWidth(), m_window.GetHeight());
 	glm::ivec2 renderSize = m_renderSettings.denoising ? glm::ivec2(m_ngx->GetRenderWidth(), m_ngx->GetRenderHeight()) : windowSize;
 
-	float* mapped = nullptr;
-	D3D12_RANGE readRange = { 0, sizeof(float) };
-	m_autoExposureReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
-	m_postProcessSettings.exposure = *mapped;
-	D3D12_RANGE writeRange = { 0, 0 };
-	m_autoExposureReadback.resource->Unmap(0, &writeRange);
+	if (m_postProcessSettings.autoExposure)
+	{
+		float* mapped = nullptr;
+		D3D12_RANGE readRange = { 0, sizeof(float) };
+		m_autoExposureReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
+		m_postProcessSettings.exposure = *mapped;
+		D3D12_RANGE writeRange = { 0, 0 };
+		m_autoExposureReadback.resource->Unmap(0, &writeRange);
+	}
 
 	if (m_reloadTimer >= 0.5f)
 	{
@@ -280,8 +284,8 @@ void Renderer::Render(const float deltaTime)
 	{
 		// Raytracing pass
 		{
-			ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap() };
-			commandList->SetDescriptorHeaps(1, heaps);
+			ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap(), m_samplerHeap->GetHeap() };
+			commandList->SetDescriptorHeaps(_countof(heaps), heaps);
 			commandList->SetComputeRootSignature(m_rootSignature->Get());
 			commandList->SetPipelineState1(m_rtPipeline->GetPSO());
 
@@ -332,8 +336,8 @@ void Renderer::Render(const float deltaTime)
 
 				m_ngx->EvaluateDLSS(commandList.Get(), dlssInputs);
 
-				ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap() };
-				commandList->SetDescriptorHeaps(1, heaps);
+				ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap(), m_samplerHeap->GetHeap() };
+				commandList->SetDescriptorHeaps(_countof(heaps), heaps);
 			}
 		}
 

@@ -42,5 +42,6 @@ private:
     std::vector<Mesh> m_meshes;
     std::vector<Texture> m_textures;
     std::vector<MaterialData> m_materials;
+    std::vector<Descriptor> m_samplerDescriptors;
     std::string m_name;
 };

@@ -101,7 +101,7 @@ void RootSignature::Build(ID3D12Device* device, const wchar_t* name)
     desc.Init_1_1(
         static_cast<UINT>(m_params.size()), m_params.empty() ? nullptr : m_params.data(),
         static_cast<UINT>(m_samplers.size()), m_samplers.empty() ? nullptr : m_samplers.data(),
-        D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED);
+        D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED | D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED);
 
     Microsoft::WRL::ComPtr<ID3DBlob> sigBlob;
     Microsoft::WRL::ComPtr<ID3DBlob> errorBlob;

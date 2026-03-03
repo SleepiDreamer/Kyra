@@ -108,6 +108,6 @@ public struct Material
     public float roughnessFactor;
     public int metallicRoughnessIndex;
     public int normalIndex;
-    int _pad0;
-    int _pad1;
+    public uint samplerIndex;
+    uint isAlphaTested;
 };

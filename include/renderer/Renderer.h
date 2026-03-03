@@ -54,6 +54,7 @@ private:
 	std::unique_ptr<GPUAllocator> m_allocator = nullptr;
 	std::unique_ptr<CommandQueue> m_commandQueue = nullptr;
 	std::unique_ptr<DescriptorHeap> m_descriptorHeap = nullptr;
+	std::unique_ptr<DescriptorHeap> m_samplerHeap = nullptr;
 	std::unique_ptr<UploadContext> m_uploadContext = nullptr;
 
 	uint64_t m_fenceValues[NUM_FRAMES_IN_FLIGHT] = {};
