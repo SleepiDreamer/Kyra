@@ -106,11 +106,50 @@ Renderer::Renderer(Window& window, bool debug)
 	autoExposureUavDesc.Format = DXGI_FORMAT_R32_FLOAT;
 	autoExposureUavDesc.Buffer.FirstElement = 0;
 	autoExposureUavDesc.Buffer.NumElements = 1;
-	m_context.device->CreateUnorderedAccessView(m_autoExposureBuffer.resource, nullptr, &autoExposureUavDesc, m_autoExposureBufferUav.cpuHandle);
+	device->CreateUnorderedAccessView(m_autoExposureBuffer.resource, nullptr, &autoExposureUavDesc, m_autoExposureBufferUav.cpuHandle);
 
 	m_renderSettingsCB = std::make_unique<CBVBuffer<RenderSettings>>(*m_allocator, "Render Settings CB");
 	m_renderDataCB = std::make_unique<CBVBuffer<RenderData>>(*m_allocator, "Render Data CB");
 	m_postProcessSettingsCB = std::make_unique<CBVBuffer<PostProcessSettings>>(*m_allocator, "Post Process Settings CB");
+
+	// SHaRC buffers
+	{
+		constexpr uint32_t SHARC_CAPACITY = 1 << 22;
+
+		auto CreateSharcUAV = [&](const GPUBuffer& buffer, DescriptorHeap::Allocation& uav, const uint32_t stride, const char* name)
+		{
+			uav = m_descriptorHeap->Allocate();
+			D3D12_UNORDERED_ACCESS_VIEW_DESC desc{};
+			desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+			desc.Format = DXGI_FORMAT_UNKNOWN;
+			desc.Buffer.NumElements = SHARC_CAPACITY;
+			desc.Buffer.StructureByteStride = stride;
+			device->CreateUnorderedAccessView(buffer.resource, nullptr, &desc, uav.cpuHandle);
+		};
+
+		m_sharcHashEntriesBuffer = m_allocator->CreateBuffer(
+		   static_cast<uint64_t>(8) * SHARC_CAPACITY, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Hash Entries");
+		CreateSharcUAV(m_sharcHashEntriesBuffer, m_sharcHashEntriesBufferUav, 8, "SHaRC Hash Entries");
+
+		m_sharcAccumulationBuffer = m_allocator->CreateBuffer(
+			static_cast<uint64_t>(16) * SHARC_CAPACITY,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_HEAP_TYPE_DEFAULT, "SHaRC Accumulation");
+		CreateSharcUAV(m_sharcAccumulationBuffer, m_sharcAccumulationBufferUav, 16, "SHaRC Accumulation");
+
+		m_sharcResolvedBuffer = m_allocator->CreateBuffer(
+			static_cast<uint64_t>(16) * SHARC_CAPACITY,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+			D3D12_HEAP_TYPE_DEFAULT, "SHaRC Resolved");
+		CreateSharcUAV(m_sharcResolvedBuffer, m_sharcResolvedBufferUav, 16, "SHaRC Resolved");
+
+		commandList->ClearUnorderedAccessViewUint(
+			m_sharcHashEntriesBufferUav.gpuHandle, m_sharcHashEntriesBufferUav.cpuHandle,
+			m_sharcHashEntriesBuffer.resource, {}, 0, nullptr);
+	}
 
 	m_commandQueue->ExecuteCommandList(commandList);
 	m_commandQueue->Flush();

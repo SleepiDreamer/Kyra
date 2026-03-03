@@ -7,7 +7,7 @@ import pbr;
 import camera;
 
 #define SHARC_UPDATE 0
-#define SHARC_ENABLE_64_BIT_ATOMICS 0
+#define SHARC_ENABLE_64_BIT_ATOMICS 1
 #include "sharc/SharcCommon.h"
 
 uniform RWTexture2D<float4> rtOutputBuffer : register(u0, space0);

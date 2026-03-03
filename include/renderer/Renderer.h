@@ -70,6 +70,7 @@ private:
 	std::unique_ptr<CBVBuffer<RenderSettings>> m_renderSettingsCB;
 	std::unique_ptr<CBVBuffer<RenderData>> m_renderDataCB;
 	std::unique_ptr<CBVBuffer<PostProcessSettings>> m_postProcessSettingsCB;
+	float m_reloadTimer = 0.0f;
 
 	std::unique_ptr<OutputBuffer> m_rtOutputBuffer;
 	std::unique_ptr<OutputBuffer> m_albedoBuffer;
@@ -86,6 +87,11 @@ private:
 	GPUBuffer m_autoExposureReadback;
 	GPUBuffer m_autoExposureBuffer;
 
-	float m_reloadTimer = 0.0f;
+	GPUBuffer m_sharcHashEntriesBuffer;
+	DescriptorHeap::Allocation m_sharcHashEntriesBufferUav;
+	GPUBuffer m_sharcAccumulationBuffer;
+	DescriptorHeap::Allocation m_sharcAccumulationBufferUav;
+	GPUBuffer m_sharcResolvedBuffer;
+	DescriptorHeap::Allocation m_sharcResolvedBufferUav;
 };
 
