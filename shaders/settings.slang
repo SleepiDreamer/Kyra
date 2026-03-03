@@ -15,5 +15,5 @@ public export static const float BEER_ABSORPTION = 5.0;
 // Auto Exposure
 public export static const int AE_SAMPLES = 32;
 public export static const float MIN_EXPOSURE = 0.1;
-public export static const float MAX_EXPOSURE = 200.0;
+public export static const float MAX_EXPOSURE = 800.0;
 public export static const float ADAPTATION_SPEED = 2.5;

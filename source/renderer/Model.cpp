@@ -181,7 +181,7 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
             fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec4>(asset, tanAccessor,
                 [&](const fastgltf::math::fvec4& tan, size_t idx)
                 {
-                    vertices[idx].tangent = XMFLOAT4(tan.x(), tan.y(), tan.z(), tan.w());
+                    vertices[idx].tangent = XMFLOAT4(tan.x(), tan.y(), tan.z(), -tan.w());
                 }
             );
         }

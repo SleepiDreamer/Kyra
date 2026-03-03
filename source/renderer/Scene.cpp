@@ -110,7 +110,7 @@ D3D12_GPU_VIRTUAL_ADDRESS Scene::GetTLASAddress() const
 
 D3D12_GPU_VIRTUAL_ADDRESS Scene::GetMaterialsBufferAddress() const
 {
-	return m_materialBuffer->GetResource() ? m_materialBuffer->GetResource()->GetGPUVirtualAddress() : 0;
+	return m_materialBuffer ? m_materialBuffer->GetResource() ? m_materialBuffer->GetResource()->GetGPUVirtualAddress() : 0 : 0;
 }
 
 std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const
