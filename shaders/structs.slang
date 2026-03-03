@@ -34,6 +34,7 @@ public struct RenderData
     public CameraData prevCamera;
     public int hdriIndex;
     public uint frame;
+    public float deltaTime;
 }
 
 public enum DebugMode
@@ -84,6 +85,8 @@ public enum TonemapOperator
 public struct PostProcessSettings
 {
     public TonemapOperator tonemapper;
+    public bool autoExposure;
+    public float targetExposure;
     public float exposure;
 }
 

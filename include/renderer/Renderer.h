@@ -1,4 +1,6 @@
 #pragma once
+#include "DescriptorHeap.h"
+#include "GPUBuffer.h"
 #include "StructsDX.h"
 #include "CommonDX.h"
 
@@ -79,6 +81,10 @@ private:
 	std::unique_ptr<OutputBuffer> m_outputBuffer;
 
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;
+	std::unique_ptr<PostProcessPass> m_autoExposurePass;
+	DescriptorHeap::Allocation m_autoExposureBufferUav;
+	GPUBuffer m_autoExposureReadback;
+	GPUBuffer m_autoExposureBuffer;
 
 	float m_reloadTimer = 0.0f;
 };

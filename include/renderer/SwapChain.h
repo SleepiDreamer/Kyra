@@ -12,21 +12,22 @@ class CommandQueue;
 class SwapChain
 {
 public:
-	SwapChain(Window& window, ID3D12Device* device, IDXGIAdapter4* adapter, const CommandQueue* commandQueue);
+	SwapChain(Window& window, RenderContext& context, IDXGIAdapter4* adapter);
 	~SwapChain();
 
 	[[nodiscard]] static bool CheckTearingSupport();
 	[[nodiscard]] static bool CheckHDRSupport(IDXGIAdapter4* adapter);
 	[[nodiscard]] UINT GetCurrentBackBufferIndex() const { return m_currentBackBufferIndex; }
 	[[nodiscard]] ID3D12Resource* GetCurrentBackBuffer() const { return m_backBuffers[m_currentBackBufferIndex].Get(); }
-	[[nodiscard]] DescriptorHeap::Allocation GetCurrentBackBufferRtv() const { return m_backBufferRtvs[m_currentBackBufferIndex]; }
+	[[nodiscard]] DescriptorHeap::Allocation GetCurrentBackBufferRTV() const { return m_backBufferRtvs[m_currentBackBufferIndex]; }
+	[[nodiscard]] DescriptorHeap::Allocation GetCurrentBackBufferSRV() const { return m_backBufferSrvs[m_currentBackBufferIndex]; }
 	[[nodiscard]] D3D12_VIEWPORT GetViewport() const { return m_viewport; }
 	[[nodiscard]] D3D12_RECT GetScissorRect() const { return m_scissorRect; }
 	[[nodiscard]] DXGI_FORMAT GetFormat() const { return m_format; }
 
 	void ToggleFullscreen();
-	void CreateBackBuffers(ID3D12Device* device);
-	void Resize(uint32_t width, uint32_t height, ID3D12Device* device);
+	void CreateBackBuffers(const RenderContext& context);
+	void Resize(const RenderContext& context, uint32_t width, uint32_t height);
 	void Present();
 	void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES newState);
 
@@ -38,6 +39,7 @@ private:
 	D3D12_RECT m_scissorRect;
 	Microsoft::WRL::ComPtr<ID3D12Resource> m_backBuffers[NUM_FRAMES_IN_FLIGHT];
 	DescriptorHeap::Allocation m_backBufferRtvs[NUM_FRAMES_IN_FLIGHT];
+	DescriptorHeap::Allocation m_backBufferSrvs[NUM_FRAMES_IN_FLIGHT];
 	UINT m_currentBackBufferIndex = 0;
 	DXGI_FORMAT m_format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	D3D12_RESOURCE_STATES m_currentState = D3D12_RESOURCE_STATE_COMMON;

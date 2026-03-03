@@ -45,7 +45,7 @@ void Application::Run()
 	while (!glfwWindowShouldClose(glfwWindow))
 	{
 		float currentFrameTime = static_cast<float>(glfwGetTime());
-		deltaTime = currentFrameTime - lastFrameTime;
+		deltaTime = std::min(currentFrameTime - lastFrameTime, 0.1f);
 
 		glfwPollEvents();
 

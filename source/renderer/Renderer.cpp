@@ -28,7 +28,6 @@ using namespace Microsoft::WRL;
 // TODO
 // Rendering:
 //   auto focus
-//   auto exposure
 //   explicit lights
 //   Importance sampling
 //   Spherical caps VNDF
@@ -54,7 +53,7 @@ Renderer::Renderer(Window& window, bool debug)
 
 	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), m_uploadContext.get() };
 
-	m_swapChain = std::make_unique<SwapChain>(window, device, m_device->GetAdapter(), m_commandQueue.get());
+	m_swapChain = std::make_unique<SwapChain>(window, m_context, m_device->GetAdapter());
 	m_imgui = std::make_unique<ImGuiWrapper>(window, m_context, m_swapChain->GetFormat(), NUM_FRAMES_IN_FLIGHT);
 
 	m_scene = std::make_unique<Scene>(m_context);
@@ -95,6 +94,19 @@ Renderer::Renderer(Window& window, bool debug)
 	m_rtPipeline = std::make_unique<RTPipeline>(device, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang");
 
 	m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "CSMain");
+	m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autoexposure_pass.slang", "AutoExposure");
+
+	m_autoExposureBuffer = m_allocator->CreateBuffer(
+		sizeof(float), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
+	m_autoExposureReadback = m_allocator->CreateBuffer(
+		sizeof(float), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Auto Exposure Readback");
+	m_autoExposureBufferUav = m_descriptorHeap->Allocate();
+	D3D12_UNORDERED_ACCESS_VIEW_DESC autoExposureUavDesc{};
+	autoExposureUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	autoExposureUavDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	autoExposureUavDesc.Buffer.FirstElement = 0;
+	autoExposureUavDesc.Buffer.NumElements = 1;
+	m_context.device->CreateUnorderedAccessView(m_autoExposureBuffer.resource, nullptr, &autoExposureUavDesc, m_autoExposureBufferUav.cpuHandle);
 
 	m_renderSettingsCB = std::make_unique<CBVBuffer<RenderSettings>>(*m_allocator, "Render Settings CB");
 	m_renderDataCB = std::make_unique<CBVBuffer<RenderData>>(*m_allocator, "Render Data CB");
@@ -142,7 +154,7 @@ void Renderer::Resize(const int width, const int height)
 	auto device = m_device->GetDevice();
 	ResetAccumulation();
 	m_commandQueue->Flush();
-	m_swapChain->Resize(width, height, m_device->GetDevice());
+	m_swapChain->Resize(m_context, width, height);
 
 	glm::ivec2 renderSize = m_renderSettings.denoising ? m_ngx->Resize() : glm::ivec2(width, height);
 	m_outputBuffer->Resize(device, width, height);
@@ -171,13 +183,21 @@ void Renderer::Render(const float deltaTime)
 	glm::ivec2 windowSize = glm::ivec2(m_window.GetWidth(), m_window.GetHeight());
 	glm::ivec2 renderSize = m_renderSettings.denoising ? glm::ivec2(m_ngx->GetRenderWidth(), m_ngx->GetRenderHeight()) : windowSize;
 
+	float* mapped = nullptr;
+	D3D12_RANGE readRange = { 0, sizeof(float) };
+	m_autoExposureReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
+	m_postProcessSettings.exposure = *mapped;
+	D3D12_RANGE writeRange = { 0, 0 };
+	m_autoExposureReadback.resource->Unmap(0, &writeRange);
+
 	if (m_reloadTimer >= 0.5f)
 	{
+		m_tonemappingPass->CheckHotReload(*m_commandQueue);
+		m_autoExposurePass->CheckHotReload(*m_commandQueue);
 		if (m_rtPipeline->CheckHotReload(m_device->GetDevice(), *m_commandQueue, m_scene->GetHitGroupRecords()))
 		{
 			ResetAccumulation();
 		}
-		m_tonemappingPass->CheckHotReload(*m_commandQueue);
 		m_reloadTimer = 0.0f;
 	}
 	else
@@ -253,6 +273,7 @@ void Renderer::Render(const float deltaTime)
 	m_renderData.prevCamera = m_prevCamData;
 	m_renderData.camera = camData;
 	m_renderData.hdriIndex = m_scene->GetHDRIDescriptorIndex();
+	m_renderData.deltaTime = deltaTime;
 	glm::vec2 jitter = m_ngx->GetJitter(m_renderData.frame);
 	m_renderData.camera.jitterX = jitter.x;
 	m_renderData.camera.jitterY = jitter.y;
@@ -341,6 +362,31 @@ void Renderer::Render(const float deltaTime)
 
 			m_rtOutputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
+
+		// Auto exposure pass
+		{
+			if (m_postProcessSettings.autoExposure)
+			{
+				m_swapChain->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+				PostProcessPass::PostProcessBindings bindings;
+				bindings.inputSRV = m_swapChain->GetCurrentBackBufferSRV().gpuHandle;
+				bindings.outputUAV = m_autoExposureBufferUav.gpuHandle;
+				bindings.constants[0] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+				bindings.constants[1] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+				bindings.constantCount = 2;
+				bindings.width = 1;
+				bindings.height = 1;
+
+				m_autoExposurePass->Dispatch(commandList.Get(), bindings);
+
+				m_autoExposureBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+				commandList->CopyResource(m_autoExposureReadback.resource, m_autoExposureBuffer.resource);
+
+				m_autoExposureBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			}
+		}
 	}
 
 	// End frame
@@ -353,7 +399,7 @@ void Renderer::Render(const float deltaTime)
 		{
 			m_swapChain->Transition(commandList.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-			D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_swapChain->GetCurrentBackBufferRtv().cpuHandle;
+			D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_swapChain->GetCurrentBackBufferRTV().cpuHandle;
 			commandList->OMSetRenderTargets(1, &rtv, FALSE, nullptr);
 
 			ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap() };

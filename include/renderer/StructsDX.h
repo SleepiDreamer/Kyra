@@ -27,6 +27,7 @@ struct RenderData
 	CameraData prevCamera = {};
 	int32_t hdriIndex = -1;
 	uint32_t frame = 0;
+	float deltaTime = 0.0f;
 };
 
 enum DebugMode
@@ -78,9 +79,11 @@ enum TonemapOperator
 struct PostProcessSettings
 {
 	TonemapOperator tonemapper = AgX;
+	BOOL autoExposure = true;
+	float targetExposure = 6.0f;
 	float exposure = 10.0f;
 };
-IMGUI_REFLECT(PostProcessSettings, tonemapper, exposure)
+IMGUI_REFLECT(PostProcessSettings, tonemapper, autoExposure, exposure, targetExposure)
 
 struct HitGroupRecord
 {

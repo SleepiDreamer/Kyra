@@ -16,6 +16,11 @@ public float2 sanitize(float2 v) { return float2(sanitize(v.x), sanitize(v.y)); 
 public float3 sanitize(float3 v) { return float3(sanitize(v.x), sanitize(v.y), sanitize(v.z)); }
 public float4 sanitize(float4 v) { return float4(sanitize(v.x), sanitize(v.y), sanitize(v.z), sanitize(v.w)); }
 
+public float Grayscale(float3 color)
+{
+    return dot(color, float3(0.299, 0.587, 0.114));
+}
+
 public float LinearToSrgb(float linear)
 {
     if (linear <= 0.0031308)

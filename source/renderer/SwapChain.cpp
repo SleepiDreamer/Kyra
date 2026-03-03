@@ -10,7 +10,7 @@
 
 using namespace Microsoft::WRL;
 
-SwapChain::SwapChain(Window& window, ID3D12Device* device, IDXGIAdapter4* adapter, const CommandQueue* commandQueue)
+SwapChain::SwapChain(Window& window, RenderContext& context, IDXGIAdapter4* adapter)
 	: m_window(window)
 {
 	m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(window.GetWidth()), static_cast<float>(window.GetHeight()));
@@ -47,7 +47,7 @@ SwapChain::SwapChain(Window& window, ID3D12Device* device, IDXGIAdapter4* adapte
 		swapChainDesc.Flags = m_useAdaptiveSync ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
 
 		ComPtr<IDXGISwapChain1> swapchain1;
-		ThrowIfFailed(factory->CreateSwapChainForHwnd(commandQueue->GetQueue().Get(), m_window.GetHWND(), &swapChainDesc,
+		ThrowIfFailed(factory->CreateSwapChainForHwnd(context.commandQueue->GetQueue().Get(), m_window.GetHWND(), &swapChainDesc,
 													  nullptr, nullptr, &swapchain1));
 
 		ThrowIfFailed(factory->MakeWindowAssociation(m_window.GetHWND(), DXGI_MWA_NO_ALT_ENTER));
@@ -65,8 +65,8 @@ SwapChain::SwapChain(Window& window, ID3D12Device* device, IDXGIAdapter4* adapte
 		}
 	}
 
-	m_rtvHeap = std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, NUM_FRAMES_IN_FLIGHT, false, L"Swap Chain RTV Heap");
-	CreateBackBuffers(device);
+	m_rtvHeap = std::make_unique<DescriptorHeap>(context.device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, NUM_FRAMES_IN_FLIGHT, false, L"Swap Chain RTV Heap");
+	CreateBackBuffers(context);
 }
 
 SwapChain::~SwapChain() = default;
@@ -161,23 +161,33 @@ void SwapChain::ToggleFullscreen()
 	}
 }
 
-void SwapChain::CreateBackBuffers(ID3D12Device* device)
+void SwapChain::CreateBackBuffers(const RenderContext& context)
 {
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
 	rtvDesc.Format = m_format;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	rtvDesc.Texture2D.MipSlice = 0;
 
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = m_format;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+
 	for (UINT i = 0; i < NUM_FRAMES_IN_FLIGHT; ++i)
 	{
 		ThrowIfFailed(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_backBuffers[i])));
 		m_backBufferRtvs[i] = m_rtvHeap->Allocate();
-		device->CreateRenderTargetView(m_backBuffers[i].Get(), &rtvDesc, m_backBufferRtvs[i].cpuHandle);
+		context.device->CreateRenderTargetView(m_backBuffers[i].Get(), &rtvDesc, m_backBufferRtvs[i].cpuHandle);
 		m_backBuffers[i]->SetName(L"Back buffer");
+
+		m_backBufferSrvs[i] = context.descriptorHeap->Allocate();
+		context.device->CreateShaderResourceView(m_backBuffers[i].Get(), &srvDesc, m_backBufferSrvs[i].cpuHandle);
 	}
 }
 
-void SwapChain::Resize(const uint32_t width, const uint32_t height, ID3D12Device* device)
+void SwapChain::Resize(const RenderContext& context, const uint32_t width, const uint32_t height)
 {
 	for (UINT i = 0; i < NUM_FRAMES_IN_FLIGHT; ++i)
 	{
@@ -189,7 +199,7 @@ void SwapChain::Resize(const uint32_t width, const uint32_t height, ID3D12Device
 	m_swapChain->ResizeBuffers(NUM_FRAMES_IN_FLIGHT, width, height, m_format, swapChainFlags);
 	m_currentBackBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 	m_currentState = D3D12_RESOURCE_STATE_COMMON;
-	CreateBackBuffers(device);
+	CreateBackBuffers(context);
 
 	m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
 	m_scissorRect = CD3DX12_RECT(0, 0, width, height);
