@@ -16,6 +16,8 @@ struct Vertex
 class CommandQueue;
 class GPUAllocator;
 class UploadContext;
+class StructuredBuffer;
+class TypedBuffer;
 class BLAS;
 
 class Mesh
@@ -29,32 +31,34 @@ public:
     Mesh(Mesh&& other) noexcept;
     Mesh& operator=(Mesh&& other) noexcept;
 
-    void Upload(const RenderContext& context, const std::vector<Vertex>& vertices,
+    void Upload(RenderContext& context, const std::vector<Vertex>& vertices,
                 const std::vector<uint32_t>& indices, const std::string& name);
 
     void BuildBLAS(RenderContext& context, ID3D12GraphicsCommandList4* commandList, bool isAlphaTested);
 
     [[nodiscard]] D3D12_RAYTRACING_GEOMETRY_DESC GetGeometryDesc(bool isAlphaTested) const;
-    [[nodiscard]] ID3D12Resource* GetVertexBuffer() const { return m_vertexBuffer.resource; }
-    [[nodiscard]] ID3D12Resource* GetIndexBuffer() const { return m_indexBuffer.resource; }
+    [[nodiscard]] ID3D12Resource* GetVertexBuffer() const;
+    [[nodiscard]] ID3D12Resource* GetIndexBuffer() const;
     [[nodiscard]] uint32_t GetVertexCount() const { return m_vertexCount; }
     [[nodiscard]] uint32_t GetIndexCount() const { return m_indexCount; }
     [[nodiscard]] D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView() const;
     [[nodiscard]] D3D12_INDEX_BUFFER_VIEW GetIndexBufferView() const;
-	[[nodiscard]] DescriptorHeap::Allocation GetVertexSRV() const { return m_vertexSRV; }
-	[[nodiscard]] DescriptorHeap::Allocation GetIndexSRV() const { return m_indexSRV; }
+    [[nodiscard]] Descriptor GetVertexSRV() const;
+    [[nodiscard]] Descriptor GetIndexSRV() const;
 	[[nodiscard]] D3D12_RAYTRACING_INSTANCE_DESC GetInstanceDesc(UINT instanceId) const;
 
     int32_t m_materialIndex = -1;
     DirectX::XMFLOAT4X4 m_transform;
 
 private:
-    GPUBuffer m_vertexBuffer;
-    GPUBuffer m_indexBuffer;
+	std::unique_ptr<StructuredBuffer> m_vertexBuffer = nullptr;
+	std::unique_ptr<TypedBuffer> m_indexBuffer = nullptr;
+    //GPUBuffer m_vertexBuffer;
+    //GPUBuffer m_indexBuffer;
+    //Descriptor m_vertexSrv;
+    //Descriptor m_indexSrv;
     uint32_t m_vertexCount = 0;
     uint32_t m_indexCount = 0;
     std::unique_ptr<BLAS> m_blas = nullptr;
 
-    DescriptorHeap::Allocation m_vertexSRV;
-    DescriptorHeap::Allocation m_indexSRV;
 };

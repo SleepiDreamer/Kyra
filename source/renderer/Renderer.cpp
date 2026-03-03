@@ -7,6 +7,8 @@
 #include "GPUAllocator.h"
 #include "CBVBuffer.h"
 #include "UploadContext.h"
+#include "StructuredBuffer.h"
+#include "TypedBuffer.h"
 #include "SwapChain.h"
 #include "OutputTexture.h"
 #include "ShaderCompiler.h"
@@ -95,18 +97,11 @@ Renderer::Renderer(Window& window, bool debug)
 
 	m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "CSMain");
 	m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autoexposure_pass.slang", "AutoExposure");
-
-	m_autoExposureBuffer = m_allocator->CreateBuffer(
-		sizeof(float), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
+	
+	m_autoExposureBuffer = std::make_unique<TypedBuffer>(
+		m_context, 1, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
 	m_autoExposureReadback = m_allocator->CreateBuffer(
 		sizeof(float), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Auto Exposure Readback");
-	m_autoExposureBufferUav = m_descriptorHeap->Allocate();
-	D3D12_UNORDERED_ACCESS_VIEW_DESC autoExposureUavDesc{};
-	autoExposureUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	autoExposureUavDesc.Format = DXGI_FORMAT_R32_FLOAT;
-	autoExposureUavDesc.Buffer.FirstElement = 0;
-	autoExposureUavDesc.Buffer.NumElements = 1;
-	m_context.device->CreateUnorderedAccessView(m_autoExposureBuffer.resource, nullptr, &autoExposureUavDesc, m_autoExposureBufferUav.cpuHandle);
 
 	m_renderSettingsCB = std::make_unique<CBVBuffer<RenderSettings>>(*m_allocator, "Render Settings CB");
 	m_renderDataCB = std::make_unique<CBVBuffer<RenderData>>(*m_allocator, "Render Data CB");
@@ -349,8 +344,8 @@ void Renderer::Render(const float deltaTime)
 			m_outputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 			PostProcessPass::PostProcessBindings bindings;
-			bindings.inputSRV = inputBuffer.GetSRV().gpuHandle;
-			bindings.outputUAV = m_outputBuffer->GetUAV().gpuHandle;
+			bindings.inputSrv = inputBuffer.GetSRV().gpuHandle;
+			bindings.outputUav = m_outputBuffer->GetUAV().gpuHandle;
 			bindings.constants[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
 			bindings.constants[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
 			bindings.constants[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
@@ -370,8 +365,8 @@ void Renderer::Render(const float deltaTime)
 				m_swapChain->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 				PostProcessPass::PostProcessBindings bindings;
-				bindings.inputSRV = m_swapChain->GetCurrentBackBufferSRV().gpuHandle;
-				bindings.outputUAV = m_autoExposureBufferUav.gpuHandle;
+				bindings.inputSrv = m_swapChain->GetCurrentBackBufferSRV().gpuHandle;
+				bindings.outputUav = m_autoExposureBuffer->GetUAV().gpuHandle;
 				bindings.constants[0] = m_renderDataCB->GetGPUAddress(backBufferIndex);
 				bindings.constants[1] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
 				bindings.constantCount = 2;
@@ -380,11 +375,11 @@ void Renderer::Render(const float deltaTime)
 
 				m_autoExposurePass->Dispatch(commandList.Get(), bindings);
 
-				m_autoExposureBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
 
-				commandList->CopyResource(m_autoExposureReadback.resource, m_autoExposureBuffer.resource);
+				commandList->CopyResource(m_autoExposureReadback.resource, m_autoExposureBuffer->GetResource());
 
-				m_autoExposureBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 			}
 		}
 	}

@@ -7,6 +7,7 @@ class TLAS;
 class Texture;
 class CommandQueue;
 class GPUAllocator;
+class StructuredBuffer;
 struct HitGroupRecord;
 
 class Scene
@@ -32,7 +33,6 @@ private:
 	std::unique_ptr<TLAS> m_tlas;
 	std::vector<Model> m_models;
 	std::unique_ptr<Texture> m_hdri;
-	GPUBuffer m_materialData;
-	DescriptorHeap::Allocation m_materialSRV;
+	std::unique_ptr<StructuredBuffer> m_materialBuffer;
 };
 

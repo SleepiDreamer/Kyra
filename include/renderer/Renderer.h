@@ -17,6 +17,8 @@ class DescriptorHeap;
 class CommandList;
 class UploadContext;
 class GPUAllocator;
+class StructuredBuffer;
+class TypedBuffer;
 class OutputBuffer;
 class ShaderCompiler;
 class RootSignature;
@@ -70,6 +72,7 @@ private:
 	std::unique_ptr<CBVBuffer<RenderSettings>> m_renderSettingsCB;
 	std::unique_ptr<CBVBuffer<RenderData>> m_renderDataCB;
 	std::unique_ptr<CBVBuffer<PostProcessSettings>> m_postProcessSettingsCB;
+	float m_reloadTimer = 0.0f;
 
 	std::unique_ptr<OutputBuffer> m_rtOutputBuffer;
 	std::unique_ptr<OutputBuffer> m_albedoBuffer;
@@ -82,10 +85,7 @@ private:
 
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;
 	std::unique_ptr<PostProcessPass> m_autoExposurePass;
-	DescriptorHeap::Allocation m_autoExposureBufferUav;
+	std::unique_ptr<TypedBuffer> m_autoExposureBuffer;
 	GPUBuffer m_autoExposureReadback;
-	GPUBuffer m_autoExposureBuffer;
-
-	float m_reloadTimer = 0.0f;
 };
 

@@ -158,8 +158,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     switch (renderSettings.debugMode)
     {
         case DebugMode::None: break;
-        case DebugMode::Albedo: payload.done = true; payload.radiance = LinearToSrgb(albedo); return;
-        case DebugMode::Emissive: payload.done = true; payload.radiance = LinearToSrgb(emission); return;
+        case DebugMode::Albedo:     payload.done = true; payload.radiance = LinearToSrgb(albedo); return;
+        case DebugMode::Emissive:   payload.done = true; payload.radiance = LinearToSrgb(emission); return;
         case DebugMode::Metallic:   payload.done = true; payload.radiance = metallic; return;
         case DebugMode::Roughness:  payload.done = true; payload.radiance = roughness; return;
         case DebugMode::NormalMap:  payload.done = true; payload.radiance = (normalMap + 1) / 2; return;

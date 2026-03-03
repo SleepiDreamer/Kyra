@@ -25,9 +25,9 @@ DescriptorHeap::DescriptorHeap(ID3D12Device* device, const D3D12_DESCRIPTOR_HEAP
 	}
 }
 
-DescriptorHeap::Allocation DescriptorHeap::Allocate(const UINT count)
+Descriptor DescriptorHeap::Allocate(const UINT count)
 {
-	Allocation alloc;
+	Descriptor alloc;
 
 	if (count == 1 && !m_freeList.empty())
 	{
@@ -50,7 +50,7 @@ DescriptorHeap::Allocation DescriptorHeap::Allocate(const UINT count)
 	return alloc;
 }
 
-void DescriptorHeap::Free(const Allocation& alloc, const UINT count)
+void DescriptorHeap::Free(const Descriptor& alloc, const UINT count)
 {
 	for (UINT i = 0; i < count; i++)
 	{

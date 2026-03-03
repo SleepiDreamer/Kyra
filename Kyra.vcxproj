@@ -59,6 +59,8 @@
     <ClInclude Include="include\renderer\MikkT.h" />
     <ClInclude Include="include\renderer\PostProcessPass.h" />
     <ClInclude Include="include\renderer\NGXWrapper.h" />
+    <ClInclude Include="include\renderer\StructuredBuffer.h" />
+    <ClInclude Include="include\renderer\TypedBuffer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="external\imgui\backends\imgui_impl_dx12.cpp" />
@@ -101,6 +103,8 @@
     <ClCompile Include="source\renderer\SwapChain.cpp" />
     <ClCompile Include="source\renderer\UploadContext.cpp" />
     <ClCompile Include="source\renderer\Texture.cpp" />
+    <ClCompile Include="source\renderer\StructuredBuffer.cpp" />
+    <ClCompile Include="source\renderer\TypedBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\autoexposure_pass.slang" />
@@ -213,7 +217,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mikkt;$(ProjectDir)external\ngx;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mikkt;$(ProjectDir)external\ngx;$(ProjectDir)external\SHaRC;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/DNOMINMAX /DGLFW_INCLUDE_NONE %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -240,7 +244,7 @@ xcopy /D /Y "$(SolutionDir)external\ngx\lib\dev\nvngx_dlssd.dll" "$(OutDir)"</Co
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mikkt;$(ProjectDir)external\ngx;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mikkt;$(ProjectDir)external\ngx;$(ProjectDir)external\SHaRC;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/DNOMINMAX /DGLFW_INCLUDE_NONE %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>

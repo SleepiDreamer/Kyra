@@ -14,6 +14,6 @@ public:
 
 private:
     GPUBuffer m_resource;
-    DescriptorHeap::Allocation m_srv;
+    Descriptor m_srv;
 };
 

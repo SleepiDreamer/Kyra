@@ -83,8 +83,8 @@ void PostProcessPass::Dispatch(ID3D12GraphicsCommandList4* commandList, const Po
     commandList->SetComputeRootSignature(m_rootSignature.Get());
     commandList->SetPipelineState(m_pso.Get());
 
-    commandList->SetComputeRootDescriptorTable(0, bindings.inputSRV);
-    commandList->SetComputeRootDescriptorTable(1, bindings.outputUAV);
+    commandList->SetComputeRootDescriptorTable(0, bindings.inputSrv);
+    commandList->SetComputeRootDescriptorTable(1, bindings.outputUav);
     for (uint32_t i = 0; i < bindings.constantCount; i++)
     {
 	    commandList->SetComputeRootConstantBufferView(2 + i, bindings.constants[i]);
