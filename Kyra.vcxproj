@@ -59,6 +59,8 @@
     <ClInclude Include="include\renderer\MikkT.h" />
     <ClInclude Include="include\renderer\PostProcessPass.h" />
     <ClInclude Include="include\renderer\NGXWrapper.h" />
+    <ClInclude Include="include\renderer\StructuredBuffer.h" />
+    <ClInclude Include="include\renderer\TypedBuffer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="external\imgui\backends\imgui_impl_dx12.cpp" />
@@ -101,6 +103,8 @@
     <ClCompile Include="source\renderer\SwapChain.cpp" />
     <ClCompile Include="source\renderer\UploadContext.cpp" />
     <ClCompile Include="source\renderer\Texture.cpp" />
+    <ClCompile Include="source\renderer\StructuredBuffer.cpp" />
+    <ClCompile Include="source\renderer\TypedBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\autoexposure_pass.slang" />

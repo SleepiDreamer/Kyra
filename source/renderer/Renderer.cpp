@@ -7,6 +7,8 @@
 #include "GPUAllocator.h"
 #include "CBVBuffer.h"
 #include "UploadContext.h"
+#include "StructuredBuffer.h"
+#include "TypedBuffer.h"
 #include "SwapChain.h"
 #include "OutputTexture.h"
 #include "ShaderCompiler.h"
@@ -95,61 +97,23 @@ Renderer::Renderer(Window& window, bool debug)
 
 	m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "CSMain");
 	m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autoexposure_pass.slang", "AutoExposure");
-
-	m_autoExposureBuffer = m_allocator->CreateBuffer(
-		sizeof(float), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
+	
+	m_autoExposureBuffer = std::make_unique<TypedBuffer>(
+		m_context, 1, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
 	m_autoExposureReadback = m_allocator->CreateBuffer(
 		sizeof(float), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Auto Exposure Readback");
-	m_autoExposureBufferUav = m_descriptorHeap->Allocate();
-	D3D12_UNORDERED_ACCESS_VIEW_DESC autoExposureUavDesc{};
-	autoExposureUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	autoExposureUavDesc.Format = DXGI_FORMAT_R32_FLOAT;
-	autoExposureUavDesc.Buffer.FirstElement = 0;
-	autoExposureUavDesc.Buffer.NumElements = 1;
-	device->CreateUnorderedAccessView(m_autoExposureBuffer.resource, nullptr, &autoExposureUavDesc, m_autoExposureBufferUav.cpuHandle);
 
 	m_renderSettingsCB = std::make_unique<CBVBuffer<RenderSettings>>(*m_allocator, "Render Settings CB");
 	m_renderDataCB = std::make_unique<CBVBuffer<RenderData>>(*m_allocator, "Render Data CB");
 	m_postProcessSettingsCB = std::make_unique<CBVBuffer<PostProcessSettings>>(*m_allocator, "Post Process Settings CB");
 
-	// SHaRC buffers
-	{
-		constexpr uint32_t SHARC_CAPACITY = 1 << 22;
-
-		auto CreateSharcUAV = [&](const GPUBuffer& buffer, DescriptorHeap::Allocation& uav, const uint32_t stride, const char* name)
-		{
-			uav = m_descriptorHeap->Allocate();
-			D3D12_UNORDERED_ACCESS_VIEW_DESC desc{};
-			desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-			desc.Format = DXGI_FORMAT_UNKNOWN;
-			desc.Buffer.NumElements = SHARC_CAPACITY;
-			desc.Buffer.StructureByteStride = stride;
-			device->CreateUnorderedAccessView(buffer.resource, nullptr, &desc, uav.cpuHandle);
-		};
-
-		m_sharcHashEntriesBuffer = m_allocator->CreateBuffer(
-		   static_cast<uint64_t>(8) * SHARC_CAPACITY, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-		   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Hash Entries");
-		CreateSharcUAV(m_sharcHashEntriesBuffer, m_sharcHashEntriesBufferUav, 8, "SHaRC Hash Entries");
-
-		m_sharcAccumulationBuffer = m_allocator->CreateBuffer(
-			static_cast<uint64_t>(16) * SHARC_CAPACITY,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			D3D12_HEAP_TYPE_DEFAULT, "SHaRC Accumulation");
-		CreateSharcUAV(m_sharcAccumulationBuffer, m_sharcAccumulationBufferUav, 16, "SHaRC Accumulation");
-
-		m_sharcResolvedBuffer = m_allocator->CreateBuffer(
-			static_cast<uint64_t>(16) * SHARC_CAPACITY,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-			D3D12_HEAP_TYPE_DEFAULT, "SHaRC Resolved");
-		CreateSharcUAV(m_sharcResolvedBuffer, m_sharcResolvedBufferUav, 16, "SHaRC Resolved");
-
-		commandList->ClearUnorderedAccessViewUint(
-			m_sharcHashEntriesBufferUav.gpuHandle, m_sharcHashEntriesBufferUav.cpuHandle,
-			m_sharcHashEntriesBuffer.resource, {}, 0, nullptr);
-	}
+	constexpr uint32_t SHARC_CAPACITY = 1 << 22;
+	m_sharcHashEntriesBuffer = std::make_unique<StructuredBuffer>(
+		m_context, SHARC_CAPACITY, sizeof(uint64_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Hash Entries");
+	m_sharcAccumulationBuffer = std::make_unique<StructuredBuffer>(
+		m_context, SHARC_CAPACITY, sizeof(uint32_t) * 4, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Accumulation");
+	m_sharcResolvedBuffer = std::make_unique<StructuredBuffer>(
+		m_context, SHARC_CAPACITY, sizeof(uint32_t) * 4, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Resolved");
 
 	m_commandQueue->ExecuteCommandList(commandList);
 	m_commandQueue->Flush();
@@ -388,8 +352,8 @@ void Renderer::Render(const float deltaTime)
 			m_outputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 			PostProcessPass::PostProcessBindings bindings;
-			bindings.inputSRV = inputBuffer.GetSRV().gpuHandle;
-			bindings.outputUAV = m_outputBuffer->GetUAV().gpuHandle;
+			bindings.inputSrv = inputBuffer.GetSRV().gpuHandle;
+			bindings.outputUav = m_outputBuffer->GetUAV().gpuHandle;
 			bindings.constants[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
 			bindings.constants[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
 			bindings.constants[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
@@ -409,8 +373,8 @@ void Renderer::Render(const float deltaTime)
 				m_swapChain->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 				PostProcessPass::PostProcessBindings bindings;
-				bindings.inputSRV = m_swapChain->GetCurrentBackBufferSRV().gpuHandle;
-				bindings.outputUAV = m_autoExposureBufferUav.gpuHandle;
+				bindings.inputSrv = m_swapChain->GetCurrentBackBufferSRV().gpuHandle;
+				bindings.outputUav = m_autoExposureBuffer->GetUAV().gpuHandle;
 				bindings.constants[0] = m_renderDataCB->GetGPUAddress(backBufferIndex);
 				bindings.constants[1] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
 				bindings.constantCount = 2;
@@ -419,11 +383,11 @@ void Renderer::Render(const float deltaTime)
 
 				m_autoExposurePass->Dispatch(commandList.Get(), bindings);
 
-				m_autoExposureBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
 
-				commandList->CopyResource(m_autoExposureReadback.resource, m_autoExposureBuffer.resource);
+				commandList->CopyResource(m_autoExposureReadback.resource, m_autoExposureBuffer->GetResource());
 
-				m_autoExposureBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 			}
 		}
 	}

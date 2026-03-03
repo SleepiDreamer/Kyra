@@ -20,5 +20,5 @@ public:
 
 private:
 	RenderContext& m_context;
-    DescriptorHeap::Allocation m_fontDescriptor;
+    Descriptor m_fontDescriptor;
 };

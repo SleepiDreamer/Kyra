@@ -18,8 +18,8 @@ public:
 
     struct PostProcessBindings
     {
-        D3D12_GPU_DESCRIPTOR_HANDLE inputSRV;
-        D3D12_GPU_DESCRIPTOR_HANDLE outputUAV;
+        D3D12_GPU_DESCRIPTOR_HANDLE inputSrv;
+        D3D12_GPU_DESCRIPTOR_HANDLE outputUav;
         D3D12_GPU_VIRTUAL_ADDRESS constants[4] = {};
         uint32_t constantCount = 0;
         uint32_t width;

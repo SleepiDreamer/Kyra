@@ -48,7 +48,7 @@ ImGuiWrapper::ImGuiWrapper(const Window& window, RenderContext& context, const D
         {
             auto* heap = static_cast<DescriptorHeap*>(info->UserData);
             // Reconstruct allocation from handles to free
-            DescriptorHeap::Allocation alloc;
+            Descriptor alloc;
             alloc.cpuHandle = cpu;
             alloc.gpuHandle = gpu;
             alloc.index = static_cast<UINT>((cpu.ptr - heap->GetCPUStartHandle().ptr) / heap->GetIncrementSize());

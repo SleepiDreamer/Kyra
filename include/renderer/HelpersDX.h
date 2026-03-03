@@ -94,3 +94,36 @@ inline void tag_invoke(ImReflect::ImInput_t, const char* label, glm::vec3& value
 
     ImReflect::Detail::check_input_states(vec3_response);
 }
+
+inline uint32_t FormatByteSize(const DXGI_FORMAT format)
+{
+    switch (format)
+    {
+    case DXGI_FORMAT_R32_UINT:
+    case DXGI_FORMAT_R32_SINT:
+    case DXGI_FORMAT_R32_FLOAT:         return 4;
+    case DXGI_FORMAT_R32G32_FLOAT:
+    case DXGI_FORMAT_R32G32_UINT:       return 8;
+    case DXGI_FORMAT_R32G32B32_FLOAT:   return 12;
+    case DXGI_FORMAT_R32G32B32A32_FLOAT:
+    case DXGI_FORMAT_R32G32B32A32_UINT: return 16;
+    case DXGI_FORMAT_R16_UINT:
+    case DXGI_FORMAT_R16_FLOAT:         return 2;
+    case DXGI_FORMAT_R16G16_FLOAT:      return 4;
+    case DXGI_FORMAT_R16G16B16A16_FLOAT:return 8;
+    case DXGI_FORMAT_R8G8B8A8_UNORM:    return 4;
+    default:
+        ThrowError("Unknown DXGI_FORMAT byte size");
+        return 0;
+    }
+}
+
+inline D3D12_RESOURCE_STATES InitialStateFromHeapType(const D3D12_HEAP_TYPE heapType)
+{
+    switch (heapType)
+    {
+    case D3D12_HEAP_TYPE_UPLOAD:   return D3D12_RESOURCE_STATE_GENERIC_READ;
+    case D3D12_HEAP_TYPE_READBACK: return D3D12_RESOURCE_STATE_COPY_DEST;
+    default:                       return D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    }
+}

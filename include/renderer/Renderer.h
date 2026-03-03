@@ -17,6 +17,8 @@ class DescriptorHeap;
 class CommandList;
 class UploadContext;
 class GPUAllocator;
+class StructuredBuffer;
+class TypedBuffer;
 class OutputBuffer;
 class ShaderCompiler;
 class RootSignature;
@@ -83,15 +85,11 @@ private:
 
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;
 	std::unique_ptr<PostProcessPass> m_autoExposurePass;
-	DescriptorHeap::Allocation m_autoExposureBufferUav;
+	std::unique_ptr<TypedBuffer> m_autoExposureBuffer;
 	GPUBuffer m_autoExposureReadback;
-	GPUBuffer m_autoExposureBuffer;
 
-	GPUBuffer m_sharcHashEntriesBuffer;
-	DescriptorHeap::Allocation m_sharcHashEntriesBufferUav;
-	GPUBuffer m_sharcAccumulationBuffer;
-	DescriptorHeap::Allocation m_sharcAccumulationBufferUav;
-	GPUBuffer m_sharcResolvedBuffer;
-	DescriptorHeap::Allocation m_sharcResolvedBufferUav;
+	std::unique_ptr<StructuredBuffer> m_sharcHashEntriesBuffer;
+	std::unique_ptr<StructuredBuffer> m_sharcAccumulationBuffer;
+	std::unique_ptr<StructuredBuffer> m_sharcResolvedBuffer;
 };
 

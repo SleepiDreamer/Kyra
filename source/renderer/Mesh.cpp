@@ -3,6 +3,8 @@
 #include "GPUAllocator.h"
 #include "UploadContext.h"
 #include "BLAS.h"
+#include "StructuredBuffer.h"
+#include "TypedBuffer.h"
 
 Mesh::Mesh() = default;
 
@@ -30,7 +32,7 @@ Mesh& Mesh::operator=(Mesh&& other) noexcept
     return *this;
 }
 
-void Mesh::Upload(const RenderContext& context, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::string& name)
+void Mesh::Upload(RenderContext& context, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::string& name)
 {
     m_vertexCount = static_cast<uint32_t>(vertices.size());
     m_indexCount = static_cast<uint32_t>(indices.size());
@@ -38,36 +40,14 @@ void Mesh::Upload(const RenderContext& context, const std::vector<Vertex>& verti
     uint64_t verticesSize = vertices.size() * sizeof(Vertex);
     uint64_t indicesSize = indices.size() * sizeof(uint32_t);
 
-    m_vertexBuffer = context.allocator->CreateBuffer(
-        verticesSize, D3D12_RESOURCE_STATE_COMMON,
-        D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT,
-        (name + "_VB").c_str());
+    m_vertexBuffer = std::make_unique<StructuredBuffer>(
+        context, m_vertexCount, sizeof(Vertex), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, (name + "_VB").c_str());
 
-    m_indexBuffer = context.allocator->CreateBuffer(
-        indicesSize, D3D12_RESOURCE_STATE_COMMON,
-        D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT,
-        (name + "_IB").c_str());
+    m_indexBuffer = std::make_unique<TypedBuffer>(
+        context, m_indexCount, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, (name + "_IB").c_str());
 
-    context.uploadContext->Upload(m_vertexBuffer, vertices.data(), verticesSize);
-    context.uploadContext->Upload(m_indexBuffer, indices.data(), indicesSize);
-
-    m_vertexSRV = context.descriptorHeap->Allocate();
-    m_indexSRV = context.descriptorHeap->Allocate();
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC vertexSrvDesc{};
-    vertexSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-    vertexSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    vertexSrvDesc.Buffer.NumElements = m_vertexCount;
-    vertexSrvDesc.Buffer.StructureByteStride = sizeof(Vertex);
-    vertexSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
-    context.device->CreateShaderResourceView(m_vertexBuffer.resource, &vertexSrvDesc, m_vertexSRV.cpuHandle);
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC indexSrvDesc{};
-    indexSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-    indexSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    indexSrvDesc.Buffer.NumElements = m_indexCount;
-    indexSrvDesc.Format = DXGI_FORMAT_R32_UINT;
-    context.device->CreateShaderResourceView(m_indexBuffer.resource, &indexSrvDesc, m_indexSRV.cpuHandle);
+    context.uploadContext->Upload(m_vertexBuffer->GetBuffer(), vertices.data(), verticesSize);
+    context.uploadContext->Upload(m_indexBuffer->GetBuffer(), indices.data(), indicesSize);
 }
 
 D3D12_RAYTRACING_GEOMETRY_DESC Mesh::GetGeometryDesc(const bool isAlphaTested) const
@@ -75,11 +55,11 @@ D3D12_RAYTRACING_GEOMETRY_DESC Mesh::GetGeometryDesc(const bool isAlphaTested) c
     D3D12_RAYTRACING_GEOMETRY_DESC desc = {};
     desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
     desc.Flags = isAlphaTested == 0 ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
-    desc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer.resource->GetGPUVirtualAddress();
+    desc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer->GetResource()->GetGPUVirtualAddress();
     desc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
     desc.Triangles.VertexCount = m_vertexCount;
     desc.Triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
-    desc.Triangles.IndexBuffer = m_indexBuffer.resource->GetGPUVirtualAddress();
+    desc.Triangles.IndexBuffer = m_indexBuffer->GetResource()->GetGPUVirtualAddress();
     desc.Triangles.IndexCount = m_indexCount;
     desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
     return desc;
@@ -92,11 +72,21 @@ void Mesh::BuildBLAS(RenderContext& context, ID3D12GraphicsCommandList4* command
     m_blas->Build(context.device, commandList, geometries);
 }
 
+ID3D12Resource* Mesh::GetVertexBuffer() const
+{
+    return m_vertexBuffer->GetResource();
+}
+
+ID3D12Resource* Mesh::GetIndexBuffer() const
+{
+    return m_indexBuffer->GetResource();
+}
+
 D3D12_VERTEX_BUFFER_VIEW Mesh::GetVertexBufferView() const
 {
     return {
-        .BufferLocation = m_vertexBuffer.resource->GetGPUVirtualAddress(),
-        .SizeInBytes = static_cast<UINT>(m_vertexBuffer.size),
+        .BufferLocation = m_vertexBuffer->GetResource()->GetGPUVirtualAddress(),
+        .SizeInBytes = m_vertexBuffer->GetSize(),
         .StrideInBytes = sizeof(Vertex)
     };
 }
@@ -104,10 +94,20 @@ D3D12_VERTEX_BUFFER_VIEW Mesh::GetVertexBufferView() const
 D3D12_INDEX_BUFFER_VIEW Mesh::GetIndexBufferView() const
 {
     return {
-        .BufferLocation = m_indexBuffer.resource->GetGPUVirtualAddress(),
-        .SizeInBytes = static_cast<UINT>(m_indexBuffer.size),
+        .BufferLocation = m_indexBuffer->GetResource()->GetGPUVirtualAddress(),
+        .SizeInBytes = m_indexBuffer->GetSize(),
         .Format = DXGI_FORMAT_R32_UINT
     };
+}
+
+Descriptor Mesh::GetVertexSRV() const
+{
+    return m_vertexBuffer->GetSRV();
+}
+
+Descriptor Mesh::GetIndexSRV() const
+{
+    return m_indexBuffer->GetSRV();
 }
 
 D3D12_RAYTRACING_INSTANCE_DESC Mesh::GetInstanceDesc(const UINT instanceId) const

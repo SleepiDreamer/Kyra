@@ -3,15 +3,16 @@
 #include <wrl.h>
 #include <vector>
 
+struct Descriptor
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle{};
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle{};
+	UINT index = 0;
+};
+
 class DescriptorHeap
 {
 public:
-	struct Allocation
-	{
-		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle{};
-		D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle{};
-		UINT index = 0;
-	};
 
 	DescriptorHeap(ID3D12Device* device,
 		D3D12_DESCRIPTOR_HEAP_TYPE type,
@@ -20,8 +21,8 @@ public:
 		const wchar_t* name);
 	~DescriptorHeap() = default;
 
-	Allocation Allocate(UINT count = 1);
-	void Free(const Allocation& alloc, UINT count = 1);
+	Descriptor Allocate(UINT count = 1);
+	void Free(const Descriptor& alloc, UINT count = 1);
 
 	[[nodiscard]] ID3D12DescriptorHeap* GetHeap() const { return m_heap.Get(); }
 	[[nodiscard]] D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(const UINT index) const { return { m_cpuStart.ptr + index * m_incrementSize }; }

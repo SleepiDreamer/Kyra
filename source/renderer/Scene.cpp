@@ -6,6 +6,7 @@
 #include "CommandQueue.h"
 #include "UploadContext.h"
 #include "GPUAllocator.h"
+#include "StructuredBuffer.h"
 #include "StructsDX.h"
 
 #include <stb_image.h>
@@ -94,24 +95,12 @@ void Scene::UploadMaterialData()
 		}
 	}
 
-	uint64_t size = materials.size() * sizeof(MaterialData);
-	m_materialData = m_context.allocator->CreateBuffer(
-		size, D3D12_RESOURCE_STATE_COMMON,
+	m_materialBuffer = std::make_unique<StructuredBuffer>(
+		m_context, static_cast<uint32_t>(materials.size()), sizeof(MaterialData),
 		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, "Materials");
-	m_context.uploadContext->Upload(m_materialData, materials.data(), size);
 
-	if (m_materialSRV.cpuHandle.ptr != 0)
-	{
-		m_context.descriptorHeap->Free(m_materialSRV);
-	}
-	m_materialSRV = m_context.descriptorHeap->Allocate();
-	D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
-	desc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-	desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	desc.Buffer.NumElements = static_cast<UINT>(materials.size());
-	desc.Buffer.StructureByteStride = sizeof(MaterialData);
-	desc.Format = DXGI_FORMAT_UNKNOWN;
-	m_context.device->CreateShaderResourceView(m_materialData.resource, &desc, m_materialSRV.cpuHandle);
+	m_context.uploadContext->Upload(
+		m_materialBuffer->GetBuffer(), materials.data(), materials.size() * sizeof(MaterialData));
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Scene::GetTLASAddress() const
@@ -121,7 +110,7 @@ D3D12_GPU_VIRTUAL_ADDRESS Scene::GetTLASAddress() const
 
 D3D12_GPU_VIRTUAL_ADDRESS Scene::GetMaterialsBufferAddress() const
 {
-	return m_materialData.resource ? m_materialData.resource->GetGPUVirtualAddress() : 0;
+	return m_materialBuffer->GetResource() ? m_materialBuffer->GetResource()->GetGPUVirtualAddress() : 0;
 }
 
 std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const
