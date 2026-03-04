@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\renderer\ComputePass.h" />
     <ClInclude Include="include\renderer\ImGuiWrapper.h" />
     <ClInclude Include="include\Camera.h" />
     <ClInclude Include="external\D3D12MA\D3D12MemAlloc.h" />
@@ -63,6 +64,7 @@
     <ClInclude Include="include\renderer\TypedBuffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\renderer\ComputePass.cpp" />
     <ClCompile Include="external\imgui\backends\imgui_impl_dx12.cpp" />
     <ClCompile Include="external\imgui\backends\imgui_impl_glfw.cpp" />
     <ClCompile Include="external\imgui\imgui.cpp" />
@@ -119,6 +121,7 @@
     </None>
     <None Include="shaders\random\sampling.slang" />
     <None Include="shaders\settings.slang" />
+    <None Include="shaders\sharc\sharc_resolve.slang" />
     <None Include="shaders\structs.slang" />
     <None Include="shaders\tonemapping.slang" />
     <None Include="shaders\tonemapping\aces.slang" />

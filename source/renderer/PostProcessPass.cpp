@@ -10,7 +10,8 @@ using namespace Microsoft::WRL;
 PostProcessPass::PostProcessPass(RenderContext& context, ShaderCompiler& compiler, const std::string& shaderPath, const std::string& entryPoint)
     : m_context(context), m_entryPoint(entryPoint)
 {
-    m_shader = std::make_unique<Shader>(compiler, shaderPath, std::vector<std::string>{ entryPoint }, false);
+	std::vector<std::pair<std::string, std::string>> defines = {};
+    m_shader = std::make_unique<Shader>(compiler, shaderPath, std::vector<std::string>{ entryPoint }, defines, false);
     if (!m_shader->IsValid())
     {
         ThrowError("Failed to compile post-process shader: " + shaderPath);

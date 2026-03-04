@@ -27,7 +27,8 @@ void ShaderCompiler::diagnoseIfNeeded(slang::IBlob* diagnosticsBlob, Compilation
     }
 }
 
-ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& filePath, const std::vector<std::string>& entryPoints, bool isRaytracing) const
+ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& filePath, const std::vector<std::string>& entryPoints, 
+														  const std::vector<std::pair<std::string, std::string>>& defines, bool isRaytracing) const
 {
     CompilationResult result;
 
@@ -54,9 +55,16 @@ ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& fil
     sessionDesc.targetCount = 1;
 
     std::string directory = std::filesystem::path(filePath).parent_path().string();
-    const char* searchPaths[] = { directory.c_str() };
+    std::string rootShaderDir = "shaders";
+    const char* searchPaths[] = { directory.c_str(), rootShaderDir.c_str() };
     sessionDesc.searchPaths = searchPaths;
-    sessionDesc.searchPathCount = 1;
+	sessionDesc.searchPathCount = _countof(searchPaths);
+
+    std::vector<slang::PreprocessorMacroDesc> macros;
+    for (const auto& [name, value] : defines)
+        macros.push_back({ name.c_str(), value.c_str() });
+    sessionDesc.preprocessorMacros = macros.data();
+    sessionDesc.preprocessorMacroCount = static_cast<uint32_t>(macros.size());
 
     Slang::ComPtr<slang::ISession> session;
     m_globalSession->createSession(sessionDesc, session.writeRef());

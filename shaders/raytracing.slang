@@ -6,13 +6,16 @@ import random.sampling;
 import pbr;
 import camera;
 
+#include "sharc/SharcCommon.h"
+
+uniform RaytracingAccelerationStructure sceneBVH : register(t0, space0);
 uniform RWTexture2D<float4> rtOutputBuffer : register(u0, space0);
 uniform RWTexture2D<float4> albedoBuffer : register(u1, space0);
 uniform RWTexture2D<float4> specularAlbedoBuffer : register(u2, space0);
 uniform RWTexture2D<float4> normalRoughnessBuffer : register(u3, space0);
 uniform RWTexture2D<float2> motionVectorsBuffer : register(u4, space0);
 uniform RWTexture2D<float> depthBuffer : register(u5, space0);
-uniform RaytracingAccelerationStructure sceneBVH : register(t0, space0);
+
 StructuredBuffer<Material> materials : register(t1, space0);
 SamplerState linearSampler : register(s0, space0);
 ConstantBuffer<RenderSettings> renderSettings : register(b0, space0);
@@ -24,6 +27,10 @@ cbuffer HitGroupConstants : register(b0, space1)
 {
     uint materialIndex;
 };
+
+RWStructuredBuffer<uint64_t> sharcHashEntriesBuffer : register(u0, space2);
+RWStructuredBuffer<SharcAccumulationData> sharcAccumulationBuffer : register(u1, space2);
+RWStructuredBuffer<SharcPackedData> sharcResolvedBuffer : register(u2, space2);
 
 [shader("raygeneration")]
 void RayGen()
@@ -39,6 +46,23 @@ void RayGen()
     payload.depth = 0;
     payload.rng = RNG.create(idx, uint(size.x), renderData.frame);
     uv += float2(renderData.camera.jitterX, renderData.camera.jitterY) / size;
+
+    SharcParameters sharcParameters;
+    {
+        sharcParameters.gridParameters.cameraPosition = renderData.camera.position;
+        sharcParameters.gridParameters.sceneScale = 1.0;
+        sharcParameters.gridParameters.logarithmBase = SHARC_GRID_LOGARITHM_BASE;
+        sharcParameters.gridParameters.levelBias = SHARC_GRID_LEVEL_BIAS;
+        sharcParameters.hashMapData.capacity = 1 << 22;
+        sharcParameters.hashMapData.hashEntriesBuffer = sharcHashEntriesBuffer;
+        sharcParameters.accumulationBuffer = sharcAccumulationBuffer;
+        sharcParameters.resolvedBuffer = sharcResolvedBuffer;
+        sharcParameters.radianceScale = 1e3f;
+        sharcParameters.enableAntiFireflyFilter = false;
+    }
+
+    SharcState sharcState;
+    SharcInit(sharcState);
 
     Camera cam;
 
@@ -59,14 +83,61 @@ void RayGen()
 
     while (!payload.done && payload.depth < renderSettings.bounces + 1)
     {
+#if SHARC_UPDATE
+        if (renderSettings.sharc)
+        {
+            payload.radiance = float3(0.0, 0.0, 0.0);
+            payload.throughput = float3(1.0, 1.0, 1.0);
+        }
+#endif
         TraceRay(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
-
-        if (all(payload.throughput == 0.0)) payload.done = true;
 
         if (payload.done)
         {
+            SharcUpdateMiss(sharcParameters, sharcState, payload.radiance);
             break;
         }
+
+        if (all(payload.throughput == 0.0))
+        {
+            payload.done = true;
+            break;
+        }
+
+        SharcHitData sharcHitData;
+        sharcHitData.positionWorld = payload.sharcHitPosition;
+        sharcHitData.normalWorld = payload.sharcHitNormal;
+
+#if SHARC_UPDATE
+        if (renderSettings.sharc)
+            {
+            bool continueTracing = SharcUpdateHit(sharcParameters, sharcState, sharcHitData,
+                                              payload.radiance, payload.rng.nextFloat());
+            if (!continueTracing)
+            {
+                payload.done = true;
+                break;
+            }
+            SharcSetThroughput(sharcState, payload.throughput);
+        }
+#else
+        if (payload.depth > 0)
+        {
+            uint gridLevel = HashGridGetLevel(sharcHitData.positionWorld, sharcParameters.gridParameters);
+            float voxelSize = HashGridGetVoxelSize(gridLevel, sharcParameters.gridParameters);
+
+            if (payload.hitDistance > voxelSize * 1.5f)
+            {
+                float3 cachedRadiance;
+                if (SharcGetCachedRadiance(sharcParameters, sharcHitData, cachedRadiance, false))
+                {
+                    payload.radiance += cachedRadiance * payload.throughput;
+                    payload.done = true;
+                    break;
+                }
+            }
+        }
+#endif
 
         // from Nvidia's Zorah talk: https://www.youtube.com/watch?v=8AnVpcIczyk&t=1107s
         if (USE_RUSSIAN_ROULETTE)
@@ -85,10 +156,12 @@ void RayGen()
                 if (payload.rng.nextFloat() >= groupContinuationProb)
                 {
                     payload.done = true;
+                    break;
                 }
                 else
                 {
                     payload.throughput /= groupContinuationProb;
+                    SharcSetThroughput(sharcState, payload.throughput);
                 }
             }
         }
@@ -98,8 +171,9 @@ void RayGen()
         payload.depth++;
     }
 
+#if !SHARC_UPDATE
     float3 radiance = max(sanitize(payload.radiance), 0.0);
-  
+
     if (renderData.frame == 0 || renderSettings.denoising)
     { 
         rtOutputBuffer[idx].rgb = radiance;
@@ -108,6 +182,7 @@ void RayGen()
     {
         rtOutputBuffer[idx].rgb += radiance;
     }
+#endif
 }
 
 [shader("closesthit")]
@@ -168,10 +243,54 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::GeoNormal:  payload.done = true; payload.radiance = (geoNormal + 1) / 2; return;
         case DebugMode::Tangent:    payload.done = true; payload.radiance = (tangent + 1) / 2; return;
         case DebugMode::Bitangent:  payload.done = true; payload.radiance = (bitangent + 1) / 2; return;
-        case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
+        case DebugMode::TangentW: payload.done = true; payload.radiance = tangentW; return;
+        case DebugMode::SharcHash:
+        {
+            payload.done = true;
+            HashGridParameters gridParams;
+            gridParams.cameraPosition = renderData.camera.position;
+            gridParams.sceneScale = 1.0;
+            gridParams.logarithmBase = SHARC_GRID_LOGARITHM_BASE;
+            gridParams.levelBias = SHARC_GRID_LEVEL_BIAS;
+            payload.radiance = HashGridDebugColoredHash(hitPoint, geoNormal, gridParams);
+            return;
+        }
+        case DebugMode::SharcCache:
+        {
+            payload.done = true;
+            SharcHitData sharcHitData;
+            sharcHitData.positionWorld = hitPoint;
+            sharcHitData.normalWorld = geoNormal;
+
+            SharcParameters sharcParameters;
+            sharcParameters.gridParameters.cameraPosition = renderData.camera.position;
+            sharcParameters.gridParameters.sceneScale = 1.0;
+            sharcParameters.gridParameters.logarithmBase = SHARC_GRID_LOGARITHM_BASE;
+            sharcParameters.gridParameters.levelBias = SHARC_GRID_LEVEL_BIAS;
+            sharcParameters.hashMapData.capacity = 1 << 22;
+            sharcParameters.hashMapData.hashEntriesBuffer = sharcHashEntriesBuffer;
+            sharcParameters.accumulationBuffer = sharcAccumulationBuffer;
+            sharcParameters.resolvedBuffer = sharcResolvedBuffer;
+            sharcParameters.radianceScale = 1e3f;
+            sharcParameters.enableAntiFireflyFilter = true;
+
+            float3 cachedRadiance;
+            if (SharcGetCachedRadiance(sharcParameters, sharcHitData, cachedRadiance, true))
+            {
+                payload.radiance = cachedRadiance * 100;
+            }
+            else
+            {
+                payload.radiance = float3(1, 0, 1);
+            }
+            return;
+        }
     }
 
     payload.radiance += emission * payload.throughput * renderSettings.lightIntensity;
+    payload.sharcHitPosition = hitPoint;
+    payload.sharcHitNormal = geoNormal;
+    payload.hitDistance = RayTCurrent();
 
     if (alpha == 0)
     {
@@ -214,6 +333,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 void Miss(inout Payload payload)
 {
     payload.done = true;
+    payload.hitDistance = MAX_RAY_DEPTH;
 
     if (renderSettings.debugMode != 0)
     {

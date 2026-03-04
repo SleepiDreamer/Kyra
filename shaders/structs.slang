@@ -10,6 +10,9 @@ public struct [raypayload] Payload
     public float3 nextOrigin : write(caller, closesthit) : read(caller);
     public float3 nextDirection : write(caller, closesthit) : read(caller);
     public RNG rng : write(caller, closesthit) : read(caller, closesthit);
+    public float3 sharcHitPosition : write(caller, closesthit) : read(caller);
+    public float3 sharcHitNormal : write(caller, closesthit) : read(caller);
+    public float hitDistance : write(caller, closesthit, miss) : read(caller);
 };
 
 public struct CameraData
@@ -50,6 +53,8 @@ public enum DebugMode
     Tangent,
     Bitangent,
     TangentW,
+    SharcHash,
+    SharcCache,
 };
 
 enum DLSSQuality
@@ -69,6 +74,7 @@ public struct RenderSettings
     public float lightIntensity;
     public bool whiteAlbedo;
     public bool whiteLighting;
+    public bool sharc;
     public bool denoising;
     DLSSQuality dlssQuality;
 };

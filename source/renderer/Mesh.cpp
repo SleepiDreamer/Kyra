@@ -41,7 +41,7 @@ void Mesh::Upload(RenderContext& context, const std::vector<Vertex>& vertices, c
     uint64_t indicesSize = indices.size() * sizeof(uint32_t);
 
     m_vertexBuffer = std::make_unique<StructuredBuffer>(
-        context, m_vertexCount, sizeof(Vertex), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, (name + "_VB").c_str());
+        context, m_vertexCount, sizeof(Vertex), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, false, (name + "_VB").c_str());
 
     m_indexBuffer = std::make_unique<TypedBuffer>(
         context, m_indexCount, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, (name + "_IB").c_str());

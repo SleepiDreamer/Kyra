@@ -17,7 +17,7 @@ Application::Application(const bool debugLayer)
 	m_camera->SetDirection(glm::vec3(0.0f, 0.0f, -1.0f));
 	m_camera->m_fov = 60.0f;
 	m_renderer->SetCamera(m_camera);
-	//m_renderer->LoadModel("assets/models/Sponza/Sponza.gltf");
+	m_renderer->LoadModel("assets/models/Sponza/Sponza.gltf");
 	m_renderer->LoadHDRI("assets/environments/christmas_photo_studio_03_2k.hdr");
 
 	auto glfwWindow = m_window->GetGLFWWindow();

@@ -45,6 +45,7 @@ struct RenderContext
 	GPUAllocator* allocator = nullptr;
     CommandQueue* commandQueue = nullptr;
     DescriptorHeap* descriptorHeap = nullptr;
+    DescriptorHeap* cpuDescriptorHeap = nullptr;
     DescriptorHeap* samplerHeap = nullptr;
     UploadContext* uploadContext = nullptr;
 };

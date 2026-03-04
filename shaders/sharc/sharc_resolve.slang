@@ -1,5 +1,8 @@
 import structs;
 
+#define SHARC_UPDATE 1
+#define SHARC_ENABLE_64_BIT_ATOMICS 1
+#define SHARC_ENABLE_GLSL 0
 #include "SharcCommon.h"
 
 ConstantBuffer<RenderData> renderData : register(b0, space0);
@@ -9,7 +12,7 @@ RWStructuredBuffer<SharcAccumulationData>   u_SharcAccumulationBuffer   : regist
 RWStructuredBuffer<SharcPackedData>         u_SharcResolvedBuffer       : register(u2, space0);
 
 [numthreads(256, 1, 1)]
-void sharcResolve(in uint2 did : SV_DispatchThreadID)
+void SharcResolve(in uint2 did : SV_DispatchThreadID)
 {
     SharcParameters sharcParameters;
 
@@ -23,10 +26,10 @@ void sharcResolve(in uint2 did : SV_DispatchThreadID)
 
     sharcParameters.accumulationBuffer = u_SharcAccumulationBuffer;
     sharcParameters.resolvedBuffer = u_SharcResolvedBuffer;
-    sharcParameters.radianceScale = 1.0;
+    sharcParameters.radianceScale = 1e3f;
 
     SharcResolveParameters resolveParameters;
-    resolveParameters.accumulationFrameNum = renderData.frame;
+    resolveParameters.accumulationFrameNum = 32;
     resolveParameters.staleFrameNumMax = 64;
     resolveParameters.cameraPositionPrev = renderData.prevCamera.position;
     resolveParameters.frameIndex = renderData.frame;

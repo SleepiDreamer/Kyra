@@ -43,6 +43,8 @@ enum DebugMode
 	Tangent,
 	Bitangent,
 	TangentW,
+	SharcHash,
+	SharcCache,
 };
 
 enum DLSSQuality
@@ -62,10 +64,11 @@ struct RenderSettings
 	float lightIntensity = 1.0f;
 	BOOL whiteAlbedo = false;
 	BOOL whiteLighting = false;
+	BOOL sharc = true;
 	BOOL denoising = false;
 	DLSSQuality dlssQuality = Balanced;
 };
-IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
+IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, sharc, denoising, dlssQuality)
 
 enum TonemapOperator
 {
