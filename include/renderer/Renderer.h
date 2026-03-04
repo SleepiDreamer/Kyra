@@ -84,6 +84,10 @@ private:
 	std::unique_ptr<OutputBuffer> m_dlssOutputBuffer;
 	std::unique_ptr<OutputBuffer> m_outputBuffer;
 
+	std::unique_ptr<StructuredBuffer> m_sharcHashEntriesBuffer;
+	std::unique_ptr<StructuredBuffer> m_sharcAccumulationBuffer;
+	std::unique_ptr<StructuredBuffer> m_sharcResolvedBuffer;
+
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;
 	std::unique_ptr<PostProcessPass> m_autoExposurePass;
 	std::unique_ptr<TypedBuffer> m_autoExposureBuffer;

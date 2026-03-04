@@ -108,6 +108,14 @@ Renderer::Renderer(Window& window, bool debug)
 	m_renderDataCB = std::make_unique<CBVBuffer<RenderData>>(*m_allocator, "Render Data CB");
 	m_postProcessSettingsCB = std::make_unique<CBVBuffer<PostProcessSettings>>(*m_allocator, "Post Process Settings CB");
 
+	constexpr uint32_t SHARC_CAPACITY = 1 << 22;
+	m_sharcHashEntriesBuffer = std::make_unique<StructuredBuffer>(
+		m_context, SHARC_CAPACITY, sizeof(uint64_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Hash Entries");
+	m_sharcAccumulationBuffer = std::make_unique<StructuredBuffer>(
+		m_context, SHARC_CAPACITY, sizeof(uint32_t) * 4, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Accumulation");
+	m_sharcResolvedBuffer = std::make_unique<StructuredBuffer>(
+		m_context, SHARC_CAPACITY, sizeof(uint32_t) * 4, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Resolved");
+
 	m_commandQueue->ExecuteCommandList(commandList);
 	m_commandQueue->Flush();
 }
