@@ -128,7 +128,10 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const
 			record.materialIndex = mesh.m_materialIndex >= 0
 				? materialOffset + static_cast<uint32_t>(mesh.m_materialIndex)
 				: 0;
-			record.isAlphaTested = model.GetMaterials()[mesh.m_materialIndex].isAlphaTested;
+			if (mesh.m_materialIndex >= 0 && mesh.m_materialIndex < model.GetMaterials().size())
+			{
+				record.isAlphaTested = model.GetMaterials()[mesh.m_materialIndex].isAlphaTested;
+			}
 			records.push_back(record);
 		}
 		materialOffset += static_cast<uint32_t>(model.GetMaterials().size());
@@ -138,10 +141,13 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const
 
 void Scene::LoadHDRI(const std::string& path)
 {
+	m_context.commandQueue->Flush();
+
 	if (m_hdri)
 	{
 		m_hdri.reset();
 	}
+
 
 	std::string extension = path.substr(path.find_last_of('.'));
 	if (extension != ".hdr")
@@ -159,6 +165,14 @@ void Scene::LoadHDRI(const std::string& path)
 	if (data)
 	{
 		m_hdri->Create(m_context, data, width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, path);
+		stbi_image_free(data);
+
+		m_context.uploadContext->Flush();
+
+		auto commandList = m_context.commandQueue->GetCommandList();
+		TransitionResource(commandList.Get(), m_hdri->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		m_context.commandQueue->ExecuteCommandList(commandList);
+		m_context.commandQueue->Flush();
 	}
 	else
 	{
