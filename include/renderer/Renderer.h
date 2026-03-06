@@ -83,6 +83,7 @@ private:
 	std::unique_ptr<OutputBuffer> m_depthBuffer;
 	std::unique_ptr<OutputBuffer> m_dlssOutputBuffer;
 	std::unique_ptr<OutputBuffer> m_outputBuffer;
+	std::unique_ptr<StructuredBuffer> m_lightBuffer;
 
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;
 	std::unique_ptr<PostProcessPass> m_autoExposurePass;

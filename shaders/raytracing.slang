@@ -6,21 +6,22 @@ import random.sampling;
 import pbr;
 import camera;
 
-uniform RWTexture2D<float4> rtOutputBuffer : register(u0, space0);
-uniform RWTexture2D<float4> albedoBuffer : register(u1, space0);
-uniform RWTexture2D<float4> specularAlbedoBuffer : register(u2, space0);
-uniform RWTexture2D<float4> normalRoughnessBuffer : register(u3, space0);
-uniform RWTexture2D<float2> motionVectorsBuffer : register(u4, space0);
-uniform RWTexture2D<float> depthBuffer : register(u5, space0);
-uniform RaytracingAccelerationStructure sceneBVH : register(t0, space0);
-StructuredBuffer<Material> materials : register(t1, space0);
-SamplerState linearSampler : register(s0, space0);
-ConstantBuffer<RenderSettings> renderSettings : register(b0, space0);
-ConstantBuffer<RenderData> renderData : register(b1, space0);
+uniform RWTexture2D<float4> rtOutputBuffer          : register(u0, space0);
+uniform RWTexture2D<float4> albedoBuffer            : register(u1, space0);
+uniform RWTexture2D<float4> specularAlbedoBuffer    : register(u2, space0);
+uniform RWTexture2D<float4> normalRoughnessBuffer   : register(u3, space0);
+uniform RWTexture2D<float2> motionVectorsBuffer     : register(u4, space0);
+uniform RWTexture2D<float> depthBuffer              : register(u5, space0);
+uniform RaytracingAccelerationStructure sceneBVH    : register(t0, space0);
+StructuredBuffer<Material> materials                : register(t1, space0);
+StructuredBuffer<Light> lights                      : register(t2, space0);
+SamplerState linearSampler                          : register(s0, space0);
+ConstantBuffer<RenderSettings> renderSettings       : register(b0, space0);
+ConstantBuffer<RenderData> renderData               : register(b1, space0);
 
-StructuredBuffer<Vertex> vertices : register(t0, space1);
-StructuredBuffer<uint> indices : register(t1, space1);
-cbuffer HitGroupConstants : register(b0, space1)
+StructuredBuffer<Vertex> vertices                   : register(t0, space1);
+StructuredBuffer<uint> indices                      : register(t1, space1);
+cbuffer HitGroupConstants                           : register(b0, space1)
 {
     uint materialIndex;
 };
@@ -173,6 +174,49 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
     payload.radiance += emission * payload.throughput * renderSettings.lightIntensity;
 
+    // explicit lighting
+    {
+        Light light = lights[0];
+        float3 radiance = light.color;
+        float3 dirToLight;
+        float dist = 0.0;
+        if (light.type == 0)
+        {
+            // Point light
+            light.position += sampleUniformSphere(payload.rng.nextFloat2()) * light.size;
+            dist = length(light.position - hitPoint);
+            dirToLight = normalize(light.position - hitPoint);
+            radiance *= LightAttenuation(dist);
+        }
+        else if (light.type == 1)
+        {
+            // Directional light
+            dist = MAX_RAY_DEPTH;
+            dirToLight = sampleSun(payload.rng.nextFloat2(), -light.direction, light.size);
+        }
+
+        if (dot(dirToLight, normal) > 0.0 || true)
+        {
+            RayDesc shadowRay;
+            shadowRay.Origin = OffsetRay(hitPoint, geoNormal);
+            shadowRay.Direction = dirToLight;
+            shadowRay.TMin = 0.0;
+            shadowRay.TMax = dist - 0.001;
+
+            ShadowPayload shadowPayload;
+            shadowPayload.inShadow = true;
+
+            TraceRay(sceneBVH, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
+                     0xFF, 0, 1, 1, shadowRay, shadowPayload);
+
+            if (!shadowPayload.inShadow)
+            {
+                float3 outgoing = radiance * PBRDirect(normal, dirToLight, -WorldRayDirection(), albedo, roughness, metallic);
+                payload.radiance += outgoing * payload.throughput * renderSettings.lightIntensity;
+            }
+        }
+    }
+
     if (alpha == 0)
     {
         float3 wo;
@@ -273,4 +317,10 @@ void AnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr
         return;
     }
     IgnoreHit();
+}
+
+[shader("miss")]
+void ShadowMiss(inout ShadowPayload payload)
+{
+    payload.inShadow = false;
 }

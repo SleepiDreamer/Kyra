@@ -137,9 +137,10 @@ void RTPipeline::CreateShaderTables(ID3D12Device10* device, const std::vector<Hi
 					  &bufDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_missTable)));
 		m_missTable->SetName(L"Miss Table");
 
-        void* mapped = nullptr;
-        m_missTable->Map(0, nullptr, &mapped);
+		uint8_t * mapped = nullptr;
+        m_missTable->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
         memcpy(mapped, props->GetShaderIdentifier(L"Miss"), shaderIdSize);
+		memcpy(mapped + shaderIdSize, props->GetShaderIdentifier(L"ShadowMiss"), shaderIdSize);
         m_missTable->Unmap(0, nullptr);
     }
 

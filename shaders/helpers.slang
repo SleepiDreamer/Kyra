@@ -146,6 +146,12 @@ public float2 WorldToUV(float3 worldPos, CameraData cam)
     return (float2(ndcX, ndcY) + 1.0) * 0.5;
 }
 
+public float LightAttenuation(float dist)
+{
+    static const float roundness = 0.2;
+    return 1.0 / (roundness + (dist * dist));
+}
+
 // From DLSS-RR integration guide
 public float3 EnvBRDFApprox2(float3 SpecularColor, float alpha, float NoV)
 {

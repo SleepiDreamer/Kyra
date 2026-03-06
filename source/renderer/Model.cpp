@@ -373,7 +373,7 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
         }
 
         bool hasTransmission = false;
-        if (mat.transmission)
+		if (mat.transmission || (mat.alphaMode == fastgltf::AlphaMode::Blend && mat.pbrData.baseColorFactor[3] < 1.0f))
         {
     		hasTransmission = true;
         }

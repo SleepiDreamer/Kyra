@@ -12,6 +12,11 @@ public struct [raypayload] Payload
     public RNG rng : write(caller, closesthit) : read(caller, closesthit);
 };
 
+public struct [raypayload] ShadowPayload
+{
+    public bool inShadow : write(caller, miss) : read(caller);
+};
+
 public struct CameraData
 {
     public float3 position;
@@ -110,4 +115,13 @@ public struct Material
     public int normalIndex;
     public uint samplerIndex;
     uint isAlphaTested;
+};
+
+public struct Light
+{
+    public int type;
+    public float3 position;
+    public float3 direction;
+    public float3 color;
+    public float size;
 };

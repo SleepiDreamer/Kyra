@@ -18,12 +18,15 @@
 #include "ImGuiWrapper.h"
 #include "NGXWrapper.h"
 #include "Scene.h"
+#include "Light.h"
 #include "StructsDX.h"
 #include "CommonDX.h"
 
 #include <imgui.h>
 #include <iostream>
 #include <chrono>
+
+#include "Light.h"
 
 using namespace Microsoft::WRL;
 
@@ -88,6 +91,7 @@ Renderer::Renderer(Window& window, bool debug)
 	m_rootSignature->AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 5, 0, "depthBuffer");			// u5:0 depth buffer
 	m_rootSignature->AddRootSRV(0, 0, "sceneBVH");			 // t0:0 TLAS
 	m_rootSignature->AddRootSRV(1, 0, "materials");			 // t1:0 materials
+	m_rootSignature->AddRootSRV(2, 0, "lights");			 // t2:0 lights
 	m_rootSignature->AddRootCBV(0, 0, "renderSettings");	 // b0:0 render settings
 	m_rootSignature->AddRootCBV(1, 0, "renderData");		 // b1:0 render data
 	m_rootSignature->AddRootCBV(2, 0, "postProcessSettings");// b2:0 post processing settings
@@ -99,6 +103,23 @@ Renderer::Renderer(Window& window, bool debug)
 	m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "CSMain");
 	m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autoexposure_pass.slang", "AutoExposure");
 	
+	{
+		m_lightBuffer = std::make_unique<StructuredBuffer>(m_context, 256, sizeof(Light), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
+		
+		uint32_t numLights = 1;
+		std::vector<Light> lights(numLights);
+		lights[0].type = Light::LightType::Directional;
+		lights[0].direction = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.5f));
+		lights[0].color = glm::vec3(1.0f);
+		lights[0].size = 0.03f;
+		//lights[0].type = Light::LightType::Point;
+		//lights[0].position = glm::vec3(2.0f, 2.0f, 2.0f);
+		//lights[0].color = glm::vec3(1.0f);
+		//lights[0].size = 0.1f;
+
+		m_lightBuffer->Update(lights.data(), numLights, sizeof(Light));
+	}
+
 	m_autoExposureBuffer = std::make_unique<TypedBuffer>(
 		m_context, 1, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
 	m_autoExposureReadback = m_allocator->CreateBuffer(
@@ -300,8 +321,9 @@ void Renderer::Render(const float deltaTime)
 			m_rootSignature->SetRootCBV(commandList.Get(), m_renderDataCB->GetGPUAddress(backBufferIndex),			"renderData");
 			m_rootSignature->SetRootCBV(commandList.Get(), m_postProcessSettingsCB->GetGPUAddress(backBufferIndex), "postProcessSettings");
 
-			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetTLASAddress(),			"sceneBVH");
-			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(),"materials");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetTLASAddress(),							 "sceneBVH");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(),				 "materials");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_lightBuffer->GetResource()->GetGPUVirtualAddress(), "lights");
 
 			auto dispatchDesc = m_rtPipeline->GetDispatchRaysDesc();
 			dispatchDesc.Width = m_renderSettings.denoising ? renderSize.x : windowSize.x;

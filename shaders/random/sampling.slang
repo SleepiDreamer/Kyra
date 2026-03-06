@@ -108,6 +108,21 @@ public float2 sampleDisk(float2 rand)
     return r * float2(cos(theta), sin(theta));
 }
 
+public float3 sampleSun(float2 rand, float3 sunDir, float radius)
+{
+    float r = sqrt(rand.x) * radius;
+    float theta = 2.0 * PI * rand.y;
+    float x = r * cos(theta);
+    float y = r * sin(theta);
+
+    float3 tangent = abs(sunDir.y) < 0.999
+        ? normalize(cross(float3(0, 1, 0), sunDir))
+        : normalize(cross(float3(1, 0, 0), sunDir));
+    float3 bitangent = cross(sunDir, tangent);
+
+    return normalize(sunDir + tangent * x + bitangent * y);
+}
+
 public float2 sampleUniformTriangle(float2 rand)
 {
     float su = sqrt(rand.x);

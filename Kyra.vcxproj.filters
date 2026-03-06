@@ -135,6 +135,15 @@
     <ClInclude Include="include\renderer\NGXWrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\renderer\StructuredBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\renderer\TypedBuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\renderer\Light.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\main.cpp">
@@ -257,6 +266,15 @@
     <ClCompile Include="source\renderer\NGXWrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="source\renderer\StructuredBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\renderer\TypedBuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\renderer\Light.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing.slang" />
@@ -275,6 +293,7 @@
     <None Include="shaders\pbr.slang" />
     <None Include="shaders\tonemapping\gt7.slang" />
     <None Include="shaders\tonemapping_pass.slang" />
+    <None Include="shaders\autoexposure_pass.slang" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="external\glm\glm.natvis" />

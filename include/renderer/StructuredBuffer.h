@@ -13,6 +13,8 @@ public:
 	StructuredBuffer& operator=(const StructuredBuffer&) = delete;
 	StructuredBuffer(StructuredBuffer&&) = delete;
 
+	void Update(const void* data, uint32_t elementCount, uint32_t stride) const;
+
 	[[nodiscard]] GPUBuffer& GetBuffer() { return m_buffer; }
 	[[nodiscard]] ID3D12Resource* GetResource() const { return m_buffer.resource; }
 	[[nodiscard]] Descriptor GetSRV() const { return m_srv; }

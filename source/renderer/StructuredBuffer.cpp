@@ -1,8 +1,9 @@
 #include "StructuredBuffer.h"
 #include "GPUAllocator.h"
+#include "UploadContext.h"
 
 StructuredBuffer::StructuredBuffer(RenderContext& context, const uint32_t elementCount, const uint32_t stride,
-								   const D3D12_RESOURCE_FLAGS flags, const D3D12_HEAP_TYPE heapType, const char* name)
+                                   const D3D12_RESOURCE_FLAGS flags, const D3D12_HEAP_TYPE heapType, const char* name)
 	: m_context(context), m_elementCount(elementCount), m_stride(stride)
 {
 	m_buffer = m_context.allocator->CreateBuffer(
@@ -33,4 +34,9 @@ StructuredBuffer::~StructuredBuffer()
 {
     m_context.descriptorHeap->Free(m_srv);
     m_context.descriptorHeap->Free(m_uav);
+}
+
+void StructuredBuffer::Update(const void* data, const uint32_t elementCount, const uint32_t stride) const
+{
+	m_context.uploadContext->Upload(m_buffer, data, static_cast<uint64_t>(elementCount) * stride);
 }
