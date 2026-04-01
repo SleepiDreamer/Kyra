@@ -241,55 +241,6 @@ void Renderer::Render(const float deltaTime)
 		m_swapChain->Transition(commandList.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 	}
 
-	// ImGui window
-	{
-		if (!m_rtPipeline->IsLastCompileSuccesful())
-		{
-			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 0.0f, 0.0f, 0.3f));
-			ImGui::Begin("Border", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-			ImGui::SetWindowPos(ImVec2(0, 0));
-			ImGui::SetWindowSize(ImGui::GetIO().DisplaySize);
-			ImGui::End();
-			ImGui::PopStyleColor();
-
-			ImGui::SetNextWindowPos(ImVec2(windowSize.x / 2.0f - 400.0f, windowSize.y / 2.0f - 200.0f));
-			ImGui::Begin("Shader Compile Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-			ImGui::PushTextWrapPos(800.0f);
-			ImGui::TextWrapped("%s", m_rtPipeline->GetLastCompileError().c_str());
-			ImGui::PopTextWrapPos();
-			ImGui::End();
-		}
-
-		auto config = ImSettings();
-		config.push<float>().as_drag().min(0).max(10).speed(0.02f).pop();
-		auto config2 = ImSettings();
-		config2.push<float>().as_drag().min(0).max(100).speed(0.02f).pop();
-
-		ImGui::SetNextWindowPos(ImVec2(0, 0));
-		ImGui::Begin("Debug");
-		ImGui::Text("FPS: %.1f (%.2f ms)", ImGui::GetIO().Framerate, deltaTime * 1000.0f);
-		ImGui::Text("Frame: %u", m_renderData.frame);
-		ImGui::Text("Resolution: %ux%u", windowSize.x, windowSize.y);
-		ImGui::Text("Render Resolution: %ux%u", renderSize.x, renderSize.y);
-		auto responseRender = ImReflect::Input("Render Settings", m_renderSettings, config);
-		auto responsePost = ImReflect::Input("Post Process Settings", m_postProcessSettings, config);
-		auto responseCamera = ImReflect::Input("Camera", camData, config2);
-		if (responseRender.get<RenderSettings>().is_changed()) ResetAccumulation();
-		if (responseRender.get_member<&RenderSettings::denoising>().is_changed()) m_pendingResize = true;
-		if (responseRender.get_member<&RenderSettings::dlssQuality>().is_changed()) m_pendingResize = true;
-		if (responseCamera.get<CameraData>().is_changed())
-		{
-			ResetAccumulation();
-			m_camera->SetPosition(camData.position);
-			m_camera->SetDirection(camData.forward);
-			m_camera->m_fov = camData.fov;
-			m_camera->m_aperture = camData.aperture;
-			m_camera->m_focusDistance = camData.focusDistance;
-		}
-		
-		ImGui::End();
-	}
-
 	m_renderData.prevCamera = m_prevCamData;
 	m_renderData.camera = camData;
 	m_renderData.hdriIndex = m_scene->GetHDRIDescriptorIndex();
@@ -408,6 +359,61 @@ void Renderer::Render(const float deltaTime)
 				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 			}
 		}
+	}
+
+	// ImGui window
+	{
+		if (!m_rtPipeline->IsLastCompileSuccesful())
+		{
+			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 0.0f, 0.0f, 0.3f));
+			ImGui::Begin("Border", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+			ImGui::SetWindowPos(ImVec2(0, 0));
+			ImGui::SetWindowSize(ImGui::GetIO().DisplaySize);
+			ImGui::End();
+			ImGui::PopStyleColor();
+
+			ImGui::SetNextWindowPos(ImVec2(windowSize.x / 2.0f - 400.0f, windowSize.y / 2.0f - 200.0f));
+			ImGui::Begin("Shader Compile Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+			ImGui::PushTextWrapPos(800.0f);
+			ImGui::TextWrapped("%s", m_rtPipeline->GetLastCompileError().c_str());
+			ImGui::PopTextWrapPos();
+			ImGui::End();
+		}
+
+		auto config = ImSettings();
+		config.push<float>().as_drag().min(0).max(10).speed(0.02f).pop();
+		auto config2 = ImSettings();
+		config2.push<float>().as_drag().min(0).max(100).speed(0.02f).pop();
+
+		ImGui::SetNextWindowPos(ImVec2(0, 0));
+		ImGui::Begin("Debug");
+		ImGui::Text("FPS: %.1f (%.2f ms)", ImGui::GetIO().Framerate, deltaTime * 1000.0f);
+		ImGui::Text("Frame: %u", m_renderData.frame);
+		ImGui::Text("Resolution: %ux%u", windowSize.x, windowSize.y);
+		ImGui::Text("Render Resolution: %ux%u", renderSize.x, renderSize.y);
+		auto responseRender = ImReflect::Input("Render Settings", m_renderSettings, config);
+		auto responsePost = ImReflect::Input("Post Process Settings", m_postProcessSettings, config);
+		auto responseCamera = ImReflect::Input("Camera", camData, config2);
+		if (responseRender.get<RenderSettings>().is_changed()) { ResetAccumulation(); }
+		if (responseRender.get_member<&RenderSettings::denoising>().is_changed())
+		{
+			m_pendingResize = true;
+		}
+		if (responseRender.get_member<&RenderSettings::dlssQuality>().is_changed())
+		{
+			m_pendingResize = true;
+		}
+		if (responseCamera.get<CameraData>().is_changed())
+		{
+			ResetAccumulation();
+			m_camera->SetPosition(camData.position);
+			m_camera->SetDirection(camData.forward);
+			m_camera->m_fov = camData.fov;
+			m_camera->m_aperture = camData.aperture;
+			m_camera->m_focusDistance = camData.focusDistance;
+		}
+
+		ImGui::End();
 	}
 
 	// End frame
