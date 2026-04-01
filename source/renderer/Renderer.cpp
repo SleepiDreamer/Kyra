@@ -280,6 +280,11 @@ void Renderer::Render(const float deltaTime)
 			dispatchDesc.Width = m_renderSettings.denoising ? renderSize.x : windowSize.x;
 			dispatchDesc.Height = m_renderSettings.denoising ? renderSize.y : windowSize.y;
 			commandList->DispatchRays(&dispatchDesc);
+
+			D3D12_RESOURCE_BARRIER uavBarriers[] = {
+				CD3DX12_RESOURCE_BARRIER::UAV(m_rtOutputBuffer->GetResource())
+			};
+			commandList->ResourceBarrier(_countof(uavBarriers), uavBarriers);
 		}
 
 		// DLSS pass
@@ -289,7 +294,6 @@ void Renderer::Render(const float deltaTime)
 				D3D12_RESOURCE_BARRIER uavBarriers[] = {
 					CD3DX12_RESOURCE_BARRIER::UAV(m_depthBuffer->GetResource()),
 					CD3DX12_RESOURCE_BARRIER::UAV(m_motionVectorsBuffer->GetResource()),
-					CD3DX12_RESOURCE_BARRIER::UAV(m_rtOutputBuffer->GetResource()),
 					CD3DX12_RESOURCE_BARRIER::UAV(m_albedoBuffer->GetResource()),
 					CD3DX12_RESOURCE_BARRIER::UAV(m_specularAlbedoBuffer->GetResource()),
 					CD3DX12_RESOURCE_BARRIER::UAV(m_normalRoughnessBuffer->GetResource()),
@@ -314,6 +318,33 @@ void Renderer::Render(const float deltaTime)
 			}
 		}
 
+		// Auto exposure pass
+		{
+			if (m_postProcessSettings.autoExposure)
+			{
+				OutputBuffer& inputBuffer = m_renderSettings.denoising ? *m_dlssOutputBuffer : *m_rtOutputBuffer;
+				inputBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+				PostProcessPass::PostProcessBindings bindings;
+				bindings.inputSrv = inputBuffer.GetSRV().gpuHandle;
+				bindings.outputUav = m_autoExposureBuffer->GetUAV().gpuHandle;
+				bindings.constants[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+				bindings.constants[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+				bindings.constants[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+				bindings.constantCount = 3;
+				bindings.width = 1;
+				bindings.height = 1;
+
+				m_autoExposurePass->Dispatch(commandList.Get(), bindings);
+
+				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+				commandList->CopyResource(m_autoExposureReadback.resource, m_autoExposureBuffer->GetResource());
+
+				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			}
+		}
+
 		// Tonemapping pass
 		{
 			OutputBuffer& inputBuffer = m_renderSettings.denoising ? *m_dlssOutputBuffer : *m_rtOutputBuffer;
@@ -333,31 +364,6 @@ void Renderer::Render(const float deltaTime)
 			m_tonemappingPass->Dispatch(commandList.Get(), bindings);
 
 			m_rtOutputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-		}
-
-		// Auto exposure pass
-		{
-			if (m_postProcessSettings.autoExposure)
-			{
-				m_swapChain->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-				PostProcessPass::PostProcessBindings bindings;
-				bindings.inputSrv = m_swapChain->GetCurrentBackBufferSRV().gpuHandle;
-				bindings.outputUav = m_autoExposureBuffer->GetUAV().gpuHandle;
-				bindings.constants[0] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-				bindings.constants[1] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-				bindings.constantCount = 2;
-				bindings.width = 1;
-				bindings.height = 1;
-
-				m_autoExposurePass->Dispatch(commandList.Get(), bindings);
-
-				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
-
-				commandList->CopyResource(m_autoExposureReadback.resource, m_autoExposureBuffer->GetResource());
-
-				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			}
 		}
 	}
 

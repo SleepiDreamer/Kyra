@@ -4,8 +4,9 @@ import settings;
 
 Texture2D<float4> inputTexture : register(t0, space0);
 RWBuffer<float> outputUav : register(u0, space0);
-ConstantBuffer<RenderData> renderData : register(b0, space0);
-ConstantBuffer<PostProcessSettings> settings : register(b1, space0);
+ConstantBuffer<RenderSettings> renderSettings : register(b0, space0);
+ConstantBuffer<RenderData> renderData : register(b1, space0);
+ConstantBuffer<PostProcessSettings> settings : register(b2, space0);
 SamplerState linearSampler : register(s0, space0);
 
 static const int AE_SAMPLES2 = AE_SAMPLES * AE_SAMPLES;
@@ -24,29 +25,31 @@ void AutoExposure(uint3 dtid : SV_DispatchThreadID)
     {
         for (int i = 0; i < AE_SAMPLES; i++)
         {
-            float3 c = inputTexture.SampleLevel(linearSampler, uv, 0).rgb;
+            float3 c = sanitize(inputTexture.SampleLevel(linearSampler, uv, 0).rgb);
             totalLogLum += log(max(Grayscale(c), 0.001));
             uv.x += 1.0 / AE_SAMPLES;
         }
         uv.x = 1.0 / (resolution.x + 1);
         uv.y += 1.0 / AE_SAMPLES;
     }
-    float avgLuminance = exp(totalLogLum / AE_SAMPLES2);
-
-    float exposure = settings.targetExposure / max(avgLuminance, 0.001);
-    exposure = clamp(exposure, MIN_EXPOSURE, MAX_EXPOSURE);
+    
+    float avgLogLum = totalLogLum / AE_SAMPLES2;
+    if (!renderSettings.denoising)
+    { 
+        avgLogLum -= log(renderData.frame + 1);
+    }
+    float avgLuminance = exp(avgLogLum);
 
     float prevExposure = outputUav[0];
-    float targetExposure = settings.targetExposure / max(avgLuminance, 0.001);
-    targetExposure = clamp(targetExposure, MIN_EXPOSURE, MAX_EXPOSURE);
+    float targetExposure = clamp(settings.targetExposure / avgLuminance, MIN_EXPOSURE, MAX_EXPOSURE);
+    float newExposure = lerp(prevExposure, targetExposure, 1.0 - exp(-ADAPTATION_SPEED * renderData.deltaTime));
 
+    // Immediately set exposure if previous was black
     if (prevExposure < 0.001)
     {
         outputUav[0] = targetExposure;
         return;
     }
 
-    float newExposure = prevExposure + (targetExposure - prevExposure) * (1.0 - exp(-renderData.deltaTime * ADAPTATION_SPEED));
-    newExposure = clamp(newExposure, MIN_EXPOSURE, MAX_EXPOSURE);
     outputUav[0] = newExposure;
 }

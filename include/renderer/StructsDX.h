@@ -80,7 +80,7 @@ struct PostProcessSettings
 {
 	TonemapOperator tonemapper = AgX;
 	BOOL autoExposure = true;
-	float targetExposure = 6.0f;
+	float targetExposure = 1.0f;
 	float exposure = 10.0f;
 };
 IMGUI_REFLECT(PostProcessSettings, tonemapper, autoExposure, exposure, targetExposure)
