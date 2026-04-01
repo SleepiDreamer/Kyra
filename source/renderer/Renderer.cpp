@@ -267,7 +267,7 @@ void Renderer::Render(const float deltaTime)
 
 		ImGui::SetNextWindowPos(ImVec2(0, 0));
 		ImGui::Begin("Debug");
-		ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+		ImGui::Text("FPS: %.1f (%.2f ms)", ImGui::GetIO().Framerate, deltaTime * 1000.0f);
 		ImGui::Text("Frame: %u", m_renderData.frame);
 		ImGui::Text("Resolution: %ux%u", windowSize.x, windowSize.y);
 		ImGui::Text("Render Resolution: %ux%u", renderSize.x, renderSize.y);
