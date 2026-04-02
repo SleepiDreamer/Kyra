@@ -447,11 +447,11 @@ void Renderer::Render(const float deltaTime)
 		m_swapChain->Present();
 		m_commandQueue->WaitForFenceValue(m_fenceValues[m_swapChain->GetCurrentBackBufferIndex()]);
 		
-		m_renderData.frame++;
 		if (camData.position != m_prevCamData.position || camData.forward != m_prevCamData.forward)
 		{
 			ResetAccumulation();
 		}
+		m_renderData.frame++;
 		m_prevCamData = camData;
 	}
 }
