@@ -23,7 +23,8 @@ Model::~Model() = default;
 
 void Model::LoadGLTF(ID3D12GraphicsCommandList4* commandList, const std::filesystem::path& path)
 {
-    fastgltf::Parser parser(fastgltf::Extensions::KHR_lights_punctual | fastgltf::Extensions::KHR_materials_transmission);
+    fastgltf::Parser parser(fastgltf::Extensions::KHR_lights_punctual | fastgltf::Extensions::KHR_materials_transmission | fastgltf::Extensions::KHR_materials_specular |
+							fastgltf::Extensions::KHR_materials_pbrSpecularGlossiness);
 
     auto data = fastgltf::GltfDataBuffer::FromPath(path);
     if (data.error() != fastgltf::Error::None)
@@ -36,9 +37,25 @@ void Model::LoadGLTF(ID3D12GraphicsCommandList4* commandList, const std::filesys
         fastgltf::Options::LoadExternalImages;
 
     auto asset = parser.loadGltf(data.get(), path.parent_path(), options);
-    if (asset.error() != fastgltf::Error::None)
+	fastgltf::Error error = asset.error();
+    if (error != fastgltf::Error::None)
     {
-        ThrowError("Failed to parse glTF: " + path.string());
+		if (error == fastgltf::Error::UnknownRequiredExtension)
+        {
+			printf("This model contains an unsupported required extension");
+		}
+        else if (error == fastgltf::Error::MissingExtensions)
+        {
+			printf("This model requires one or more extensions that are not enabled in the parser");
+        }
+		else if (error == fastgltf::Error::UnsupportedVersion)
+        {
+			printf("This model uses an unsupported glTF version");
+        }
+        else
+        {
+			ThrowError("Failed to parse glTF: " + path.string());
+        }
     }
 
     size_t sceneIndex = asset->defaultScene.value_or(0);
