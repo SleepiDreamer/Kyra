@@ -11,6 +11,11 @@ Shader::Shader(ShaderCompiler& compiler, std::string filePath, const std::vector
     {
         m_lastWriteTime = std::filesystem::file_time_type::clock::now();
     }
+    else
+    {
+        std::cerr << "Shader file not found: " << m_filePath << "\n";
+        m_lastWriteTime = std::filesystem::file_time_type::clock::now();
+    }
 
     Reload();
 }

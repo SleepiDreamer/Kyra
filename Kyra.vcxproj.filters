@@ -294,6 +294,10 @@
     <None Include="shaders\tonemapping\gt7.slang" />
     <None Include="shaders\tonemapping_pass.slang" />
     <None Include="shaders\autoexposure_pass.slang" />
+    <None Include="shaders\bloom_downsample.slang" />
+    <None Include="shaders\bloom_upsample.slang" />
+    <None Include="packages.config" />
+    <None Include="shaders\bloom_composite.slang" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="external\glm\glm.natvis" />

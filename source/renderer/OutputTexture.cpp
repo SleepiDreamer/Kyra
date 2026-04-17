@@ -2,9 +2,9 @@
 #include "GPUAllocator.h"
 
 OutputBuffer::OutputBuffer(RenderContext& context, const DXGI_FORMAT format, const int width, const int height, std::wstring name)
-	: m_context(context), m_format(format), m_name(std::move(name))
+	: m_context(context), m_format(format), m_name(std::move(name)), m_width(width), m_height(height)
 {
-    Create(m_context.device, width, height);
+    Create(m_context.device, m_width, m_height);
 }
 
 OutputBuffer::~OutputBuffer()
@@ -18,13 +18,16 @@ OutputBuffer::~OutputBuffer()
 
 void OutputBuffer::Create(ID3D12Device* device, const uint32_t width, const uint32_t height)
 {
+    m_width = width;
+    m_height = height;
+
     if (m_initialized)
     {
         m_context.descriptorHeap->Free(m_uav);
         m_context.descriptorHeap->Free(m_srv);
     }
 
-	m_resource = m_context.allocator->CreateTexture(width, height, m_format, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, m_name.c_str());
+	m_resource = m_context.allocator->CreateTexture(m_width, m_height, m_format, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, m_name.c_str());
     m_currentState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
     m_uav = m_context.descriptorHeap->Allocate();
@@ -48,7 +51,9 @@ void OutputBuffer::Create(ID3D12Device* device, const uint32_t width, const uint
 
 void OutputBuffer::Resize(ID3D12Device* device, const uint32_t width, const uint32_t height)
 {
-    Create(device, width, height);
+	m_width = width;
+	m_height = height;
+    Create(device, m_width, m_height);
 }
 
 void OutputBuffer::Transition(ID3D12GraphicsCommandList* commandList, const D3D12_RESOURCE_STATES newState)

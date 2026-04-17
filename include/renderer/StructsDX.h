@@ -1,5 +1,6 @@
 #pragma once
 #include <d3d12.h>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <ImReflect.hpp>
@@ -82,8 +83,9 @@ struct PostProcessSettings
 	BOOL autoExposure = true;
 	float targetExposure = 1.0f;
 	float exposure = 10.0f;
+	float bloomStrength = 1.0f;
 };
-IMGUI_REFLECT(PostProcessSettings, tonemapper, autoExposure, exposure, targetExposure)
+IMGUI_REFLECT(PostProcessSettings, tonemapper, autoExposure, exposure, targetExposure, bloomStrength)
 
 struct HitGroupRecord
 {

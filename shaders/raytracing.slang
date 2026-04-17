@@ -174,6 +174,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
     payload.radiance += emission * payload.throughput * renderSettings.lightIntensity;
 
+    if (renderSettings.bounces == 0) payload.radiance += albedo * payload.throughput * 0.1;
+
     // explicit lighting
     {
         Light light = lights[0];

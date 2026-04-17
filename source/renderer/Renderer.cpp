@@ -22,6 +22,7 @@
 #include "StructsDX.h"
 #include "CommonDX.h"
 
+#include <pix3.h>
 #include <imgui.h>
 #include <iostream>
 #include <chrono>
@@ -73,14 +74,20 @@ Renderer::Renderer(Window& window, bool debug)
 	const int height = window.GetHeight();
 	const int renderWidth = m_ngx->GetRenderWidth();
 	const int renderHeight = m_ngx->GetRenderHeight();
-	m_rtOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, L"RT Output Buffer");
+	m_rtOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"RT Output Buffer");
 	m_albedoBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R8G8B8A8_UNORM, renderWidth, renderHeight, L"Albedo Buffer");
 	m_specularAlbedoBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R8G8B8A8_UNORM, renderWidth, renderHeight, L"Specular Albedo Buffer");
 	m_normalRoughnessBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, renderWidth, renderHeight, L"Normal Roughness Buffer");
 	m_depthBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32_FLOAT, renderWidth, renderHeight, L"Depth Buffer");
 	m_motionVectorsBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32G32_FLOAT, renderWidth, renderHeight, L"Motion Vectors Buffer");
 	m_dlssOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"DLSS Output Buffer");
+	m_postProcessBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"Post Process Buffer");
 	m_outputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R10G10B10A2_UNORM, width, height, L"Output Buffer");
+	m_bloomBuffers.resize(8);
+	for (size_t i = 0; i < m_bloomBuffers.size(); i++)
+	{
+		m_bloomBuffers[i] = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width >> (i + 1), height >> (i + 1), L"Bloom Buffer " + std::to_wstring(i));
+	}
 
 	m_rootSignature = std::make_unique<RootSignature>();
 	m_rootSignature->AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, "rtOutputBuffer");		// u0:0 RT output buffer
@@ -100,9 +107,25 @@ Renderer::Renderer(Window& window, bool debug)
 
 	m_rtPipeline = std::make_unique<RTPipeline>(device, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang");
 
-	m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "CSMain");
-	m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autoexposure_pass.slang", "AutoExposure");
-	
+	// Post-process passes
+	{
+		m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "CSMain");
+		m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autoexposure_pass.slang", "AutoExposure");
+		
+		D3D12_STATIC_SAMPLER_DESC bloomSampler = {};
+		bloomSampler.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
+		bloomSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		bloomSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		bloomSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		bloomSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+		bloomSampler.MaxLOD = D3D12_FLOAT32_MAX;
+		bloomSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_downsample.slang", "BloomDownsample", bloomSampler));
+		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_upsample.slang", "BloomUpsample", bloomSampler));
+		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_composite.slang", "BloomComposite", bloomSampler));
+	}
+
+	// Light buffer
 	{
 		m_lightBuffer = std::make_unique<StructuredBuffer>(m_context, 256, sizeof(Light), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
 		
@@ -110,12 +133,8 @@ Renderer::Renderer(Window& window, bool debug)
 		std::vector<Light> lights(numLights);
 		lights[0].type = Light::LightType::Directional;
 		lights[0].direction = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.5f));
-		lights[0].color = glm::vec3(1.0f);
-		lights[0].size = 0.03f;
-		//lights[0].type = Light::LightType::Point;
-		//lights[0].position = glm::vec3(2.0f, 2.0f, 2.0f);
-		//lights[0].color = glm::vec3(1.0f);
-		//lights[0].size = 0.1f;
+		lights[0].color = glm::vec3(5.0f);
+		lights[0].size = 0.01f;
 
 		m_lightBuffer->Update(lights.data(), numLights, sizeof(Light));
 	}
@@ -174,14 +193,19 @@ void Renderer::Resize(const int width, const int height)
 	m_swapChain->Resize(m_context, width, height);
 
 	glm::ivec2 renderSize = m_renderSettings.denoising ? m_ngx->Resize() : glm::ivec2(width, height);
-	m_outputBuffer->Resize(device, width, height);
 	m_dlssOutputBuffer->Resize(device, width, height);
+	m_postProcessBuffer->Resize(device, width, height);
+	m_outputBuffer->Resize(device, width, height);
 	m_rtOutputBuffer->Resize(device, renderSize.x, renderSize.y);
 	m_albedoBuffer->Resize(device, renderSize.x, renderSize.y);
 	m_specularAlbedoBuffer->Resize(device, renderSize.x, renderSize.y);
 	m_normalRoughnessBuffer->Resize(device, renderSize.x, renderSize.y);
 	m_depthBuffer->Resize(device, renderSize.x, renderSize.y);
 	m_motionVectorsBuffer->Resize(device, renderSize.x, renderSize.y);
+	for (size_t i = 0; i < m_bloomBuffers.size(); i++)
+	{
+		m_bloomBuffers[i]->Resize(device, width >> (i + 1), height >> (i + 1));
+	}
 }
 
 void Renderer::Render(const float deltaTime)
@@ -214,6 +238,10 @@ void Renderer::Render(const float deltaTime)
 	{
 		m_tonemappingPass->CheckHotReload(*m_commandQueue);
 		m_autoExposurePass->CheckHotReload(*m_commandQueue);
+		for (size_t i = 0; i < m_bloomPasses.size(); i++)
+		{
+			m_bloomPasses[i]->CheckHotReload(*m_commandQueue);
+		}
 		if (m_rtPipeline->CheckHotReload(m_device->GetDevice(), *m_commandQueue, m_scene->GetHitGroupRecords()))
 		{
 			ResetAccumulation();
@@ -237,7 +265,7 @@ void Renderer::Render(const float deltaTime)
 	// Begin frame
 	{
 		m_imgui->BeginFrame();
-		m_outputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		m_postProcessBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		m_swapChain->Transition(commandList.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 	}
 
@@ -256,6 +284,8 @@ void Renderer::Render(const float deltaTime)
 	{
 		// Raytracing pass
 		{
+			PIXScopedEvent(commandList.Get(), 0xeb4034, "Raytracing");
+
 			ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap(), m_samplerHeap->GetHeap() };
 			commandList->SetDescriptorHeaps(_countof(heaps), heaps);
 			commandList->SetComputeRootSignature(m_rootSignature->Get());
@@ -289,6 +319,8 @@ void Renderer::Render(const float deltaTime)
 
 		// DLSS pass
 		{
+			PIXScopedEvent(commandList.Get(), 0x76b900, "DLSS");
+
 			if (m_ngx->IsDLSSSupported() && m_renderSettings.denoising)
 			{
 				D3D12_RESOURCE_BARRIER uavBarriers[] = {
@@ -318,20 +350,132 @@ void Renderer::Render(const float deltaTime)
 			}
 		}
 
-		// Auto exposure pass
+		OutputBuffer* currentBuffer = m_renderSettings.denoising ? m_dlssOutputBuffer.get() : m_rtOutputBuffer.get();
+
+		// Copy to post process buffer
 		{
-			if (m_postProcessSettings.autoExposure)
+			currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+			m_postProcessBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
+			commandList->CopyResource(m_postProcessBuffer->GetResource(), currentBuffer->GetResource());
+			currentBuffer = m_postProcessBuffer.get();
+		}
+
+		// Bloom passes
+		if (m_postProcessSettings.bloomStrength > 0.0f)
+		{
+			PIXScopedEvent(commandList.Get(), 0xffdc7d, "Bloom Passes");
+
+			OutputBuffer* bloomInput = currentBuffer;
+
+			// Downsample passes
 			{
-				OutputBuffer& inputBuffer = m_renderSettings.denoising ? *m_dlssOutputBuffer : *m_rtOutputBuffer;
-				inputBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				PIXScopedEvent(commandList.Get(), 0xffdc7d, "Bloom Downsample");
+
+				for (size_t i = 0; i < m_bloomBuffers.size(); i++) // [0:numMips-1]
+				{
+					OutputBuffer* bloomOutput = m_bloomBuffers[i].get();
+					bloomInput->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+					bloomOutput->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+					PostProcessPass::PostProcessBindings bindings;
+					bindings.inputSrv = bloomInput->GetSRV().gpuHandle;
+					bindings.outputUav = bloomOutput->GetUAV().gpuHandle;
+					bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+					bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+					bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+					bindings.constantBufferCount = 3;
+					bindings.rootConstants[0] = bloomInput->GetWidth();
+					bindings.rootConstants[1] = bloomInput->GetHeight();
+					bindings.rootConstants[2] = bloomOutput->GetWidth();
+					bindings.rootConstants[3] = bloomOutput->GetHeight();
+					bindings.rootConstantCount = 4;
+					bindings.width = bloomOutput->GetWidth();
+					bindings.height = bloomOutput->GetHeight();
+
+					m_bloomPasses[0]->Dispatch(commandList.Get(), bindings);
+
+					bloomInput = m_bloomBuffers[i].get();
+
+					for (size_t i = 0; i < m_bloomBuffers.size(); i++)
+					{
+						D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(m_bloomBuffers[i].get()->GetResource());
+						commandList->ResourceBarrier(1, &uavBarrier);
+					}
+				}
+			}
+
+			// Upsample passes
+			{
+				PIXScopedEvent(commandList.Get(), 0xffdc7d, "Bloom Upsample");
+
+				for (size_t i = m_bloomBuffers.size(); i-- > 1;) // [numMips-1:1]
+				{
+					bloomInput = m_bloomBuffers[i].get();
+					OutputBuffer* bloomOutput = m_bloomBuffers[i - 1].get();
+					bloomInput->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+					bloomOutput->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+					PostProcessPass::PostProcessBindings bindings;
+					bindings.inputSrv = bloomInput->GetSRV().gpuHandle;
+					bindings.outputUav = bloomOutput->GetUAV().gpuHandle;
+					bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+					bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+					bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+					bindings.constantBufferCount = 3;
+					bindings.rootConstants[0] = bloomInput->GetWidth();
+					bindings.rootConstants[1] = bloomInput->GetHeight();
+					bindings.rootConstants[2] = bloomOutput->GetWidth();
+					bindings.rootConstants[3] = bloomOutput->GetHeight();
+					bindings.rootConstantCount = 4;
+					bindings.width = bloomOutput->GetWidth();
+					bindings.height = bloomOutput->GetHeight();
+
+					m_bloomPasses[1]->Dispatch(commandList.Get(), bindings);
+				}
+			}
+
+			// Final upsample to output buffer
+			{
+				PIXScopedEvent(commandList.Get(), 0xffdc7d, "Bloom Combine");
+
+				bloomInput = m_bloomBuffers[0].get();
+				bloomInput->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 				PostProcessPass::PostProcessBindings bindings;
-				bindings.inputSrv = inputBuffer.GetSRV().gpuHandle;
+				bindings.inputSrv = bloomInput->GetSRV().gpuHandle;
+				bindings.outputUav = currentBuffer->GetUAV().gpuHandle;
+				bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+				bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+				bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+				bindings.constantBufferCount = 3;
+				bindings.rootConstants[0] = bloomInput->GetWidth();
+				bindings.rootConstants[1] = bloomInput->GetHeight();
+				bindings.rootConstants[2] = currentBuffer->GetWidth();
+				bindings.rootConstants[3] = currentBuffer->GetHeight();
+				bindings.rootConstantCount = 4;
+				bindings.width = currentBuffer->GetWidth();
+				bindings.height = currentBuffer->GetHeight();
+
+				m_bloomPasses[2]->Dispatch(commandList.Get(), bindings);
+			}
+		}
+
+		// Auto exposure pass
+		{
+			PIXScopedEvent(commandList.Get(), 0xac6bfa, "Auto Exposure");
+
+			if (m_postProcessSettings.autoExposure)
+			{
+				currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+				PostProcessPass::PostProcessBindings bindings;
+				bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
 				bindings.outputUav = m_autoExposureBuffer->GetUAV().gpuHandle;
-				bindings.constants[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-				bindings.constants[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-				bindings.constants[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-				bindings.constantCount = 3;
+				bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+				bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+				bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+				bindings.constantBufferCount = 3;
 				bindings.width = 1;
 				bindings.height = 1;
 
@@ -347,23 +491,23 @@ void Renderer::Render(const float deltaTime)
 
 		// Tonemapping pass
 		{
-			OutputBuffer& inputBuffer = m_renderSettings.denoising ? *m_dlssOutputBuffer : *m_rtOutputBuffer;
-			inputBuffer.Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-			m_outputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			PIXScopedEvent(commandList.Get(), 0x6bfa8c, "Tonemapping");
+
+			currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
 			PostProcessPass::PostProcessBindings bindings;
-			bindings.inputSrv = inputBuffer.GetSRV().gpuHandle;
+			bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
 			bindings.outputUav = m_outputBuffer->GetUAV().gpuHandle;
-			bindings.constants[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.constants[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-			bindings.constants[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.constantCount = 3;
+			bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBufferCount = 3;
 			bindings.width = static_cast<uint32_t>(m_swapChain->GetViewport().Width);
 			bindings.height = static_cast<uint32_t>(m_swapChain->GetViewport().Height);
 
 			m_tonemappingPass->Dispatch(commandList.Get(), bindings);
 
-			m_rtOutputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			currentBuffer = m_outputBuffer.get();
 		}
 	}
 
@@ -424,12 +568,15 @@ void Renderer::Render(const float deltaTime)
 
 	// End frame
 	{
+		PIXSetMarker(0xffffff, "Present");
+
 		m_outputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
 		m_swapChain->Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
 		commandList->CopyResource(backBuffer, m_outputBuffer->GetResource());
 
 		// ImGui
 		{
+			PIXScopedEvent(commandList.Get(), 0xffffff, "ImGui");
 			m_swapChain->Transition(commandList.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 			D3D12_CPU_DESCRIPTOR_HANDLE rtv = m_swapChain->GetCurrentBackBufferRTV().cpuHandle;

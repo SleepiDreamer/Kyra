@@ -82,12 +82,15 @@ private:
 	std::unique_ptr<OutputBuffer> m_motionVectorsBuffer;
 	std::unique_ptr<OutputBuffer> m_depthBuffer;
 	std::unique_ptr<OutputBuffer> m_dlssOutputBuffer;
+	std::unique_ptr<OutputBuffer> m_postProcessBuffer;
 	std::unique_ptr<OutputBuffer> m_outputBuffer;
 	std::unique_ptr<StructuredBuffer> m_lightBuffer;
+	std::vector<std::unique_ptr<OutputBuffer>> m_bloomBuffers;
 
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;
 	std::unique_ptr<PostProcessPass> m_autoExposurePass;
 	std::unique_ptr<TypedBuffer> m_autoExposureBuffer;
 	GPUBuffer m_autoExposureReadback;
+	std::vector<std::unique_ptr<PostProcessPass>> m_bloomPasses;
 };
 

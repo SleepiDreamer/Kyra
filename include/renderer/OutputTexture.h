@@ -18,6 +18,8 @@ public:
     [[nodiscard]] Descriptor GetUAV() const { return m_uav; }
     [[nodiscard]] Descriptor GetSRV() const { return m_srv; }
     [[nodiscard]] DXGI_FORMAT GetFormat() const { return m_format; }
+	[[nodiscard]] uint32_t GetWidth() const { return m_width; }
+	[[nodiscard]] uint32_t GetHeight() const { return m_height; }
 
 private:
     void Create(ID3D12Device* device, uint32_t width, uint32_t height);
@@ -28,6 +30,8 @@ private:
     Descriptor m_srv;
     DXGI_FORMAT m_format;
     std::wstring m_name;
+	uint32_t m_width = 0;
+	uint32_t m_height = 0;
     bool m_initialized = false;
 
 	D3D12_RESOURCE_STATES m_currentState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;

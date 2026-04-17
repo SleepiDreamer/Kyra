@@ -93,6 +93,13 @@ public struct PostProcessSettings
     public bool autoExposure;
     public float targetExposure;
     public float exposure;
+    public float bloomStrength;
+}
+
+public struct MipData
+{
+    public uint2 srcSize;
+    public uint2 dstSize;
 }
 
 public struct Vertex

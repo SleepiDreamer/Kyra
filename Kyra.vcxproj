@@ -109,7 +109,11 @@
     <ClCompile Include="source\renderer\TypedBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="packages.config" />
     <None Include="shaders\autoexposure_pass.slang" />
+    <None Include="shaders\bloom_composite.slang" />
+    <None Include="shaders\bloom_downsample.slang" />
+    <None Include="shaders\bloom_upsample.slang" />
     <None Include="shaders\camera.slang" />
     <None Include="shaders\helpers.slang" />
     <None Include="shaders\pbr.slang" />
@@ -265,5 +269,12 @@ xcopy /D /Y "$(SolutionDir)external\ngx\lib\rel\nvngx_dlssd.dll" "$(OutDir)"</Co
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets" Condition="Exists('packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\WinPixEventRuntime.1.0.240308001\build\WinPixEventRuntime.targets'))" />
+  </Target>
 </Project>
