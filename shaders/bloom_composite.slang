@@ -39,7 +39,7 @@ void BloomComposite(uint3 dtid : SV_DispatchThreadID)
     upsample += (a + c + g + i);
     upsample *= 1.0 / 16.0;
 
-    float3 result = outputTexture[dtid.xy].rgb + (upsample * settings.bloomStrength * 0.005);
+    float3 result = outputTexture[dtid.xy].rgb + (upsample * settings.bloomStrength * 0.0025);
 
     outputTexture[dtid.xy] = float4(result, 1.0);
 }
