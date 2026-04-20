@@ -141,7 +141,7 @@ Renderer::Renderer(Window& window, bool debug)
 		std::vector<Light> lights(numLights);
 		lights[0].type = Light::LightType::Directional;
 		lights[0].direction = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.5f));
-		lights[0].color = glm::vec3(5.0f);
+		lights[0].color = glm::vec3(1.0f, 1.0f, 0.9f) * 5.0f;
 		lights[0].size = 0.01f;
 
 		m_lightBuffer->Update(lights.data(), numLights, sizeof(Light));
@@ -539,33 +539,45 @@ void Renderer::Render(const float deltaTime)
 		config2.push<float>().as_drag().min(0).max(100).speed(0.02f).pop();
 
 		ImGui::SetNextWindowPos(ImVec2(0, 0));
-		ImGui::Begin("Debug");
-		ImGui::Text("FPS: %.1f (%.2f ms)", ImGui::GetIO().Framerate, deltaTime * 1000.0f);
-		ImGui::Text("Frame: %u", m_renderData.frame);
-		ImGui::Text("Resolution: %ux%u", windowSize.x, windowSize.y);
-		ImGui::Text("Render Resolution: %ux%u", renderSize.x, renderSize.y);
-		auto responseRender = ImReflect::Input("Render Settings", m_renderSettings, config);
-		auto responsePost = ImReflect::Input("Post Process Settings", m_postProcessSettings, config);
-		auto responseCamera = ImReflect::Input("Camera", camData, config2);
-		if (responseRender.get<RenderSettings>().is_changed()) { ResetAccumulation(); }
-		if (responseRender.get_member<&RenderSettings::denoising>().is_changed())
+		ImGui::Begin("Settings");
+		ImGui::BeginTabBar("SettingsTabBar");
+		ImGui::PushItemWidth(250.0f);
+		if (ImGui::BeginTabItem("Main"))
 		{
-			m_pendingResize = true;
+			ImGui::Text("FPS: %.1f (%.2f ms)", ImGui::GetIO().Framerate, deltaTime * 1000.0f);
+			ImGui::Text("Frame: %u", m_renderData.frame);
+			ImGui::Text("Resolution: %ux%u", windowSize.x, windowSize.y);
+			ImGui::Text("Render Resolution: %ux%u", renderSize.x, renderSize.y);
+			auto responseRender = ImReflect::Input("Render Settings", m_renderSettings, config);
+			auto responsePost = ImReflect::Input("Post Process Settings", m_postProcessSettings, config);
+			if (responseRender.get<RenderSettings>().is_changed()) { ResetAccumulation(); }
+			if (responseRender.get_member<&RenderSettings::denoising>().is_changed())
+			{
+				m_pendingResize = true;
+			}
+			if (responseRender.get_member<&RenderSettings::dlssQuality>().is_changed())
+			{
+				m_pendingResize = true;
+			}
+			ImGui::EndTabItem();
 		}
-		if (responseRender.get_member<&RenderSettings::dlssQuality>().is_changed())
+		if (ImGui::BeginTabItem("Camera"))
 		{
-			m_pendingResize = true;
+			auto responseCamera = ImReflect::Input("Camera", camData, config2);
+			if (responseCamera.get<CameraData>().is_changed())
+			{
+				ResetAccumulation();
+				m_camera->SetPosition(camData.position);
+				m_camera->SetDirection(camData.forward);
+				m_camera->m_fov = camData.fov;
+				m_camera->m_aperture = camData.aperture;
+				m_camera->m_focusDistance = camData.focusDistance;
+			}
+			ImGui::EndTabItem();
 		}
-		if (responseCamera.get<CameraData>().is_changed())
-		{
-			ResetAccumulation();
-			m_camera->SetPosition(camData.position);
-			m_camera->SetDirection(camData.forward);
-			m_camera->m_fov = camData.fov;
-			m_camera->m_aperture = camData.aperture;
-			m_camera->m_focusDistance = camData.focusDistance;
-		}
+		ImGui::PopItemWidth();
 
+		ImGui::EndTabBar();
 		ImGui::End();
 	}
 
