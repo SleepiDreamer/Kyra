@@ -1,65 +1,43 @@
 #include "Shader.h"
 #include "ShaderCompiler.h"
 #include "HelpersDX.h"
+#include "Log.h"
 
 #include <iostream>
 
 Shader::Shader(ShaderCompiler& compiler, std::string filePath, const std::vector<std::string>& entryPoints, const bool isRaytracing)
 	: m_compiler(compiler), m_filePath(std::move(filePath)), m_entryPoints(entryPoints), m_isRaytracing(isRaytracing)
 {
-    if (std::filesystem::exists(m_filePath))
+    if (!std::filesystem::exists(m_filePath))
     {
-        m_lastWriteTime = std::filesystem::file_time_type::clock::now();
-    }
-    else
-    {
-        std::cerr << "Shader file not found: " << m_filePath << "\n";
-        m_lastWriteTime = std::filesystem::file_time_type::clock::now();
+		Log::Critical("Shader file not found: {}", m_filePath);
     }
 
-    Reload();
+    auto result = Load();
+
+    if (!IsValid())
+    {
+		Log::Error("Failed to compile shader: {} \n{}", m_filePath, result.errorLog);
+    }
+
+    m_lastCompileTime = std::filesystem::file_time_type::clock::now();
 }
 
 Shader::~Shader() = default;
 
-bool Shader::NeedsReload() const
-{
-    try
-    {
-        for (const auto& entry : std::filesystem::recursive_directory_iterator("shaders/")) {
-            if (entry.is_regular_file() && entry.last_write_time() > m_lastWriteTime) {
-                auto ext = entry.path().extension();
-                if (ext == ".slang" )
-                {
-					return true;
-                }
-            }
-        }
-        return false;
-    }
-    catch (const std::filesystem::filesystem_error&)
-    {
-        return false;
-    }
-}
-
-bool Shader::Reload()
+ShaderCompiler::CompilationResult Shader::Load()
 {
     auto result = m_compiler.Compile(m_filePath, m_entryPoints, m_isRaytracing);
 
+	m_lastCompileTime = std::filesystem::file_time_type::clock::now();
+
     if (!result.success)
     {
-        std::cerr << "Failed to compile shader: " << m_filePath << "\n" << result.errorLog << "\n";
-        m_lastWriteTime = std::filesystem::file_time_type::clock::now();
-		m_lastCompileError = result.errorLog;
-		m_lastCompileFailed = true;
-        return false;
+        return result;
     }
 
     m_blob = std::move(result.blob);
-    m_lastWriteTime = std::filesystem::file_time_type::clock::now();
-	m_lastCompileFailed = false;
-    return true;
+    return result;
 }
 
 D3D12_SHADER_BYTECODE Shader::GetBytecode() const

@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "ShaderCompiler.h"
+
 class ShaderCompiler;
 
 class Shader
@@ -13,23 +15,23 @@ public:
 		   const std::vector<std::string>& entryPoints, bool isRaytracing);
     ~Shader();
 
-    bool NeedsReload() const;
-    bool Reload();
+    ShaderCompiler::CompilationResult Load();
 
     [[nodiscard]] D3D12_SHADER_BYTECODE GetBytecode() const;
     [[nodiscard]] const std::vector<uint8_t>& GetBlob() const { return m_blob; }
+	[[nodiscard]] std::string GetPath() const { return m_filePath; }
+	[[nodiscard]] std::vector<std::string> GetEntryPoints() const { return m_entryPoints; }
+	[[nodiscard]] bool IsRaytracing() const { return m_isRaytracing; }
     [[nodiscard]] bool IsValid() const { return !m_blob.empty(); }
-	[[nodiscard]] bool LastCompileFailed() const { return m_lastCompileFailed; }
-	[[nodiscard]] std::string GetLastCompileError() const { return m_lastCompileError; }
 
 private:
+	friend class ShaderCompiler;
+
     ShaderCompiler& m_compiler;
     std::string m_filePath;
     std::vector<std::string> m_entryPoints;
     std::vector<uint8_t> m_blob;
     bool m_isRaytracing;
 
-    std::filesystem::file_time_type m_lastWriteTime;
-	bool m_lastCompileFailed = false;
-	std::string m_lastCompileError;
+    std::filesystem::file_time_type m_lastCompileTime;
 };

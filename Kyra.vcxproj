@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\Log.h" />
     <ClInclude Include="include\renderer\ImGuiWrapper.h" />
     <ClInclude Include="include\Camera.h" />
     <ClInclude Include="external\D3D12MA\D3D12MemAlloc.h" />

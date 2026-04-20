@@ -2,6 +2,7 @@
 #include "ShaderCompiler.h"
 #include "Shader.h"
 #include "CommandQueue.h"
+#include "Log.h"
 
 #include <d3dx12.h>
 
@@ -12,13 +13,30 @@ PostProcessPass::PostProcessPass(RenderContext& context, ShaderCompiler& compile
     : m_context(context), m_entryPoint(entryPoint), m_customSampler(customSampler)
 {
     m_shader = std::make_unique<Shader>(compiler, shaderPath, std::vector<std::string>{ entryPoint }, false);
-    if (!m_shader->IsValid())
+
+    if (m_shader->IsValid())
     {
-        ThrowError("Failed to compile post-process shader: " + shaderPath);
+		Log::Info("Compiled shader: {}", shaderPath);
+    }
+    else
+    {
+        Log::Critical("Failed to compile shader: {}", shaderPath);
     }
 
     BuildRootSignature();
     BuildPSO();
+
+    // Shader hot reload callback
+    compiler.RegisterShaderReload(m_shader.get());
+    compiler.ShaderRecompileCallback([this](const Shader* shader)
+    {
+        if (shader == m_shader.get())
+        {
+            m_context.commandQueue->Flush();
+            m_pso.Reset();
+            BuildPSO();
+        }
+    });
 }
 
 PostProcessPass::~PostProcessPass() = default;
@@ -107,35 +125,4 @@ void PostProcessPass::Dispatch(ID3D12GraphicsCommandList4* commandList, const Po
     uint32_t groupsX = (bindings.width + THREAD_GROUP_SIZE - 1) / THREAD_GROUP_SIZE;
     uint32_t groupsY = (bindings.height + THREAD_GROUP_SIZE - 1) / THREAD_GROUP_SIZE;
     commandList->Dispatch(groupsX, groupsY, 1);
-}
-
-bool PostProcessPass::CheckHotReload(CommandQueue& commandQueue)
-{
-    if (!m_shader->NeedsReload())
-    {
-	    return false;
-    }
-
-    if (!m_shader->Reload())
-    {
-        std::cerr << "[PostProcessPass] Hot reload failed, keeping previous shader\n";
-        return false;
-    }
-
-    commandQueue.Flush();
-    m_pso.Reset();
-    BuildPSO();
-    std::cout << "[PostProcessPass] Hot reload successful\n";
-
-    return true;
-}
-
-bool PostProcessPass::IsValid() const
-{
-    return m_shader && !m_shader->LastCompileFailed();
-}
-
-std::string PostProcessPass::GetLastCompileError() const
-{
-    return m_shader ? m_shader->GetLastCompileError() : "";
 }

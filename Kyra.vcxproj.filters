@@ -144,6 +144,9 @@
     <ClInclude Include="include\renderer\Light.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\Log.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\main.cpp">

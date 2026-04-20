@@ -32,7 +32,7 @@ void RayGen()
     uint2 idx = DispatchRaysIndex().xy;
     float2 size = DispatchRaysDimensions().xy;
     float2 uv = idx / size;
-
+    
     Payload payload;
     payload.radiance = float3(0.0, 0.0, 0.0);
     payload.throughput = float3(1.0, 1.0, 1.0);
@@ -40,9 +40,9 @@ void RayGen()
     payload.depth = 0;
     payload.rng = RNG.create(idx, uint(size.x), renderData.frame);
     uv += float2(renderData.camera.jitterX, renderData.camera.jitterY) / size;
-
+    
     Camera cam;
-
+    
     RayDesc ray;
     if (DEPTH_OF_FIELD)
     {

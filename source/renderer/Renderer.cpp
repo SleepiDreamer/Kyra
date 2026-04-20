@@ -65,7 +65,7 @@ Renderer::Renderer(Window& window, bool debug)
 
 	m_scene = std::make_unique<Scene>(m_context);
 
-	m_shaderCompiler = std::make_unique<ShaderCompiler>();
+	m_shaderCompiler = std::make_unique<ShaderCompiler>("shaders/");
 
 	m_ngx = std::make_unique<NGXWrapper>(m_context, window);
 	m_ngx->Initialize();
@@ -105,7 +105,7 @@ Renderer::Renderer(Window& window, bool debug)
 	m_rootSignature->AddStaticSampler(0);					 // s0:0 linear sampler
 	m_rootSignature->Build(device, L"RT Root Signature");
 
-	m_rtPipeline = std::make_unique<RTPipeline>(device, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang");
+	m_rtPipeline = std::make_unique<RTPipeline>(m_context, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang");
 
 	// Post-process passes
 	{
@@ -236,17 +236,11 @@ void Renderer::Render(const float deltaTime)
 
 	if (m_reloadTimer >= 0.5f)
 	{
-		m_tonemappingPass->CheckHotReload(*m_commandQueue);
-		m_autoExposurePass->CheckHotReload(*m_commandQueue);
-		for (size_t i = 0; i < m_bloomPasses.size(); i++)
-		{
-			m_bloomPasses[i]->CheckHotReload(*m_commandQueue);
-		}
-		if (m_rtPipeline->CheckHotReload(m_device->GetDevice(), *m_commandQueue, m_scene->GetHitGroupRecords()))
+		m_reloadTimer = 0.0f;
+		if (m_shaderCompiler->CheckHotReload())
 		{
 			ResetAccumulation();
 		}
-		m_reloadTimer = 0.0f;
 	}
 	else
 	{
@@ -273,7 +267,7 @@ void Renderer::Render(const float deltaTime)
 	m_renderData.camera = camData;
 	m_renderData.hdriIndex = m_scene->GetHDRIDescriptorIndex();
 	m_renderData.deltaTime = deltaTime;
-	glm::vec2 jitter = m_ngx->GetJitter(m_renderData.frame);
+	glm::vec2 jitter = m_ngx->GetJitter(static_cast<int>(m_renderData.frame));
 	m_renderData.camera.jitterX = jitter.x;
 	m_renderData.camera.jitterY = jitter.y;
 	m_renderSettingsCB->Update(backBufferIndex, m_renderSettings);
@@ -494,6 +488,7 @@ void Renderer::Render(const float deltaTime)
 			PIXScopedEvent(commandList.Get(), 0x6bfa8c, "Tonemapping");
 
 			currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			m_outputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 			PostProcessPass::PostProcessBindings bindings;
 			bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
@@ -513,7 +508,7 @@ void Renderer::Render(const float deltaTime)
 
 	// ImGui window
 	{
-		if (!m_rtPipeline->IsLastCompileSuccesful())
+		if (!m_shaderCompiler->GetReloadError().empty())
 		{
 			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 0.0f, 0.0f, 0.3f));
 			ImGui::Begin("Border", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
@@ -525,7 +520,7 @@ void Renderer::Render(const float deltaTime)
 			ImGui::SetNextWindowPos(ImVec2(windowSize.x / 2.0f - 400.0f, windowSize.y / 2.0f - 200.0f));
 			ImGui::Begin("Shader Compile Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 			ImGui::PushTextWrapPos(800.0f);
-			ImGui::TextWrapped("%s", m_rtPipeline->GetLastCompileError().c_str());
+			ImGui::TextWrapped("%s", m_shaderCompiler->GetReloadError().c_str());
 			ImGui::PopTextWrapPos();
 			ImGui::End();
 		}

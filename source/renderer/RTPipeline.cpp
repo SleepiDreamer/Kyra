@@ -4,38 +4,44 @@
 #include "CommandQueue.h"
 #include "StructsDX.h"
 #include "CommonDX.h"
+#include "Log.h"
 
 #include <d3dx12.h>
 #include <iostream>
 
 using namespace Microsoft::WRL;
 
-RTPipeline::RTPipeline(ID3D12Device10* device, ID3D12RootSignature* rootSignature, ShaderCompiler& compiler, const std::vector<HitGroupRecord>& records, const std::string& shaderPath)
-	: m_rootSignature(rootSignature)
+RTPipeline::RTPipeline(RenderContext& context, ID3D12RootSignature* rootSignature, ShaderCompiler& compiler, const std::vector<HitGroupRecord>& records, const std::string& shaderPath)
+	: m_context(context), m_rootSignature(rootSignature), m_hitGroupRecords(records)
 {
 	std::vector<std::string> entryPoints = {};
     m_shader = std::make_unique<Shader>(compiler, shaderPath, entryPoints, true);
-    if (!m_shader->IsValid())
+    if (m_shader->IsValid())
     {
-        ThrowError("Failed to compile RT shaders: " + shaderPath);
+        Log::Info("Compiled shader: {}", shaderPath);
     }
+    else
+	{
+        Log::Critical("Failed to compile shader: {}", shaderPath);
+	}
 
-    CreateLocalRootSignature(device);
-    CreatePSO(device);
-    CreateShaderTables(device, records);
+    CreateLocalRootSignature(m_context.device);
+    CreatePSO(m_context.device);
+    CreateShaderTables(m_context.device, m_hitGroupRecords);
+
+    // Shader hot reload callback
+    compiler.RegisterShaderReload(m_shader.get());
+    compiler.ShaderRecompileCallback([this](const Shader* shader)
+    {
+        if (shader == m_shader.get())
+        {
+            m_context.commandQueue->Flush();
+            Rebuild(m_context.device, m_hitGroupRecords);
+        }
+    });
 }
 
 RTPipeline::~RTPipeline() = default;
-
-bool RTPipeline::IsLastCompileSuccesful() const
-{
-	return !m_shader->LastCompileFailed();
-}
-
-std::string RTPipeline::GetLastCompileError() const
-{
-	return m_shader->GetLastCompileError();
-}
 
 void RTPipeline::CreateLocalRootSignature(ID3D12Device10* device)
 {
@@ -130,7 +136,8 @@ void RTPipeline::CreateShaderTables(ID3D12Device10* device, const std::vector<Hi
 
     // Miss table
     {
-        UINT tableSize = Align(m_missRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+        UINT missCount = 2;
+        UINT tableSize = Align(m_missRecordSize * missCount, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
         auto heapProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         auto bufDesc = CD3DX12_RESOURCE_DESC::Buffer(tableSize);
         ThrowIfFailed(device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
@@ -140,7 +147,7 @@ void RTPipeline::CreateShaderTables(ID3D12Device10* device, const std::vector<Hi
 		uint8_t * mapped = nullptr;
         m_missTable->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
         memcpy(mapped, props->GetShaderIdentifier(L"Miss"), shaderIdSize);
-		memcpy(mapped + shaderIdSize, props->GetShaderIdentifier(L"ShadowMiss"), shaderIdSize);
+		memcpy(mapped + m_missRecordSize, props->GetShaderIdentifier(L"ShadowMiss"), shaderIdSize);
         m_missTable->Unmap(0, nullptr);
     }
 
@@ -193,26 +200,6 @@ void RTPipeline::RebuildShaderTables(ID3D12Device10* device, const std::vector<H
 	CreateShaderTables(device, records);
 }
 
-bool RTPipeline::CheckHotReload(ID3D12Device10* device, CommandQueue& commandQueue, const std::vector<HitGroupRecord>& records)
-{
-    if (!m_shader->NeedsReload())
-    {
-	    return false;
-    }
-
-    if (!m_shader->Reload())
-    {
-        std::cerr << "[RTPipeline] Hot reload failed, keeping previous shaders\n";
-        return false;
-    }
-
-    commandQueue.Flush();
-    Rebuild(device, records);
-    std::cout << "[RTPipeline] Hot reload successful\n";
-
-    return true;
-}
-
 D3D12_DISPATCH_RAYS_DESC RTPipeline::GetDispatchRaysDesc() const
 {
     D3D12_DISPATCH_RAYS_DESC desc{};
@@ -221,7 +208,7 @@ D3D12_DISPATCH_RAYS_DESC RTPipeline::GetDispatchRaysDesc() const
     desc.RayGenerationShaderRecord.SizeInBytes = m_raygenRecordSize;
 
     desc.MissShaderTable.StartAddress = m_missTable->GetGPUVirtualAddress();
-    desc.MissShaderTable.SizeInBytes = m_missRecordSize;
+    desc.MissShaderTable.SizeInBytes = m_missRecordSize * 2;
     desc.MissShaderTable.StrideInBytes = m_missRecordSize;
 
     desc.HitGroupTable.StartAddress = m_hitGroupTable->GetGPUVirtualAddress();

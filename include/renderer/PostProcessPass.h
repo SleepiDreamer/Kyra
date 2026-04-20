@@ -31,10 +31,6 @@ public:
 
 	void Dispatch(ID3D12GraphicsCommandList4* commandList, const PostProcessBindings& bindings) const;
 
-    bool CheckHotReload(CommandQueue& commandQueue);
-    [[nodiscard]] bool IsValid() const;
-    [[nodiscard]] std::string GetLastCompileError() const;
-
 private:
     void BuildRootSignature();
     void BuildPSO();
