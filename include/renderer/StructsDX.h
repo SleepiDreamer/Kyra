@@ -63,7 +63,7 @@ struct RenderSettings
 	float lightIntensity = 1.0f;
 	BOOL whiteAlbedo = false;
 	BOOL whiteLighting = false;
-	BOOL denoising = false;
+	BOOL denoising = true;
 	DLSSQuality dlssQuality = Balanced;
 };
 IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)

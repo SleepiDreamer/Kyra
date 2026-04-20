@@ -19,6 +19,8 @@ public:
     void EndFrame(ID3D12GraphicsCommandList* cmdList);
 
 private:
+    void SetupImGuiStyle();
+
 	RenderContext& m_context;
     Descriptor m_fontDescriptor;
 };
