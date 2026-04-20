@@ -28,7 +28,6 @@ private:
     Microsoft::WRL::ComPtr<ID3D12StateObject> m_pso;
     ID3D12RootSignature* m_rootSignature;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> m_localRootSignature;
-	std::vector<HitGroupRecord> m_hitGroupRecords;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> m_raygenTable;
     Microsoft::WRL::ComPtr<ID3D12Resource> m_missTable;

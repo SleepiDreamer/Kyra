@@ -12,7 +12,7 @@
 using namespace Microsoft::WRL;
 
 RTPipeline::RTPipeline(RenderContext& context, ID3D12RootSignature* rootSignature, ShaderCompiler& compiler, const std::vector<HitGroupRecord>& records, const std::string& shaderPath)
-	: m_context(context), m_rootSignature(rootSignature), m_hitGroupRecords(records)
+	: m_context(context), m_rootSignature(rootSignature)
 {
 	std::vector<std::string> entryPoints = {};
     m_shader = std::make_unique<Shader>(compiler, shaderPath, entryPoints, true);
@@ -27,7 +27,7 @@ RTPipeline::RTPipeline(RenderContext& context, ID3D12RootSignature* rootSignatur
 
     CreateLocalRootSignature(m_context.device);
     CreatePSO(m_context.device);
-    CreateShaderTables(m_context.device, m_hitGroupRecords);
+    CreateShaderTables(m_context.device, records);
 
     // Shader hot reload callback
     compiler.RegisterShaderReload(m_shader.get());
