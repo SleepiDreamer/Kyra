@@ -106,6 +106,14 @@ Renderer::Renderer(Window& window, bool debug)
 	m_rootSignature->Build(device, L"RT Root Signature");
 
 	m_rtPipeline = std::make_unique<RTPipeline>(m_context, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang");
+	m_shaderCompiler->ShaderRecompileCallback([this](const Shader* shader)
+	{
+		if (shader == m_rtPipeline->GetShader())
+		{
+			m_context.commandQueue->Flush();
+			m_rtPipeline->Rebuild(m_context.device, m_scene->GetHitGroupRecords());
+		}
+	});
 
 	// Post-process passes
 	{

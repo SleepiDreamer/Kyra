@@ -17,6 +17,8 @@ public:
     
 	[[nodiscard]] D3D12_DISPATCH_RAYS_DESC GetDispatchRaysDesc() const;
     [[nodiscard]] ID3D12StateObject* GetPSO() const { return m_pso.Get(); }
+	[[nodiscard]] Shader* GetShader() const { return m_shader.get(); }
+
 private:
     void CreateLocalRootSignature(ID3D12Device10* device);
     void CreatePSO(ID3D12Device10* device);

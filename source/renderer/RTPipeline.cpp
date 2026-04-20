@@ -31,14 +31,6 @@ RTPipeline::RTPipeline(RenderContext& context, ID3D12RootSignature* rootSignatur
 
     // Shader hot reload callback
     compiler.RegisterShaderReload(m_shader.get());
-    compiler.ShaderRecompileCallback([this](const Shader* shader)
-    {
-        if (shader == m_shader.get())
-        {
-            m_context.commandQueue->Flush();
-            Rebuild(m_context.device, m_hitGroupRecords);
-        }
-    });
 }
 
 RTPipeline::~RTPipeline() = default;
