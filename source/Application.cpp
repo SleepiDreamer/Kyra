@@ -60,58 +60,121 @@ void Application::Run()
 void Application::Update(const float deltaTime)
 {
 	auto window = m_window->GetGLFWWindow();
-
 	float cameraSpeed = m_movementSpeed;
-	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-	{
-		cameraSpeed *= 4.0f;
-	}
-	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-	{
-		cameraSpeed *= 0.25f;
-	}
 
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) // W
+	// Keyboard and mouse
 	{
-		m_camera->Move(deltaTime * m_camera->GetForward() * cameraSpeed);
-	}
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) // S
-	{
-		m_camera->Move(-deltaTime * m_camera->GetForward() * cameraSpeed);
-	}
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) // A
-	{
-		m_camera->Move(-deltaTime * m_camera->GetRight() * cameraSpeed);
-	}
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) // D
-	{
-		m_camera->Move(deltaTime * m_camera->GetRight() * cameraSpeed);
-	}
-	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) // Q
-	{
-		m_camera->Move(glm::vec3(0, -deltaTime, 0) * cameraSpeed);
-	}
-	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) // R
-	{
-		m_camera->Move(glm::vec3(0, deltaTime, 0) * cameraSpeed);
-	}
-
-	double x, y;
-	glfwGetCursorPos(window, &x, &y);
-
-	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS || m_mouseCaptured)
-	{
-
-		const float sensitivity = static_cast<float>(4.0 / m_window->GetWidth());
-		glm::vec2 delta = sensitivity * glm::vec2(static_cast<float>(m_mouseXPrev - x), static_cast<float>(m_mouseYPrev - y));
-		if (abs(delta.x) > 0.0f || abs(delta.y) > 0.0f)
+		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
 		{
-			m_camera->Rotate(delta);
+			cameraSpeed *= 4.0f;
+		}
+		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+		{
+			cameraSpeed *= 0.25f;
+		}
+
+		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) // W
+		{
+			m_camera->Move(deltaTime * m_camera->GetForward() * cameraSpeed);
+		}
+		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) // S
+		{
+			m_camera->Move(-deltaTime * m_camera->GetForward() * cameraSpeed);
+		}
+		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) // A
+		{
+			m_camera->Move(-deltaTime * m_camera->GetRight() * cameraSpeed);
+		}
+		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) // D
+		{
+			m_camera->Move(deltaTime * m_camera->GetRight() * cameraSpeed);
+		}
+		if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) // Q
+		{
+			m_camera->Move(glm::vec3(0, -deltaTime, 0) * cameraSpeed);
+		}
+		if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) // R
+		{
+			m_camera->Move(glm::vec3(0, deltaTime, 0) * cameraSpeed);
+		}
+
+		double x, y;
+		glfwGetCursorPos(window, &x, &y);
+
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS || m_mouseCaptured)
+		{
+
+			const float sensitivity = static_cast<float>(4.0 / m_window->GetWidth());
+			glm::vec2 delta = sensitivity * glm::vec2(static_cast<float>(m_mouseXPrev - x), static_cast<float>(m_mouseYPrev - y));
+			if (abs(delta.x) > 0.0f || abs(delta.y) > 0.0f)
+			{
+				m_camera->Rotate(delta);
+			}
+		}
+
+		m_mouseXPrev = x;
+		m_mouseYPrev = y;
+	}
+
+	// Gamepad
+	GLFWgamepadstate gamepadState;
+	if (glfwGetGamepadState(GLFW_JOYSTICK_1, &gamepadState))
+	{
+		constexpr float deadzone = 0.0f;
+
+		// Speed modifiers
+		if (gamepadState.buttons[GLFW_GAMEPAD_BUTTON_A] == GLFW_PRESS)
+		{
+			cameraSpeed *= 4.0f;
+		}
+		if (gamepadState.buttons[GLFW_GAMEPAD_BUTTON_X] == GLFW_PRESS)
+		{
+			cameraSpeed *= 0.25f;
+		}
+
+		// Left stick - movement
+		float lx = gamepadState.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+		float ly = gamepadState.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+		if (fabs(lx) < deadzone) lx = 0.0f;
+		if (fabs(ly) < deadzone) ly = 0.0f;
+		if (lx != 0.0f || ly != 0.0f)
+		{
+			m_camera->Move(deltaTime * cameraSpeed * (m_camera->GetRight() * lx - m_camera->GetForward() * ly));
+		}
+
+		// Triggers - vertical movement
+		float lt = gamepadState.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
+		float rt = gamepadState.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
+		if (lt > 0.0f)
+		{
+			m_camera->Move(glm::vec3(0, -deltaTime * lt, 0) * cameraSpeed);
+		}
+		if (rt > 0.0f)
+		{
+			m_camera->Move(glm::vec3(0, deltaTime * rt, 0) * cameraSpeed);
+		}
+
+		// Right stick - rotation
+		float rx = gamepadState.axes[GLFW_GAMEPAD_AXIS_RIGHT_X];
+		float ry = gamepadState.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y];
+		if (fabs(rx) < deadzone) rx = 0.0f;
+		if (fabs(ry) < deadzone) ry = 0.0f;
+		if (rx != 0.0f || ry != 0.0f)
+		{
+			constexpr float stickSensitivity = 3.5f;
+			m_camera->Rotate(glm::vec2(-rx, -ry) * stickSensitivity * deltaTime);
+		}
+
+		// Bumpers - speed adjustment
+		if (gamepadState.buttons[GLFW_GAMEPAD_BUTTON_LEFT_BUMPER] == GLFW_PRESS)
+		{
+			m_movementSpeed = m_movementSpeed * powf(0.25f, deltaTime);
+		}
+		if (gamepadState.buttons[GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER] == GLFW_PRESS)
+		{
+			m_movementSpeed = m_movementSpeed * powf(4.0f, deltaTime);
 		}
 	}
-
-	m_mouseXPrev = x;
-	m_mouseYPrev = y;
 }
 
 void Application::KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
