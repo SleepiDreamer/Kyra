@@ -203,7 +203,7 @@ ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& fil
     slang::SessionDesc sessionDesc{};
     slang::TargetDesc targetDesc{};
     targetDesc.format = SLANG_DXIL;
-    targetDesc.profile = m_globalSession->findProfile("sm_6_8");
+    targetDesc.profile = m_globalSession->findProfile("sm_6_6");
 
     std::array<slang::CompilerOptionEntry, 1> options = { {{
         slang::CompilerOptionName::GenerateWholeProgram,
