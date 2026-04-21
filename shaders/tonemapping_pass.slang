@@ -30,7 +30,14 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
 
     if (renderSettings.debugMode == DebugMode::None)
     { 
-        result = tonemap(result, settings.tonemapper, settings.exposure);
+        if (settings.tonemapper == TonemapOperator::HDR)
+        {
+            result = tonemapHDR(result, 100.0f, 800.0f, settings.exposure);
+        }
+        else
+        {
+            result = tonemap(result, settings.tonemapper, settings.exposure);
+        }
     }
 
     outputTexture[dtid.xy] = float4(result, 1.0);

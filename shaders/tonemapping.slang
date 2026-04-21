@@ -5,6 +5,7 @@ import tonemapping.aces;
 import tonemapping.reinhard;
 import tonemapping.agx;
 import tonemapping.gt7;
+import tonemapping.hdr;
 
 public float3 tonemap(float3 color, TonemapOperator op, float exposure)
 {
@@ -19,4 +20,11 @@ public float3 tonemap(float3 color, TonemapOperator op, float exposure)
         case TonemapOperator::GT7:      return tonemapGT7(color);
         default:                        return color;
     }
+}
+
+public float3 tonemapHDR(float3 luminance, float paperWhite, float maxNits, float exposure)
+{
+    luminance *= exposure;
+
+    return tonemapHDRPQ(luminance, paperWhite, maxNits);
 }

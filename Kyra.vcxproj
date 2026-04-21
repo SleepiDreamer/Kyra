@@ -131,6 +131,7 @@
     <None Include="shaders\tonemapping\aces.slang" />
     <None Include="shaders\tonemapping\agx.slang" />
     <None Include="shaders\tonemapping\gt7.slang" />
+    <None Include="shaders\tonemapping\hdr.slang" />
     <None Include="shaders\tonemapping\reinhard.slang" />
     <None Include="shaders\tonemapping_pass.slang" />
   </ItemGroup>
