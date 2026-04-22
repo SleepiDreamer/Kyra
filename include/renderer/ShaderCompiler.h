@@ -27,7 +27,8 @@ public:
 
     [[nodiscard]] std::string GetReloadError() const;
 
-	static std::vector<std::string> ParseImports(const std::string& filePath);
+	static std::vector<std::string> ParseImports(const std::string& filePath, bool recurse = true);
+	static void ParseImportsRecursive(const std::string& filePath, std::unordered_set<std::string>& dependencies, bool recurse);
 
     void RegisterShaderReload(Shader* shader);
     void ShaderRecompileCallback(const std::function<void(Shader*)>& callback);

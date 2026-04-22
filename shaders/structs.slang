@@ -85,6 +85,7 @@ public enum TonemapOperator
     Reinhard,
     AgX,
     GT7,
+    Psycho,
     HDR,
 };
 

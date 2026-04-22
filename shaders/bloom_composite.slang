@@ -2,8 +2,6 @@
 
 import settings;
 import structs;
-import helpers;
-import tonemapping;
 
 Texture2D<float4> inputTexture : register(t0, space0);
 RWTexture2D<float4> outputTexture : register(u0, space0);

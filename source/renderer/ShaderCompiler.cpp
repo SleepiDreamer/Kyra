@@ -41,10 +41,18 @@ std::string ShaderCompiler::GetReloadError() const
 	return m_reloadErrors.front().second;
 }
 
-std::vector<std::string> ShaderCompiler::ParseImports(const std::string& filePath)
+std::vector<std::string> ShaderCompiler::ParseImports(const std::string& filePath, bool recurse)
 {
-    std::vector<std::string> dependencies;
-    std::string directory = std::filesystem::path(filePath).parent_path().string();
+	std::unordered_set<std::string> dependencies;
+    ParseImportsRecursive(filePath, dependencies, true);
+    return { dependencies.begin(), dependencies.end() };
+}
+
+
+void ShaderCompiler::ParseImportsRecursive(const std::string& filePath, std::unordered_set<std::string>& dependencies, const bool recurse)
+{
+	std::vector<std::string> newDependencies;
+	std::string directory = std::filesystem::path(filePath).parent_path().string();
 
     std::ifstream file(filePath);
     std::string line;
@@ -83,11 +91,21 @@ std::vector<std::string> ShaderCompiler::ParseImports(const std::string& filePat
         // Replace period with slash
         std::ranges::replace(moduleName, '.', '/');
 
-        std::string resolved = directory + "/" += moduleName + ".slang";
-        dependencies.push_back(std::filesystem::canonical(resolved).string());
+		std::string resolved = std::filesystem::canonical(directory + "/" += moduleName + ".slang").string();
+		if (!dependencies.contains(resolved))
+		{
+			dependencies.insert(resolved);
+			newDependencies.push_back(resolved);
+		}
     }
 
-    return dependencies;
+    if (recurse)
+    {
+        for (const auto& dependency : newDependencies)
+        {
+            ParseImportsRecursive(dependency, dependencies, true);
+        }
+    }
 }
 
 void ShaderCompiler::RegisterShaderReload(Shader* shader)
@@ -122,7 +140,7 @@ bool ShaderCompiler::CheckHotReload()
 
         if (!needsRecompile)
         {
-            for (const auto& dep : ParseImports(shader->GetPath()))
+            for (const auto& dep : ParseImports(shader->GetPath(), true))
             {
                 if (std::filesystem::last_write_time(dep) > lastCompile)
                 {

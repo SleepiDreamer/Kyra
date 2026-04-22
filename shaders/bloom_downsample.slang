@@ -1,8 +1,6 @@
 // Based on Alexander Christensen's LearnOpenGL guest article on bloom: https://learnopengl.com/Guest-Articles/2022/Phys.-Based-Bloom
 
 import structs;
-import helpers;
-import tonemapping;
 
 Texture2D<float4> inputTexture : register(t0, space0);
 RWTexture2D<float4> outputTexture : register(u0, space0);
