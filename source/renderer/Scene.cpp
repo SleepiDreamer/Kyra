@@ -2,6 +2,7 @@
 #include "Model.h"
 #include "Mesh.h"
 #include "TLAS.h"
+#include "Light.h"
 #include "Texture.h"
 #include "CommandQueue.h"
 #include "UploadContext.h"
@@ -14,6 +15,16 @@
 Scene::Scene(RenderContext& context)
 	: m_context(context)
 {
+	m_lightBuffer = std::make_unique<StructuredBuffer>(m_context, 256, sizeof(Light), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
+
+	uint32_t numLights = 1;
+	std::vector<Light> lights(numLights);
+	lights[0].type = Light::LightType::Directional;
+	lights[0].direction = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.5f));
+	lights[0].color = glm::vec3(1.0f, 1.0f, 0.9f) * 5.0f;
+	lights[0].size = 0.01f;
+
+	m_lightBuffer->Update(lights.data(), numLights, sizeof(Light));
 }
 
 Scene::~Scene() = default;
@@ -112,6 +123,11 @@ D3D12_GPU_VIRTUAL_ADDRESS Scene::GetTLASAddress() const
 D3D12_GPU_VIRTUAL_ADDRESS Scene::GetMaterialsBufferAddress() const
 {
 	return m_materialBuffer ? m_materialBuffer->GetResource() ? m_materialBuffer->GetResource()->GetGPUVirtualAddress() : 0 : 0;
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS Scene::GetLightBufferAddress() const
+{
+	return m_lightBuffer ? m_lightBuffer->GetResource() ? m_lightBuffer->GetResource()->GetGPUVirtualAddress() : 0 : 0;
 }
 
 std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const

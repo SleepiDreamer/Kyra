@@ -23,6 +23,7 @@ public:
 	[[nodiscard]] const TLAS& GetTLAS() const { return *m_tlas; }
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetTLASAddress() const;
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetMaterialsBufferAddress() const;
+	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetLightBufferAddress() const;
 	[[nodiscard]] std::vector<HitGroupRecord> GetHitGroupRecords() const;
 	[[nodiscard]] int32_t GetHDRIDescriptorIndex() const;
 
@@ -34,5 +35,6 @@ private:
 	std::vector<Model> m_models;
 	std::unique_ptr<Texture> m_hdri;
 	std::unique_ptr<StructuredBuffer> m_materialBuffer;
+	std::unique_ptr<StructuredBuffer> m_lightBuffer;
 };
 

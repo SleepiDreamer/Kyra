@@ -133,20 +133,6 @@ Renderer::Renderer(Window& window, bool debug)
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_composite.slang", "BloomComposite", bloomSampler));
 	}
 
-	// Light buffer
-	{
-		m_lightBuffer = std::make_unique<StructuredBuffer>(m_context, 256, sizeof(Light), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
-		
-		uint32_t numLights = 1;
-		std::vector<Light> lights(numLights);
-		lights[0].type = Light::LightType::Directional;
-		lights[0].direction = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.5f));
-		lights[0].color = glm::vec3(1.0f, 1.0f, 0.9f) * 5.0f;
-		lights[0].size = 0.01f;
-
-		m_lightBuffer->Update(lights.data(), numLights, sizeof(Light));
-	}
-
 	m_autoExposureBuffer = std::make_unique<TypedBuffer>(
 		m_context, 1, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
 	m_autoExposureReadback = m_allocator->CreateBuffer(
@@ -306,7 +292,7 @@ void Renderer::Render(const float deltaTime)
 
 			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetTLASAddress(),							 "sceneBVH");
 			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(),				 "materials");
-			m_rootSignature->SetRootSRV(commandList.Get(), m_lightBuffer->GetResource()->GetGPUVirtualAddress(), "lights");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightBufferAddress(), "lights");
 
 			auto dispatchDesc = m_rtPipeline->GetDispatchRaysDesc();
 			dispatchDesc.Width = m_renderSettings.denoising ? renderSize.x : windowSize.x;

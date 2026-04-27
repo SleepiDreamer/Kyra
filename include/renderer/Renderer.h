@@ -84,7 +84,6 @@ private:
 	std::unique_ptr<OutputBuffer> m_dlssOutputBuffer;
 	std::unique_ptr<OutputBuffer> m_postProcessBuffer;
 	std::unique_ptr<OutputBuffer> m_outputBuffer;
-	std::unique_ptr<StructuredBuffer> m_lightBuffer;
 	std::vector<std::unique_ptr<OutputBuffer>> m_bloomBuffers;
 
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;
