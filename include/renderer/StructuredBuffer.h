@@ -5,15 +5,15 @@
 class StructuredBuffer
 {
 public:
-	StructuredBuffer(
-		RenderContext& context, uint32_t elementCount, uint32_t stride,
-		D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heapType, const char* name);
+	StructuredBuffer(RenderContext& context, uint32_t elementCount, uint32_t stride, 
+		D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heapType, std::string name);
 	~StructuredBuffer();
 	StructuredBuffer(const StructuredBuffer&) = delete;
 	StructuredBuffer& operator=(const StructuredBuffer&) = delete;
 	StructuredBuffer(StructuredBuffer&&) = delete;
 
-	void Update(const void* data, uint32_t elementCount, uint32_t stride) const;
+	void Init(uint32_t elementCount);
+	void Update(const void* data, uint32_t elementCount = 0);
 
 	[[nodiscard]] GPUBuffer& GetBuffer() { return m_buffer; }
 	[[nodiscard]] ID3D12Resource* GetResource() const { return m_buffer.resource; }
@@ -30,4 +30,7 @@ private:
 
 	uint32_t m_elementCount = 0;
 	uint32_t m_stride = 0;
+	D3D12_RESOURCE_FLAGS m_flags;
+	D3D12_HEAP_TYPE m_heapType;
+	std::string m_name;
 };

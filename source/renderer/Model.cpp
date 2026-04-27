@@ -1,8 +1,10 @@
 #include "Model.h"
+#include "Light.h"
 #include "MikkT.h"
 #include "GPUAllocator.h"
 #include "CommandQueue.h"
 #include "StructsDX.h"
+#include "Log.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -83,7 +85,50 @@ void Model::TraverseNode(ID3D12GraphicsCommandList4* commandList, const fastgltf
         LoadMesh(commandList, asset, mesh, worldTransform);
     }
 
-    // TODO: Handle lights when node.lightIndex.has_value()
+    // Node has light
+    if (node.lightIndex.has_value())
+    {
+		const fastgltf::Light& rLight = asset.lights[node.lightIndex.value()];
+        Light light;
+
+		switch (rLight.type)
+        {
+	        case fastgltf::LightType::Directional:
+	        {
+	            light.type = Light::LightType::Directional;
+
+				XMVECTOR forward = XMVector3Normalize(worldTransform.r[2]);
+	            forward = XMVectorNegate(forward);
+	            XMFLOAT3 dir;
+	            XMStoreFloat3(&dir, forward);
+	            light.direction = { dir.x, dir.y, dir.z };
+				light.direction = glm::normalize(light.direction);
+	            break;
+	        }
+	        case fastgltf::LightType::Point:
+		    {
+	            light.type = Light::LightType::Point;
+
+	            XMFLOAT3 pos;
+	            XMStoreFloat3(&pos, worldTransform.r[3]);
+	            light.position = { pos.x, pos.y, pos.z };
+	            break;
+		    }
+			default:
+	        {
+	            Log::Warning("Unsupported light type in glTF: {}", rLight.name);
+	            break;
+	        }
+        }
+
+        light.size = 0.01f;
+        light.color = { rLight.color.x(), rLight.color.y(), rLight.color.z() };
+        if (rLight.intensity > 0.0f)
+        {
+            light.color *= rLight.intensity / 683.0f; // Normalize brightness
+		}
+		m_lights.push_back(light);
+    }
 
     for (size_t childIndex : node.children)
     {

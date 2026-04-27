@@ -177,8 +177,10 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     if (renderSettings.bounces == 0) payload.radiance += albedo * payload.throughput * 0.1 * (normal.y + 3) / 4;
 
     // explicit lighting
+    if (renderData.numLights > 0)
     {
-        Light light = lights[0];
+        uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
+        Light light = lights[lightIdx];
         float3 radiance = light.color;
         float3 dirToLight;
         float dist = 0.0;
@@ -197,7 +199,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
             dirToLight = sampleSun(payload.rng.nextFloat2(), -light.direction, light.size);
         }
 
-        if (dot(dirToLight, normal) > 0.0 || true)
+        if (dot(dirToLight, normal) > 0.0)
         {
             RayDesc shadowRay;
             shadowRay.Origin = OffsetRay(hitPoint, geoNormal);

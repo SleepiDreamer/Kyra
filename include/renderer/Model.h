@@ -8,6 +8,7 @@
 #include <filesystem>
 
 class GPUAllocator;
+class Light;
 struct MaterialData;
 
 class Model
@@ -24,6 +25,7 @@ public:
     [[nodiscard]] const std::vector<Mesh>& GetMeshes() const { return m_meshes; }
     [[nodiscard]] const std::vector<Texture>& GetTextures() const { return m_textures; }
 	[[nodiscard]] const std::vector<MaterialData>& GetMaterials() const { return m_materials; }
+	[[nodiscard]] const std::vector<Light>& GetLights() const { return m_lights; }
     [[nodiscard]] const std::string& GetName() const { return m_name; }
 
 private:
@@ -40,6 +42,7 @@ private:
 
     RenderContext& m_context;
     std::vector<Mesh> m_meshes;
+    std::vector<Light> m_lights;
     std::vector<Texture> m_textures;
     std::vector<MaterialData> m_materials;
     std::vector<Descriptor> m_samplerDescriptors;

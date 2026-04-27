@@ -28,6 +28,7 @@ struct RenderData
 	CameraData prevCamera = {};
 	int32_t hdriIndex = -1;
 	uint32_t frame = 0;
+	uint32_t numLights = 0;
 	float deltaTime = 0.0f;
 };
 

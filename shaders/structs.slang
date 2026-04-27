@@ -39,6 +39,7 @@ public struct RenderData
     public CameraData prevCamera;
     public int hdriIndex;
     public uint frame;
+    public uint numLights;
     public float deltaTime;
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "GPUBuffer.h"
 #include "DescriptorHeap.h"
+#include "Light.h"
 
 class Model;
 class TLAS;
@@ -18,6 +19,7 @@ public:
 
 	bool LoadModel(const std::string& path);
 	void LoadHDRI(const std::string& path);
+	void AddLights(const std::vector<Light>& lights);
 
 	[[nodiscard]] const std::vector<Model>& GetModels() const { return m_models; }
 	[[nodiscard]] const TLAS& GetTLAS() const { return *m_tlas; }
@@ -26,6 +28,7 @@ public:
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetLightBufferAddress() const;
 	[[nodiscard]] std::vector<HitGroupRecord> GetHitGroupRecords() const;
 	[[nodiscard]] int32_t GetHDRIDescriptorIndex() const;
+	[[nodiscard]] uint32_t GetNumLights() const { return static_cast<uint32_t>(m_lights.size()); }
 
 private:
 	void UploadMaterialData();
@@ -36,5 +39,6 @@ private:
 	std::unique_ptr<Texture> m_hdri;
 	std::unique_ptr<StructuredBuffer> m_materialBuffer;
 	std::unique_ptr<StructuredBuffer> m_lightBuffer;
+	std::vector<Light> m_lights;
 };
 

@@ -9,6 +9,7 @@
 #include "GPUAllocator.h"
 #include "StructuredBuffer.h"
 #include "StructsDX.h"
+#include "Log.h"
 
 #include <stb_image.h>
 
@@ -16,15 +17,6 @@ Scene::Scene(RenderContext& context)
 	: m_context(context)
 {
 	m_lightBuffer = std::make_unique<StructuredBuffer>(m_context, 256, sizeof(Light), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
-
-	uint32_t numLights = 1;
-	std::vector<Light> lights(numLights);
-	lights[0].type = Light::LightType::Directional;
-	lights[0].direction = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.5f));
-	lights[0].color = glm::vec3(1.0f, 1.0f, 0.9f) * 5.0f;
-	lights[0].size = 0.01f;
-
-	m_lightBuffer->Update(lights.data(), numLights, sizeof(Light));
 }
 
 Scene::~Scene() = default;
@@ -34,7 +26,7 @@ bool Scene::LoadModel(const std::string& path)
 	std::string extension = path.substr(path.find_last_of('.'));
 	if (extension != ".gltf" && extension != ".glb")
 	{
-		std::cerr << "Unsupported model format: " << extension << "\nPlease use .gltf or .glb\n";
+		Log::Error("Unsupported model format: {}. Please use .gltf or .glb instead", extension);
 		return false;
 	}
 
@@ -75,6 +67,7 @@ bool Scene::LoadModel(const std::string& path)
 			TransitionResource(commandList.Get(), tex.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 	}
+	AddLights(newModel.GetLights());
 
 	m_context.commandQueue->ExecuteCommandList(commandList);
 	m_context.commandQueue->Flush();
@@ -84,6 +77,60 @@ bool Scene::LoadModel(const std::string& path)
 	std::cout << "Loaded model: " << path << ". Took " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0 << " s.\n";
 
 	return true;
+}
+
+void Scene::LoadHDRI(const std::string& path)
+{
+	m_context.commandQueue->Flush();
+
+	if (m_hdri)
+	{
+		m_hdri.reset();
+	}
+
+	std::string extension = path.substr(path.find_last_of('.'));
+	if (extension != ".hdr")
+	{
+		Log::Error("Unsupported HDRI format: {}. Please use .hdr instead", extension);
+		return;
+	}
+	
+	m_hdri = std::make_unique<Texture>();
+
+	std::cout << "Loading HDRI: " << path << "\r";
+	std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
+	int width, height, nrChannels;
+	float* data = stbi_loadf(path.c_str(), &width, &height, &nrChannels, 4);
+	if (data)
+	{
+		m_hdri->Create(m_context, data, width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, path);
+		stbi_image_free(data);
+
+		m_context.uploadContext->Flush();
+
+		auto commandList = m_context.commandQueue->GetCommandList();
+		TransitionResource(commandList.Get(), m_hdri->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		m_context.commandQueue->ExecuteCommandList(commandList);
+		m_context.commandQueue->Flush();
+	}
+	else
+	{
+		ThrowError("Failed to load HDRI: " + path);
+	}
+	auto time = std::chrono::steady_clock::now() - startTime;
+	std::cout << "Loaded HDRI: " << path << ". Took " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0 << " s.\n";
+}
+
+void Scene::AddLights(const std::vector<Light>& lights)
+{
+	for (const auto& light : lights)
+	{
+		m_lights.push_back(light);
+	}
+	if (!m_lights.empty())
+	{
+		m_lightBuffer->Update(m_lights.data(), (m_lights.size() + 255) & ~255);
+	}
 }
 
 void Scene::UploadMaterialData()
@@ -153,49 +200,6 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const
 		materialOffset += static_cast<uint32_t>(model.GetMaterials().size());
 	}
 	return records;
-}
-
-void Scene::LoadHDRI(const std::string& path)
-{
-	m_context.commandQueue->Flush();
-
-	if (m_hdri)
-	{
-		m_hdri.reset();
-	}
-
-
-	std::string extension = path.substr(path.find_last_of('.'));
-	if (extension != ".hdr")
-	{
-		std::cerr << "Unsupported HDRI format: " << extension << "\nPlease use .hdr\n";
-		return;
-	}
-	
-	m_hdri = std::make_unique<Texture>();
-
-	std::cout << "Loading HDRI: " << path << "\r";
-	std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
-	int width, height, nrChannels;
-	float* data = stbi_loadf(path.c_str(), &width, &height, &nrChannels, 4);
-	if (data)
-	{
-		m_hdri->Create(m_context, data, width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, path);
-		stbi_image_free(data);
-
-		m_context.uploadContext->Flush();
-
-		auto commandList = m_context.commandQueue->GetCommandList();
-		TransitionResource(commandList.Get(), m_hdri->GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-		m_context.commandQueue->ExecuteCommandList(commandList);
-		m_context.commandQueue->Flush();
-	}
-	else
-	{
-		ThrowError("Failed to load HDRI: " + path);
-	}
-	auto time = std::chrono::steady_clock::now() - startTime;
-	std::cout << "Loaded HDRI: " << path << ". Took " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0 << " s.\n";
 }
 
 int32_t Scene::GetHDRIDescriptorIndex() const

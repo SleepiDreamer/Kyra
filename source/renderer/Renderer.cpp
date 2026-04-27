@@ -260,6 +260,7 @@ void Renderer::Render(const float deltaTime)
 	m_renderData.prevCamera = m_prevCamData;
 	m_renderData.camera = camData;
 	m_renderData.hdriIndex = m_scene->GetHDRIDescriptorIndex();
+	m_renderData.numLights = m_scene->GetNumLights();
 	m_renderData.deltaTime = deltaTime;
 	glm::vec2 jitter = m_ngx->GetJitter(static_cast<int>(m_renderData.frame));
 	m_renderData.camera.jitterX = jitter.x;
