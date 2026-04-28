@@ -120,7 +120,7 @@ void Application::Update(const float deltaTime)
 	GLFWgamepadstate gamepadState;
 	if (glfwGetGamepadState(GLFW_JOYSTICK_1, &gamepadState))
 	{
-		constexpr float deadzone = 0.0f;
+		constexpr float deadzone = 0.001f;
 
 		// Speed modifiers
 		if (gamepadState.buttons[GLFW_GAMEPAD_BUTTON_A] == GLFW_PRESS)

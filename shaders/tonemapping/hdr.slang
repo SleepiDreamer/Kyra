@@ -30,8 +30,10 @@ float3 Rec709ToRec2020(float3 color)
 
 public float3 tonemapHDRPQ(float3 luminance, float paperWhite, float maxNits)
 {
+    luminance *= 0.05; // Normalize brightness across operators
     float3 wcg = Rec709ToRec2020(luminance);
-    float3 nits = wcg * paperWhite;
+    float3 nits = wcg * maxNits;
+
     float3 pq = LinearToPQ(nits);
 
     return pq;

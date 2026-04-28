@@ -25,7 +25,7 @@ public float3 tonemapSDR(float3 color, TonemapOperator op, float exposure)
 
 public float3 tonemapHDR(float3 luminance, TonemapOperator op, float paperWhite, float maxNits, float exposure)
 {
-    luminance *= exposure;
+    luminance *= exposure; // Scale down for HDR
     
     switch (op)
     {

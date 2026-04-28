@@ -468,14 +468,28 @@ float3 psychotm_test11(
 } // namespace tonemap
 } // namespace renodx
 
+float3 LinearToPQ(float3 linearNits)
+{
+    float3 L = linearNits / 10000.0;
+    L = max(L, 0.0);
+
+    const float m1 = 0.1593017578125;
+    const float m2 = 78.84375;
+    const float c1 = 0.8359375;
+    const float c2 = 18.8515625;
+    const float c3 = 18.6875;
+
+    float3 Lm1 = pow(L, m1);
+    float3 numerator = c1 + c2 * Lm1;
+    float3 denominator = 1.0 + c3 * Lm1;
+
+    return pow(numerator / denominator, m2);
+}
+
 public float3 tonemapPsycho(float3 luminance, float paperWhite, float maxNits)
 {
-        const float TARGET_PEAK_NITS = 800.f;        // your display
-        const float SCALE = TARGET_PEAK_NITS / 100.f; // = 10 here
-
-        float3 in_units = luminance * SCALE;
-        float3 out_units = renodx::tonemap::psycho::psychotm_test11(
-        in_units,
-                                                                    /*peak_value=*/TARGET_PEAK_NITS);
-        return out_units / SCALE;
+    luminance *= 100.0; // Normalize brightness across operators
+    float3 tonemapped = renodx::tonemap::psycho::psychotm_test11(luminance, maxNits);
+    float3 pq = LinearToPQ(tonemapped);
+    return pq;
 }
