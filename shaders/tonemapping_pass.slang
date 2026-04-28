@@ -18,25 +18,17 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
     if (dtid.x >= resolution.x || dtid.y >= resolution.y) return;
 
     float3 result;
-    if (renderSettings.denoising)
-    {
-        result = inputTexture[dtid.xy].rgb;
-    }
-    else
-    {
-        float3 accumulated = inputTexture[dtid.xy].rgb;
-        result = accumulated / (renderData.frame + 1);
-    }
+    result = inputTexture[dtid.xy].rgb;
 
     if (renderSettings.debugMode == DebugMode::None)
     { 
-        if (settings.tonemapper == TonemapOperator::HDR)
+        if (settings.tonemapper == TonemapOperator::HDR || settings.tonemapper == TonemapOperator::Psycho)
         {
-            result = tonemapHDR(result, 100.0f, 800.0f, settings.exposure);
+            result = tonemapHDR(result, settings.tonemapper, 100.0f, 800.0f, settings.exposure);
         }
         else
         {
-            result = tonemap(result, settings.tonemapper, settings.exposure);
+            result = tonemapSDR(result, settings.tonemapper, settings.exposure);
         }
     }
 

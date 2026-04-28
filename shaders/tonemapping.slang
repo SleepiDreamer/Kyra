@@ -5,9 +5,10 @@ import tonemapping.aces;
 import tonemapping.reinhard;
 import tonemapping.agx;
 import tonemapping.gt7;
+import tonemapping.psycho;
 import tonemapping.hdr;
 
-public float3 tonemap(float3 color, TonemapOperator op, float exposure)
+public float3 tonemapSDR(float3 color, TonemapOperator op, float exposure)
 {
     color *= exposure;
 
@@ -22,9 +23,15 @@ public float3 tonemap(float3 color, TonemapOperator op, float exposure)
     }
 }
 
-public float3 tonemapHDR(float3 luminance, float paperWhite, float maxNits, float exposure)
+public float3 tonemapHDR(float3 luminance, TonemapOperator op, float paperWhite, float maxNits, float exposure)
 {
     luminance *= exposure;
+    
+    switch (op)
+    {
+    case TonemapOperator::HDR: return tonemapHDRPQ(luminance, paperWhite, maxNits);
+    case TonemapOperator::Psycho: return tonemapPsycho(luminance, paperWhite, maxNits);
+    default:                        return luminance;
+    }
 
-    return tonemapHDRPQ(luminance, paperWhite, maxNits);
 }

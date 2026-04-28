@@ -34,19 +34,17 @@ void AutoExposure(uint3 dtid : SV_DispatchThreadID)
     }
     
     float avgLogLum = totalLogLum / AE_SAMPLES2;
-    if (!renderSettings.denoising)
-    { 
-        avgLogLum -= log(renderData.frame + 1);
-    }
     float avgLuminance = exp(avgLogLum);
 
     float prevExposure = outputUav[0];
     float targetExposure = clamp(settings.targetExposure / avgLuminance, MIN_EXPOSURE, MAX_EXPOSURE);
     float adaptationSpeed = targetExposure > prevExposure ? ADAPTATION_SPEED_UP : ADAPTATION_SPEED_DOWN;
-    float newExposure = lerp(prevExposure, targetExposure, 1.0 - exp(-adaptationSpeed * renderData.deltaTime));
+    float deltaTime = min(renderData.deltaTime, 0.1f);
+    float newExposure = lerp(prevExposure, targetExposure, 1.0 - exp(-adaptationSpeed * deltaTime));
+    newExposure = clamp(newExposure, prevExposure * 0.8f, prevExposure * 1.25f);
 
     // Immediately set exposure if previous was black
-    if (prevExposure < 0.001)
+    if (prevExposure < 0.0001)
     {
         outputUav[0] = targetExposure;
         return;

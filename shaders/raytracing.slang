@@ -107,7 +107,7 @@ void RayGen()
     }
     else
     {
-        rtOutputBuffer[idx].rgb += radiance;
+        rtOutputBuffer[idx].rgb = rtOutputBuffer[idx].rgb + (radiance - rtOutputBuffer[idx].rgb) / (renderData.frame + 1);
     }
 }
 
@@ -230,6 +230,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     }
     else
     {
+        // Transmission
         float3 wo;
         float3 offsetN;
         float eta = backfacing ? IOR_GLASS / IOR_AIR : IOR_AIR / IOR_GLASS;

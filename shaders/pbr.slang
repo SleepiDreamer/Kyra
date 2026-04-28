@@ -170,15 +170,17 @@ public float3 PBRTransmission(inout RNG rng, float3 n, float3 v, float3 albedo, 
 
     if (rng.nextFloat() < specularChance)
     {
+        // Reflect
         l = reflect(-v, n);
         offsetN = n;
-        return F / specularChance;
+        return float3(1);
     }
     else
     {
+        // Refract
         l = normalize(refract(-v, n, eta));
         offsetN = -n;
-        return BeersLaw(1 - albedo, dist) * (1.0 - F) / max(1.0 - specularChance, 1e-4);
+        return BeersLaw(1 - albedo, dist);
     }
 }
 

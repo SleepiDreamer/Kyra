@@ -53,7 +53,7 @@ Renderer::Renderer(Window& window, bool debug)
 	auto device = m_device->GetDevice();
 	m_commandQueue = std::make_unique<CommandQueue>(m_device->GetDevice(), "Main", D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto commandList = m_commandQueue->GetCommandList();
-	m_descriptorHeap = std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 65536, true, L"CBV SRV UAV Descriptor Heap");
+	m_descriptorHeap = std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 524288, true, L"CBV SRV UAV Descriptor Heap");
 	m_samplerHeap = std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 256, true, L"Sampler Descriptor Heap");
 	m_allocator = std::make_unique<GPUAllocator>(device, m_device->GetAdapter());
 	m_uploadContext = std::make_unique<UploadContext>(*m_allocator, device);

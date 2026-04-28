@@ -302,6 +302,7 @@
     <None Include="packages.config" />
     <None Include="shaders\bloom_composite.slang" />
     <None Include="shaders\tonemapping\hdr.slang" />
+    <None Include="shaders\tonemapping\psycho.slang" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="external\glm\glm.natvis" />
