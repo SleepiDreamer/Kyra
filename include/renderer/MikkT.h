@@ -6,5 +6,7 @@
 class MikkT
 {
 public:
-    static bool Generate(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+    static bool GenerateTangents(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
+
+	static void GenerateNormals(std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 };

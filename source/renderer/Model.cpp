@@ -26,7 +26,7 @@ Model::~Model() = default;
 void Model::LoadGLTF(ID3D12GraphicsCommandList4* commandList, const std::filesystem::path& path)
 {
     fastgltf::Parser parser(fastgltf::Extensions::KHR_lights_punctual | fastgltf::Extensions::KHR_materials_transmission | fastgltf::Extensions::KHR_materials_specular |
-							fastgltf::Extensions::KHR_materials_pbrSpecularGlossiness);
+		fastgltf::Extensions::KHR_materials_pbrSpecularGlossiness | fastgltf::Extensions::KHR_mesh_quantization);
 
     auto data = fastgltf::GltfDataBuffer::FromPath(path);
     if (data.error() != fastgltf::Error::None)
@@ -190,19 +190,6 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
             }
         );
 
-        // Load normals
-        auto normIt = primitive.findAttribute("NORMAL");
-        if (normIt != primitive.attributes.end())
-        {
-            const auto& normAccessor = asset.accessors[normIt->accessorIndex];
-            fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(asset, normAccessor,
-                [&](const fastgltf::math::fvec3& norm, size_t idx)
-                {
-                    vertices[idx].normal = XMFLOAT3(norm.x(), norm.y(), norm.z());
-                }
-            );
-        }
-
         // Load texture coordinates
         auto texIt = primitive.findAttribute("TEXCOORD_0");
         if (texIt != primitive.attributes.end())
@@ -235,6 +222,23 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
                 indices[i] = static_cast<uint32_t>(i);
         }
 
+        // Load normals
+        auto normIt = primitive.findAttribute("NORMAL");
+        if (normIt != primitive.attributes.end())
+        {
+            const auto& normAccessor = asset.accessors[normIt->accessorIndex];
+            fastgltf::iterateAccessorWithIndex<fastgltf::math::fvec3>(asset, normAccessor,
+                [&](const fastgltf::math::fvec3& norm, size_t idx)
+                {
+                    vertices[idx].normal = XMFLOAT3(norm.x(), norm.y(), norm.z());
+                }
+            );
+        }
+        else
+        {
+            MikkT::GenerateNormals(vertices, indices);
+        }
+
         // Load tangents
         auto tanIt = primitive.findAttribute("TANGENT");
         if (tanIt != primitive.attributes.end())
@@ -249,7 +253,7 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
         }
         else
         {
-            MikkT::Generate(vertices, indices);
+            MikkT::GenerateTangents(vertices, indices);
         }
 
 		Mesh mesh;
