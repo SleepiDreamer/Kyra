@@ -22,9 +22,9 @@ void CSMain(uint3 dtid : SV_DispatchThreadID)
 
     if (renderSettings.debugMode == DebugMode::None)
     { 
-        if (settings.tonemapper == TonemapOperator::HDR || settings.tonemapper == TonemapOperator::Psycho)
+        if (renderData.hdrEnabled)
         {
-            result = tonemapHDR(result, settings.tonemapper, 100.0f, 800.0f, settings.exposure);
+            result = tonemapHDR(result, settings.tonemapper, 800.0f, settings.exposure);
         }
         else
         {

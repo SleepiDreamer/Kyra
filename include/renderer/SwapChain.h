@@ -17,6 +17,7 @@ public:
 
 	[[nodiscard]] static bool CheckTearingSupport();
 	[[nodiscard]] static bool CheckHDRSupport(IDXGIAdapter4* adapter);
+
 	[[nodiscard]] UINT GetCurrentBackBufferIndex() const { return m_currentBackBufferIndex; }
 	[[nodiscard]] ID3D12Resource* GetCurrentBackBuffer() const { return m_backBuffers[m_currentBackBufferIndex].Get(); }
 	[[nodiscard]] Descriptor GetCurrentBackBufferRTV() const { return m_backBufferRtvs[m_currentBackBufferIndex]; }
@@ -24,6 +25,7 @@ public:
 	[[nodiscard]] D3D12_VIEWPORT GetViewport() const { return m_viewport; }
 	[[nodiscard]] D3D12_RECT GetScissorRect() const { return m_scissorRect; }
 	[[nodiscard]] DXGI_FORMAT GetFormat() const { return m_format; }
+	[[nodiscard]] bool IsHDR() const { return m_useHdr; }
 
 	void ToggleFullscreen();
 	void CreateBackBuffers(const RenderContext& context);

@@ -30,6 +30,7 @@ struct RenderData
 	uint32_t frame = 0;
 	uint32_t numLights = 0;
 	float deltaTime = 0.0f;
+	bool hdrEnabled = false;
 };
 
 enum DebugMode
@@ -77,7 +78,6 @@ enum TonemapOperator
 	AgX,
 	GT7,
 	Psycho,
-	HDR,
 };
 
 struct PostProcessSettings
