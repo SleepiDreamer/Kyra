@@ -18,16 +18,15 @@
 #include "ImGuiWrapper.h"
 #include "NGXWrapper.h"
 #include "Scene.h"
-#include "Light.h"
 #include "StructsDX.h"
 #include "CommonDX.h"
+#include "Log.h"
 
 #include <pix3.h>
 #include <imgui.h>
 #include <iostream>
 #include <chrono>
 
-#include "Light.h"
 
 using namespace Microsoft::WRL;
 
@@ -180,7 +179,7 @@ void Renderer::Resize(const int width, const int height)
 		return;
 	}
 
-	std::cout << "Window resized: " << width << "x" << height << "\n";
+	Log::Info("Window resized: {}x{}", width, height);
 	auto device = m_device->GetDevice();
 	ResetAccumulation();
 	m_commandQueue->Flush();

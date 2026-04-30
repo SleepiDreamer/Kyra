@@ -30,7 +30,7 @@ bool Scene::LoadModel(const std::string& path)
 		return false;
 	}
 
-	std::cout << "Loading model: " << path;
+	Log::Info("Loading model: {}", path);
 	std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 
 	auto commandList = m_context.commandQueue->GetCommandList();
@@ -73,8 +73,7 @@ bool Scene::LoadModel(const std::string& path)
 	m_context.commandQueue->Flush();
 
 	auto time = std::chrono::steady_clock::now() - startTime;
-	std::cout << "\r";
-	std::cout << "Loaded model: " << path << ". Took " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0 << " s.\n";
+	Log::Success("Loaded model: {}. Took {:.2f} s.", path, std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0);
 
 	return true;
 }
@@ -97,7 +96,7 @@ void Scene::LoadHDRI(const std::string& path)
 	
 	m_hdri = std::make_unique<Texture>();
 
-	std::cout << "Loading HDRI: " << path << "\r";
+	Log::Info("Loading HDRI: {}", path);
 	std::chrono::steady_clock::time_point startTime = std::chrono::steady_clock::now();
 	int width, height, nrChannels;
 	float* data = stbi_loadf(path.c_str(), &width, &height, &nrChannels, 4);
@@ -115,10 +114,10 @@ void Scene::LoadHDRI(const std::string& path)
 	}
 	else
 	{
-		ThrowError("Failed to load HDRI: " + path);
+		Log::Error("Failed to load HDRI: {}", path);
 	}
 	auto time = std::chrono::steady_clock::now() - startTime;
-	std::cout << "Loaded HDRI: " << path << ". Took " << std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0 << " s.\n";
+	Log::Success("Loaded HDRI: {}. Took {:.2f} s.", path, std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0);
 }
 
 void Scene::AddLights(const std::vector<Light>& lights)

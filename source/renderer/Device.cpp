@@ -1,6 +1,7 @@
 #include "Device.h"
-#include "Window.h"
 #include "CommonDX.h"
+#include "Window.h"
+#include "Log.h"
 
 #include <d3d12.h>
 #include <d3dx12.h>
@@ -13,7 +14,7 @@ Device::Device(const int width, const int height, const bool debug)
     if (debug)
     {
         EnableDebugLayer();
-        std::cout << "Debug layer enabled!\n";
+		Log::Info("Debug layer enabled!");
     }
 
 	CreateAdapter();
@@ -70,9 +71,8 @@ void Device::CreateAdapter()
     ThrowIfFailed(m_adapter->GetDesc1(&dxgiAdapterDesc1));
 
     std::wstring gpuName = dxgiAdapterDesc1.Description;
-	std::cout << "GPU: " << ToNarrowString(gpuName) << '\n';
-	std::cout << "VRAM: " << round(static_cast<float>(dxgiAdapterDesc1.DedicatedVideoMemory) / 1024.0f / 1024.0f / 1024.0f * 10.0f) / 10.0f << " GB" << '\n';
-	std::cout << '\n';
+	Log::Info("GPU: {}", ToNarrowString(gpuName));
+	Log::Info("VRAM: {:.1f} GB\n", static_cast<float>(dxgiAdapterDesc1.DedicatedVideoMemory) / 1024.0f / 1024.0f / 1024.0f);
 }
 
 void Device::CreateDevice()
