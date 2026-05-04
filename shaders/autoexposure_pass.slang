@@ -18,19 +18,13 @@ void AutoExposure(uint3 dtid : SV_DispatchThreadID)
     uint2 resolution;
     inputTexture.GetDimensions(resolution.x, resolution.y);
 
-    float2 uv = 1.0 / (resolution + 1);
-
     float totalLogLum = 0;
-    for (int j = 0; j < AE_SAMPLES; j++)
-    {
-        for (int i = 0; i < AE_SAMPLES; i++)
-        {
+    for (int j = 0; j < AE_SAMPLES; j++) {
+        for (int i = 0; i < AE_SAMPLES; i++) {
+            float2 uv = float2((i + 0.5) / AE_SAMPLES, (j + 0.5) / AE_SAMPLES);
             float3 c = sanitize(inputTexture.SampleLevel(linearSampler, uv, 0).rgb);
             totalLogLum += log(max(Grayscale(c), 0.001));
-            uv.x += 1.0 / AE_SAMPLES;
         }
-        uv.x = 1.0 / (resolution.x + 1);
-        uv.y += 1.0 / AE_SAMPLES;
     }
     
     float avgLogLum = totalLogLum / AE_SAMPLES2;

@@ -172,7 +172,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
     }
 
-    payload.radiance += emission * payload.throughput * renderSettings.lightIntensity;
+    payload.radiance += emission * payload.throughput * 50.0;
 
     if (renderSettings.bounces == 0) payload.radiance += albedo * payload.throughput * 0.1 * (normal.y + 3) / 4;
 
