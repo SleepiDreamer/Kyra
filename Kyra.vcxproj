@@ -116,6 +116,7 @@
     <None Include="shaders\bloom_downsample.slang" />
     <None Include="shaders\bloom_upsample.slang" />
     <None Include="shaders\camera.slang" />
+    <None Include="shaders\copy_rt.slang" />
     <None Include="shaders\helpers.slang" />
     <None Include="shaders\pbr.slang" />
     <None Include="shaders\random.slang" />

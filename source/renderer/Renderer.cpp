@@ -74,7 +74,7 @@ Renderer::Renderer(Window& window, bool debug)
 	const int height = window.GetHeight();
 	const int renderWidth = m_ngx->GetRenderWidth();
 	const int renderHeight = m_ngx->GetRenderHeight();
-	m_rtOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"RT Output Buffer");
+	m_rtOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, L"RT Output Buffer");
 	m_albedoBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R8G8B8A8_UNORM, renderWidth, renderHeight, L"Albedo Buffer");
 	m_specularAlbedoBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R8G8B8A8_UNORM, renderWidth, renderHeight, L"Specular Albedo Buffer");
 	m_normalRoughnessBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, renderWidth, renderHeight, L"Normal Roughness Buffer");
@@ -117,17 +117,11 @@ Renderer::Renderer(Window& window, bool debug)
 
 	// Post-process passes
 	{
+		m_copyRtPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/copy_rt.slang", "CopyRT");
 		m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "CSMain");
 		m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autoexposure_pass.slang", "AutoExposure");
 		
-		D3D12_STATIC_SAMPLER_DESC bloomSampler = {};
-		bloomSampler.Filter = D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-		bloomSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		bloomSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		bloomSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-		bloomSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-		bloomSampler.MaxLOD = D3D12_FLOAT32_MAX;
-		bloomSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		D3D12_STATIC_SAMPLER_DESC bloomSampler = BLOOM_SAMPLER;
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_downsample.slang", "BloomDownsample", bloomSampler));
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_upsample.slang", "BloomUpsample", bloomSampler));
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_composite.slang", "BloomComposite", bloomSampler));
@@ -344,9 +338,25 @@ void Renderer::Render(const float deltaTime)
 
 		// Copy to post process buffer
 		{
-			currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
-			m_postProcessBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
-			commandList->CopyResource(m_postProcessBuffer->GetResource(), currentBuffer->GetResource());
+			PIXScopedEvent(commandList.Get(), 0x007acc, "Copy to Post Process Buffer");
+
+			currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			m_postProcessBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+			PostProcessPass::PostProcessBindings bindings;
+			bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
+			bindings.outputUav = m_postProcessBuffer->GetUAV().gpuHandle;
+			bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBufferCount = 2;
+			bindings.rootConstants[0] = currentBuffer->GetWidth();
+			bindings.rootConstants[1] = currentBuffer->GetHeight();
+			bindings.rootConstantCount = 2;
+			bindings.width = currentBuffer->GetWidth();
+			bindings.height = currentBuffer->GetHeight();
+
+			m_copyRtPass->Dispatch(commandList.Get(), bindings);
+
 			currentBuffer = m_postProcessBuffer.get();
 		}
 

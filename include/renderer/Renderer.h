@@ -86,6 +86,7 @@ private:
 	std::unique_ptr<OutputBuffer> m_outputBuffer;
 	std::vector<std::unique_ptr<OutputBuffer>> m_bloomBuffers;
 
+	std::unique_ptr<PostProcessPass> m_copyRtPass;
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;
 	std::unique_ptr<PostProcessPass> m_autoExposurePass;
 	std::unique_ptr<TypedBuffer> m_autoExposureBuffer;
