@@ -40,5 +40,10 @@ void BloomDownsample(uint3 dtid : SV_DispatchThreadID)
     downsample += (b + d + f + h) * 0.0625;
     downsample += (j + k + l + m) * 0.125;
 
-    outputTexture[dtid.xy] = float4(max(downsample, 0.0001), 1.0);
+    if (mipData.mipLevel == 0)
+    {
+        downsample = max(downsample, 0.0000001);
+    }
+
+    outputTexture[dtid.xy] = float4(downsample, 1.0);
 }
