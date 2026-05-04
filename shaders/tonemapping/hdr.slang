@@ -10,20 +10,20 @@ float3 Rec709ToRec2020(float3 color)
     return mul(conversion, color);
 }
 
-float3 SoftShoulder(float3 L_nits, float Lknee, float Lpeak)
+float3 SoftShoulder(float3 L_nits, float knee, float peak)
 {
-    // Below knee: pass through unchanged (ground truth preserved)
-    // Above knee: compress asymptotically toward Lpeak
     float3 result;
-    [unroll] for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++) {
         float x = L_nits[i];
-        if (x <= Lknee) {
+        if (x <= knee) 
+        {
             result[i] = x;
-        } else {
-            // Reinhard-style compression of the excess
-            float excess = x - Lknee;
-            float range = Lpeak - Lknee;
-            result[i] = Lknee + range * (excess / (excess + range));
+        } 
+        else
+        {
+            float excess = x - knee;
+            float range = peak - knee;
+            result[i] = knee + range * (excess / (excess + range));
         }
     }
     return result;
