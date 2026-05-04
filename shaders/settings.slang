@@ -20,4 +20,4 @@ public export static const float ADAPTATION_SPEED_UP = 0.5;
 public export static const float ADAPTATION_SPEED_DOWN = 5.0;
 
 // Bloom
-public static const float bloomFilterRadius = 0.002;
+public static const float bloomFilterRadius = 0.001;

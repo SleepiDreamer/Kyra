@@ -18,16 +18,15 @@
 #include "ImGuiWrapper.h"
 #include "NGXWrapper.h"
 #include "Scene.h"
-#include "Light.h"
 #include "StructsDX.h"
 #include "CommonDX.h"
+#include "Log.h"
 
 #include <pix3.h>
 #include <imgui.h>
 #include <iostream>
 #include <chrono>
 
-#include "Light.h"
 
 using namespace Microsoft::WRL;
 
@@ -83,7 +82,7 @@ Renderer::Renderer(Window& window, bool debug)
 	m_dlssOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"DLSS Output Buffer");
 	m_postProcessBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"Post Process Buffer");
 	m_outputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R10G10B10A2_UNORM, width, height, L"Output Buffer");
-	m_bloomBuffers.resize(6);
+	m_bloomBuffers.resize(7);
 	for (size_t i = 0; i < m_bloomBuffers.size(); i++)
 	{
 		m_bloomBuffers[i] = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width >> (i + 1), height >> (i + 1), L"Bloom Buffer " + std::to_wstring(i));
@@ -174,7 +173,7 @@ void Renderer::Resize(const int width, const int height)
 		return;
 	}
 
-	std::cout << "Window resized: " << width << "x" << height << "\n";
+	Log::Info("Window resized: {}x{}", width, height);
 	auto device = m_device->GetDevice();
 	ResetAccumulation();
 	m_commandQueue->Flush();
@@ -388,7 +387,9 @@ void Renderer::Render(const float deltaTime)
 					bindings.rootConstants[1] = bloomInput->GetHeight();
 					bindings.rootConstants[2] = bloomOutput->GetWidth();
 					bindings.rootConstants[3] = bloomOutput->GetHeight();
-					bindings.rootConstantCount = 4;
+					bindings.rootConstants[4] = static_cast<uint32_t>(i); // mip level
+					bindings.rootConstants[5] = static_cast<uint32_t>(m_bloomBuffers.size()); // total mip levels
+					bindings.rootConstantCount = 6;
 					bindings.width = bloomOutput->GetWidth();
 					bindings.height = bloomOutput->GetHeight();
 
@@ -426,7 +427,9 @@ void Renderer::Render(const float deltaTime)
 					bindings.rootConstants[1] = bloomInput->GetHeight();
 					bindings.rootConstants[2] = bloomOutput->GetWidth();
 					bindings.rootConstants[3] = bloomOutput->GetHeight();
-					bindings.rootConstantCount = 4;
+					bindings.rootConstants[4] = static_cast<uint32_t>(i); // mip level
+					bindings.rootConstants[5] = static_cast<uint32_t>(m_bloomBuffers.size()); // total mip levels
+					bindings.rootConstantCount = 6;
 					bindings.width = bloomOutput->GetWidth();
 					bindings.height = bloomOutput->GetHeight();
 
@@ -453,7 +456,9 @@ void Renderer::Render(const float deltaTime)
 				bindings.rootConstants[1] = bloomInput->GetHeight();
 				bindings.rootConstants[2] = currentBuffer->GetWidth();
 				bindings.rootConstants[3] = currentBuffer->GetHeight();
-				bindings.rootConstantCount = 4;
+				bindings.rootConstants[4] = 0;
+				bindings.rootConstants[5] = static_cast<uint32_t>(m_bloomBuffers.size()); // total mip levels
+				bindings.rootConstantCount = 6;
 				bindings.width = currentBuffer->GetWidth();
 				bindings.height = currentBuffer->GetHeight();
 

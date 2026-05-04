@@ -103,6 +103,8 @@ public struct MipData
 {
     public uint2 srcSize;
     public uint2 dstSize;
+    public uint mipLevel;
+    public uint totalMips;
 }
 
 public struct Vertex

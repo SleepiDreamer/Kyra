@@ -4,6 +4,7 @@
 #include "DescriptorHeap.h"
 #include "Window.h"
 #include "CommonDX.h"
+#include "Log.h"
 
 #include <glfw3.h>
 #include <algorithm>
@@ -20,8 +21,23 @@ SwapChain::SwapChain(Window& window, RenderContext& context, IDXGIAdapter4* adap
 	m_useVsync = !m_useAdaptiveSync;
 	m_useHdr = CheckHDRSupport(adapter);
 
-	std::cout << "Tearing supported: " << (m_useAdaptiveSync ? "Yes" : "No") << std::endl;
-	std::cout << "HDR supported: " << (m_useHdr ? "Yes" : "No") << std::endl;
+	if (m_useAdaptiveSync)
+	{
+		Log::Success("Tearing support detected");
+	}
+	else
+	{
+		Log::Warning("Tearing support not detected, VSync will be used");
+	}
+	if (m_useHdr)
+	{
+		Log::Success("HDR support detected");
+	}
+	else
+	{
+		Log::Warning("HDR support not detected");
+	}
+	Log::Info("\n");
 
 	// Create swap chain
 	{
@@ -148,7 +164,7 @@ void SwapChain::ToggleFullscreen()
 		glfwSetWindowPos(m_window.GetGLFWWindow(), mx, my);
 		glfwSetWindowSize(m_window.GetGLFWWindow(), mode->width, mode->height);
 
-		std::cout << "Entered Borderless Fullscreen: " << mode->width << "x" << mode->height << "\n";
+		Log::Info("Entered Borderless Fullscreen");
 	}
 	else
 	{
@@ -157,7 +173,7 @@ void SwapChain::ToggleFullscreen()
 		glfwSetWindowPos(m_window.GetGLFWWindow(), m_windowedX, m_windowedY);
 		glfwSetWindowSize(m_window.GetGLFWWindow(), m_windowedWidth, m_windowedHeight);
 
-		std::cout << "Restored windowed mode: " << m_windowedWidth << "x" << m_windowedHeight << "\n";
+		Log::Info("Exited Borderless Fullscreen");
 	}
 }
 

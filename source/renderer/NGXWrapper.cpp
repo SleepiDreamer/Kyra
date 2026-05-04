@@ -2,6 +2,7 @@
 #include "Window.h"
 #include "CommandQueue.h"
 #include "CommonDX.h"
+#include "Log.h"
 
 #include <nvsdk_ngx.h>
 #include <nvsdk_ngx_defs.h>
@@ -121,12 +122,9 @@ void NGXWrapper::CreateDLSSFeature()
     NVSDK_NGX_Result result = NGX_D3D12_CREATE_DLSSD_EXT(commandList.Get(), 1, 1, &m_dlssFeature, m_ngxParameters, &dlssdCreateParams);
     if (result != NVSDK_NGX_Result_Success)
     {
-        ThrowError("Failed to create DLSS feature!");
+		Log::Error("Failed to create DLSS feature with error code: {}", std::to_string(result));
     }
-    else
-    {
-        std::cout << "Succesfully created DLSS Feature\n";
-    }
+
     m_context.commandQueue->ExecuteCommandList(commandList);
     m_context.commandQueue->Flush();
 }
@@ -158,7 +156,7 @@ void NGXWrapper::EvaluateDLSS(ID3D12GraphicsCommandList4* commandList, const DLS
     NVSDK_NGX_Result result = NGX_D3D12_EVALUATE_DLSSD_EXT(commandList, m_dlssFeature, m_ngxParameters, &D3D12DlssdEvalParams);
     if (result != NVSDK_NGX_Result_Success)
     {
-        ThrowError("Failed to evaluate DLSS!");
+        Log::Error("DLSS evaluation failed with error code: {}", std::to_string(result));
     }
 }
 
@@ -191,7 +189,7 @@ glm::ivec2 NGXWrapper::SetOptimalInputRes()
 
         if (result != NVSDK_NGX_Result_Success || m_renderWidth == 0 || m_renderHeight == 0)
         {
-            ThrowError("Failed to get optimal DLSS configuration!");
+			Log::Error("Failed to get optimal DLSS configuration with error code: {}", std::to_string(result));
         }
 
 		CreateDLSSFeature();
