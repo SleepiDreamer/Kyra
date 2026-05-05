@@ -29,12 +29,19 @@ float3 SoftShoulder(float3 L_nits, float knee, float peak)
     return result;
 }
 
+float3 saturation(float3 color, float strength)
+{
+    float luma = dot(color, float3(0.299, 0.587, 0.114));
+    return lerp(luma.xxx, color, strength);
+}
+
 public float3 tonemapHDRLinear(float3 luminance, float maxNits)
 {
-    luminance *= 0.1;
+    luminance *= 0.05;
 
     float3 wcg = Rec709ToRec2020(luminance);
     float3 nits = wcg * maxNits;
+    nits = saturation(nits, 1.1);
     nits = SoftShoulder(nits, maxNits * 0.5, maxNits);
 
     return nits;
