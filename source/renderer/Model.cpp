@@ -461,12 +461,6 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
             matData.emissiveIndex = m_textures[texIndex].GetDescriptorIndex();
         }
 
-        bool isTransmission = false;
-		if (mat.transmission || (mat.alphaMode == fastgltf::AlphaMode::Blend && mat.pbrData.baseColorFactor[3] < 1.0f))
-        {
-    		isTransmission = true;
-        }
-
         auto& aFactor = mat.pbrData.baseColorFactor;
         matData.albedoFactor = { aFactor[0], aFactor[1], aFactor[2], aFactor[3] };
         matData.metallicFactor = mat.pbrData.metallicFactor;
@@ -476,7 +470,7 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
 		matData.ior = mat.ior;
         matData.flags = (mat.alphaMode != fastgltf::AlphaMode::Opaque) ? MAT_FLAG_TRANSPARENT : 0;
         matData.flags |= hasUvTransform ? MAT_FLAG_UV_TRANSFORM : 0;
-        matData.flags |= isTransmission ? MAT_FLAG_TRANSMISSION : 0;
+        matData.flags |= mat.transmission ? MAT_FLAG_TRANSMISSION : 0;
 
         m_materials.push_back(matData);
     }
