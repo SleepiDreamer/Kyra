@@ -149,6 +149,7 @@ void Scene::UploadMaterialData()
 				texture.metallicRoughnessIndex,
 				texture.normalIndex,
 				texture.samplerIndex,
+				texture.ior,
 				texture.flags,
 				texture.uvTransform
 			});

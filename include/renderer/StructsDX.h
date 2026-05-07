@@ -110,6 +110,7 @@ struct MaterialData
 	int32_t metallicRoughnessIndex = -1;
 	int32_t normalIndex = -1;
 	uint32_t samplerIndex = 0;
+	float ior = 1.5;
 	uint32_t flags = 0;
 	glm::mat3x2 uvTransform;
 };

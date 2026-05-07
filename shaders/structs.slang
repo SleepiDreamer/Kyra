@@ -126,6 +126,7 @@ public struct Material
     public int metallicRoughnessIndex;
     public int normalIndex;
     public uint samplerIndex;
+    public float ior;
     public uint flags;
     public float3x2 uvTransform;
 };

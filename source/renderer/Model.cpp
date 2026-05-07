@@ -471,8 +471,9 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
         matData.albedoFactor = { aFactor[0], aFactor[1], aFactor[2], aFactor[3] };
         matData.metallicFactor = mat.pbrData.metallicFactor;
         matData.roughnessFactor = mat.pbrData.roughnessFactor;
-		auto& eFactor = mat.emissiveFactor;
+        const fastgltf::math::nvec3& eFactor = mat.emissiveFactor * mat.emissiveStrength;
 		matData.emissiveFactor = { eFactor[0], eFactor[1], eFactor[2] };
+		matData.ior = mat.ior;
         matData.flags = (mat.alphaMode != fastgltf::AlphaMode::Opaque) ? MAT_FLAG_TRANSPARENT : 0;
         matData.flags |= hasUvTransform ? MAT_FLAG_UV_TRANSFORM : 0;
         matData.flags |= isTransmission ? MAT_FLAG_TRANSMISSION : 0;

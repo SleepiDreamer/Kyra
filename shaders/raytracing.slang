@@ -222,8 +222,9 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         }
     }
 
-    if (!(material.flags & MAT_FLAG_TRANSMISSION) /*color.a == 0*/)
+    if (!(material.flags & MAT_FLAG_TRANSMISSION))
     {
+        // Opaque
         float3 wo;
         payload.throughput *= PBRIndirect(payload.rng, normal, geoNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
         payload.nextDirection = wo;
@@ -234,7 +235,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         // Transmission
         float3 wo;
         float3 offsetN;
-        float eta = backfacing ? IOR_GLASS / IOR_AIR : IOR_AIR / IOR_GLASS;
+        float eta = backfacing ? material.ior / 1.0 : 1.0 / material.ior;
         payload.throughput *= PBRTransmission(payload.rng, geoNormal, -WorldRayDirection(), albedo, eta, RayTCurrent(), wo, offsetN);
         payload.nextDirection = wo;
         payload.nextOrigin = OffsetRay(hitPoint, offsetN);
