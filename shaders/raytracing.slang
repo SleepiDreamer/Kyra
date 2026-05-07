@@ -122,6 +122,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     Material material = materials[materialIndex];
     SamplerState sampler = DescriptorHandle<SamplerState>(uint2(material.samplerIndex, 0));
     float2 uv = sampleTriangle(vertices[i0].uv, vertices[i1].uv, vertices[i2].uv, attr.barycentrics);
+    if (material.flags & MAT_FLAG_UV_TRANSFORM) uv = mul(float3(uv, 1.0), material.uvTransform);
 
     float3 geoNormal = sampleTriangle(vertices[i0].normal, vertices[i1].normal, vertices[i2].normal, attr.barycentrics);
     geoNormal = normalize(mul(geoNormal, (float3x3)WorldToObject3x4()));
@@ -172,7 +173,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
     }
 
-    payload.radiance += emission * payload.throughput * 50.0;
+    payload.radiance += emission * payload.throughput;
 
     if (renderSettings.bounces == 0) payload.radiance += albedo * payload.throughput * 0.1 * (normal.y + 3) / 4;
 
@@ -221,7 +222,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         }
     }
 
-    if (alpha == 0)
+    if (!(material.flags & MAT_FLAG_TRANSMISSION) /*color.a == 0*/)
     {
         float3 wo;
         payload.throughput *= PBRIndirect(payload.rng, normal, geoNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);

@@ -3,6 +3,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
+#include <glm/mat3x2.hpp>
 #include <ImReflect.hpp>
 
 struct CameraData
@@ -108,6 +109,11 @@ struct MaterialData
 	float roughnessFactor = 1.0f;
 	int32_t metallicRoughnessIndex = -1;
 	int32_t normalIndex = -1;
-	uint32_t samplerIndex;
-	uint32_t isAlphaTested;
+	uint32_t samplerIndex = 0;
+	uint32_t flags = 0;
+	glm::mat3x2 uvTransform;
 };
+
+constexpr uint32_t MAT_FLAG_TRANSPARENT = (1 << 0);
+constexpr uint32_t MAT_FLAG_UV_TRANSFORM = (1 << 1);
+constexpr uint32_t MAT_FLAG_TRANSMISSION = (1 << 2);

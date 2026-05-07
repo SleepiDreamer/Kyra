@@ -148,7 +148,9 @@ void Scene::UploadMaterialData()
 				texture.roughnessFactor,
 				texture.metallicRoughnessIndex,
 				texture.normalIndex,
-				texture.samplerIndex
+				texture.samplerIndex,
+				texture.flags,
+				texture.uvTransform
 			});
 		}
 	}
@@ -192,7 +194,7 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const
 				: 0;
 			if (mesh.m_materialIndex >= 0 && mesh.m_materialIndex < model.GetMaterials().size())
 			{
-				record.isAlphaTested = model.GetMaterials()[mesh.m_materialIndex].isAlphaTested;
+				record.isAlphaTested = model.GetMaterials()[mesh.m_materialIndex].flags & MAT_FLAG_TRANSPARENT ? 1 : 0;
 			}
 			records.push_back(record);
 		}

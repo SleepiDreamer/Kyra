@@ -26,7 +26,8 @@ Model::~Model() = default;
 void Model::LoadGLTF(ID3D12GraphicsCommandList4* commandList, const std::filesystem::path& path)
 {
     fastgltf::Parser parser(fastgltf::Extensions::KHR_lights_punctual | fastgltf::Extensions::KHR_materials_transmission | fastgltf::Extensions::KHR_materials_specular |
-		fastgltf::Extensions::KHR_materials_pbrSpecularGlossiness | fastgltf::Extensions::KHR_mesh_quantization);
+        fastgltf::Extensions::KHR_materials_pbrSpecularGlossiness | fastgltf::Extensions::KHR_mesh_quantization | fastgltf::Extensions::KHR_texture_transform |
+        fastgltf::Extensions::KHR_materials_ior | fastgltf::Extensions::KHR_materials_emissive_strength);
 
     auto data = fastgltf::GltfDataBuffer::FromPath(path);
     if (data.error() != fastgltf::Error::None)
@@ -298,16 +299,20 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
         m_samplerDescriptors.push_back(samplerDesc);
     }
 
-    D3D12_SAMPLER_DESC defaultSamplerDesc{};
-    defaultSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    defaultSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    defaultSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    defaultSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    defaultSamplerDesc.MaxAnisotropy = 16;
-    defaultSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-    defaultSamplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
-    Descriptor defaultSampler = m_context.samplerHeap->Allocate();
-    m_context.device->CreateSampler(&defaultSamplerDesc, defaultSampler.cpuHandle);
+    Descriptor defaultSampler;
+    if (asset.samplers.empty())
+    {
+	    D3D12_SAMPLER_DESC defaultSamplerDesc{};
+	    defaultSamplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	    defaultSamplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	    defaultSamplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	    defaultSamplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	    defaultSamplerDesc.MaxAnisotropy = 16;
+	    defaultSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	    defaultSamplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+	    defaultSampler = m_context.samplerHeap->Allocate();
+	    m_context.device->CreateSampler(&defaultSamplerDesc, defaultSampler.cpuHandle);
+    }
 
     std::unordered_set<size_t> linearImages;
     for (auto& mat : asset.materials)
@@ -404,6 +409,7 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
     {
         MaterialData matData{};
 
+        bool hasUvTransform = false;
         if (mat.pbrData.baseColorTexture.has_value())
         {
             auto gltfTex = asset.textures[mat.pbrData.baseColorTexture->textureIndex];
@@ -411,12 +417,29 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
 
             if (gltfTex.samplerIndex.has_value())
             {
-	            matData.samplerIndex =
-			   static_cast<int32_t>(m_samplerDescriptors[gltfTex.samplerIndex.value()].index);
+                matData.samplerIndex =
+                    static_cast<int32_t>(m_samplerDescriptors[gltfTex.samplerIndex.value()].index);
             }
             else
             {
-	            matData.samplerIndex = static_cast<int32_t>(defaultSampler.index);
+                matData.samplerIndex = static_cast<int32_t>(defaultSampler.index);
+            }
+
+            if (mat.pbrData.baseColorTexture->transform)
+            {
+                auto& transform = mat.pbrData.baseColorTexture->transform;
+                glm::vec2 trans = { transform->uvOffset[0], transform->uvOffset[1] };
+                glm::vec2 scale = { transform->uvScale[0], transform->uvScale[1] };
+                float rot = -transform->rotation;
+                float sin = std::sin(rot);
+                float cos = std::cos(rot);
+
+                matData.uvTransform = {
+                    scale.x * cos, scale.x * sin,
+                    -scale.y * sin, scale.y* cos,
+                	trans.x, trans.y
+                };
+				hasUvTransform = true;
             }
         }
 
@@ -438,19 +461,21 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
             matData.emissiveIndex = m_textures[texIndex].GetDescriptorIndex();
         }
 
-        bool hasTransmission = false;
+        bool isTransmission = false;
 		if (mat.transmission || (mat.alphaMode == fastgltf::AlphaMode::Blend && mat.pbrData.baseColorFactor[3] < 1.0f))
         {
-    		hasTransmission = true;
+    		isTransmission = true;
         }
 
         auto& aFactor = mat.pbrData.baseColorFactor;
-        matData.albedoFactor = { aFactor[0], aFactor[1], aFactor[2], hasTransmission };
+        matData.albedoFactor = { aFactor[0], aFactor[1], aFactor[2], aFactor[3] };
         matData.metallicFactor = mat.pbrData.metallicFactor;
         matData.roughnessFactor = mat.pbrData.roughnessFactor;
 		auto& eFactor = mat.emissiveFactor;
 		matData.emissiveFactor = { eFactor[0], eFactor[1], eFactor[2] };
-        matData.isAlphaTested = mat.alphaMode != fastgltf::AlphaMode::Opaque ? 1 : 0;
+        matData.flags = (mat.alphaMode != fastgltf::AlphaMode::Opaque) ? MAT_FLAG_TRANSPARENT : 0;
+        matData.flags |= hasUvTransform ? MAT_FLAG_UV_TRANSFORM : 0;
+        matData.flags |= isTransmission ? MAT_FLAG_TRANSMISSION : 0;
 
         m_materials.push_back(matData);
     }
