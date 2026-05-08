@@ -157,6 +157,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float2 metallicRoughness = sampleOrDefault(material.metallicRoughnessIndex, sampler, uv, float3(1, material.roughnessFactor, material.metallicFactor)).gb;
     float roughness = max(metallicRoughness.x * metallicRoughness.x, 0.0001);
     float metallic = metallicRoughness.y;
+    bool isTransmission = material.flags & MAT_FLAG_TRANSMISSION;
 
     switch (renderSettings.debugMode)
     {
@@ -178,7 +179,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     if (renderSettings.bounces == 0) payload.radiance += albedo * payload.throughput * 0.1 * (normal.y + 3) / 4;
 
     // explicit lighting
-    if (renderData.numLights > 0)
+    if (renderData.numLights > 0 && !isTransmission)
     {
         uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
         Light light = lights[lightIdx];
@@ -222,7 +223,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         }
     }
 
-    if (!(material.flags & MAT_FLAG_TRANSMISSION))
+    if (!isTransmission)
     {
         // Opaque
         float3 wo;
