@@ -124,27 +124,30 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float2 uv = sampleTriangle(vertices[i0].uv, vertices[i1].uv, vertices[i2].uv, attr.barycentrics);
     if (material.flags & MAT_FLAG_UV_TRANSFORM) uv = mul(float3(uv, 1.0), material.uvTransform);
 
-    float3 geoNormal = sampleTriangle(vertices[i0].normal, vertices[i1].normal, vertices[i2].normal, attr.barycentrics);
-    geoNormal = normalize(mul(geoNormal, (float3x3)WorldToObject3x4()));
+    float3 flatNormal = cross(vertices[i1].position - vertices[i0].position, vertices[i2].position - vertices[i0].position);
+    flatNormal = normalize(mul(flatNormal, (float3x3)WorldToObject3x4()));
+    float3 smoothNormal = sampleTriangle(vertices[i0].normal, vertices[i1].normal, vertices[i2].normal, attr.barycentrics);
+    smoothNormal = normalize(mul(smoothNormal, (float3x3)WorldToObject3x4()));
     float tangentW = vertices[i0].tangent.w * -1;
     float3 tangent = sampleTriangle(vertices[i0].tangent.xyz, vertices[i1].tangent.xyz, vertices[i2].tangent.xyz, attr.barycentrics);
     tangent = normalize(mul((float3x3)ObjectToWorld3x4(), tangent));
-    float3 bitangent = cross(geoNormal, tangent) * tangentW;
+    float3 bitangent = cross(smoothNormal, tangent) * tangentW;
 
-    float3 normal = geoNormal;
+    float3 normal = smoothNormal;
     float3 normalMap = float3(0, 0, 1);
     if (material.normalIndex != -1)
     {
          Texture2D normalTex = DescriptorHandle<Texture2D>(uint2(material.normalIndex, 0));
          normalMap = normalTex.SampleLevel(sampler, uv, 0).rgb * 2 - 1;
     }
-    float3x3 TBN = float3x3(tangent, bitangent, geoNormal);
+    float3x3 TBN = float3x3(tangent, bitangent, smoothNormal);
     normal = normalize(mul(normalMap, TBN));
     bool backfacing = HitKind() == HIT_KIND_TRIANGLE_BACK_FACE;
     if (backfacing)
     {
         normal = -normal;
-        geoNormal = -geoNormal;
+        smoothNormal = -smoothNormal;
+        flatNormal = -flatNormal;
     }
 
     float3 hitPoint = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
@@ -168,7 +171,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::Roughness:  payload.done = true; payload.radiance = roughness; return;
         case DebugMode::NormalMap:  payload.done = true; payload.radiance = (normalMap + 1) / 2; return;
         case DebugMode::Normal:     payload.done = true; payload.radiance = (normal + 1) / 2; return;
-        case DebugMode::GeoNormal:  payload.done = true; payload.radiance = (geoNormal + 1) / 2; return;
+        case DebugMode::GeoNormal:  payload.done = true; payload.radiance = (smoothNormal + 1) / 2; return;
         case DebugMode::Tangent:    payload.done = true; payload.radiance = (tangent + 1) / 2; return;
         case DebugMode::Bitangent:  payload.done = true; payload.radiance = (bitangent + 1) / 2; return;
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
@@ -204,7 +207,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         if (dot(dirToLight, normal) > 0.0)
         {
             RayDesc shadowRay;
-            shadowRay.Origin = OffsetRay(hitPoint, geoNormal);
+            shadowRay.Origin = OffsetRay(hitPoint, flatNormal);
             shadowRay.Direction = dirToLight;
             shadowRay.TMin = 0.0;
             shadowRay.TMax = dist - 0.001;
@@ -227,9 +230,9 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     {
         // Opaque
         float3 wo;
-        payload.throughput *= PBRIndirect(payload.rng, normal, geoNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
+        payload.throughput *= PBRIndirect(payload.rng, normal, smoothNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
         payload.nextDirection = wo;
-        payload.nextOrigin = OffsetRay(hitPoint, geoNormal);
+        payload.nextOrigin = OffsetRay(hitPoint, flatNormal);
     }
     else
     {
@@ -237,7 +240,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         float3 wo;
         float3 offsetN;
         float eta = backfacing ? material.ior / 1.0 : 1.0 / material.ior;
-        payload.throughput *= PBRTransmission(payload.rng, geoNormal, -WorldRayDirection(), albedo, eta, RayTCurrent(), wo, offsetN);
+        payload.throughput *= PBRTransmission(payload.rng, normal, flatNormal, -WorldRayDirection(), albedo, eta, RayTCurrent(), wo, offsetN);
         payload.nextDirection = wo;
         payload.nextOrigin = OffsetRay(hitPoint, offsetN);
     }

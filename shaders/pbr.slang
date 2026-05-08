@@ -158,7 +158,7 @@ public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 al
     //             = F * G(l)
 }
 
-public float3 PBRTransmission(inout RNG rng, float3 n, float3 v, float3 albedo, float eta, float dist, out float3 l, out float3 offsetN)
+public float3 PBRTransmission(inout RNG rng, float3 n, float3 g, float3 v, float3 albedo, float eta, float dist, out float3 l, out float3 offsetN)
 {
     float NdotV = dot(n, v);
     float3 F = Fresnel(0.04, NdotV);
@@ -172,14 +172,14 @@ public float3 PBRTransmission(inout RNG rng, float3 n, float3 v, float3 albedo, 
     {
         // Reflect
         l = reflect(-v, n);
-        offsetN = n;
+        offsetN = g;
         return float3(1);
     }
     else
     {
         // Refract
         l = normalize(refract(-v, n, eta));
-        offsetN = -n;
+        offsetN = -g;
         return BeersLaw(1 - albedo, dist);
     }
 }

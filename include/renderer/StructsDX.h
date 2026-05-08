@@ -43,7 +43,7 @@ enum DebugMode
 	Roughness,
 	NormalMap,
 	Normal,
-	GeoNormal,
+	SmoothNormal,
 	Tangent,
 	Bitangent,
 	TangentW,
