@@ -258,8 +258,7 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
         }
 
 		Mesh mesh;
-        mesh.m_materialIndex = primitive.materialIndex.has_value()
-            ? static_cast<int32_t>(primitive.materialIndex.value()) : -1;
+        mesh.m_materialIndex = static_cast<int32_t>(primitive.materialIndex.value_or(-1));
 
         XMStoreFloat4x4(&mesh.m_transform, transform);
 
@@ -272,6 +271,7 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
             const auto& mat = asset.materials[primitive.materialIndex.value()];
 			isAlphaTested = mat.alphaMode != fastgltf::AlphaMode::Opaque;
         }
+
         mesh.Upload(m_context, vertices, indices, meshName);
         mesh.BuildBLAS(m_context, commandList, isAlphaTested);
         m_meshes.push_back(std::move(mesh));
@@ -310,8 +310,10 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
 	    defaultSamplerDesc.MaxAnisotropy = 16;
 	    defaultSamplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 	    defaultSamplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+
 	    defaultSampler = m_context.samplerHeap->Allocate();
 	    m_context.device->CreateSampler(&defaultSamplerDesc, defaultSampler.cpuHandle);
+		m_samplerDescriptors.push_back(defaultSampler);
     }
 
     std::unordered_set<size_t> linearImages;
@@ -474,4 +476,8 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
 
         m_materials.push_back(matData);
     }
+    if (m_materials.empty())
+    {
+        m_materials.push_back(MaterialData{});
+	}
 }

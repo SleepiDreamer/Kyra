@@ -156,12 +156,14 @@ void Scene::UploadMaterialData()
 		}
 	}
 
+	uint32_t numMaterials = static_cast<uint32_t>(materials.size());
+
 	m_materialBuffer = std::make_unique<StructuredBuffer>(
-		m_context, static_cast<uint32_t>(materials.size()), sizeof(MaterialData),
+		m_context, numMaterials, sizeof(MaterialData),
 		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, "Materials");
 
 	m_context.uploadContext->Upload(
-		m_materialBuffer->GetBuffer(), materials.data(), materials.size() * sizeof(MaterialData));
+		m_materialBuffer->GetBuffer(), materials.data(), numMaterials * sizeof(MaterialData));
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Scene::GetTLASAddress() const
