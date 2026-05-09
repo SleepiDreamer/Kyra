@@ -281,18 +281,6 @@ void Miss(inout Payload payload)
         return;
     }
 
-    if (renderData.hdriIndex != -1)
-    {
-        Texture2D hdri = DescriptorHandle<Texture2D>(uint2(renderData.hdriIndex, 0));
-        float2 uv = DirectionToEquirectangular(WorldRayDirection());
-        float3 env = min(hdri.SampleLevel(linearSampler, uv, 0).rgb, 30.0);
-        payload.radiance += env * renderSettings.skyIntensity * payload.throughput;
-    }
-    else
-    {
-        payload.radiance += float3(0.6, 0.8, 1.0) * renderSettings.skyIntensity * payload.throughput * (WorldRayDirection().y + 1.1) / 2.1;
-    }
-
     if (payload.depth == 0)
     {
         uint2 idx = DispatchRaysIndex().xy;
@@ -309,6 +297,24 @@ void Miss(inout Payload payload)
         float2 prevUV = WorldToUV(unjitteredPos, renderData.prevCamera);
         motionVectorsBuffer[idx] = (prevUV - currentUV) * size;
     }
+
+    if (renderSettings.skyIntensity == 0.0)
+    {
+        return;
+    }
+
+    if (renderData.hdriIndex != -1)
+    {
+        Texture2D hdri = DescriptorHandle<Texture2D>(uint2(renderData.hdriIndex, 0));
+        float2 uv = DirectionToEquirectangular(WorldRayDirection());
+        float3 env = min(hdri.SampleLevel(linearSampler, uv, 0).rgb, 30.0);
+        payload.radiance += env * renderSettings.skyIntensity * payload.throughput;
+    }
+    else
+    {
+        payload.radiance += float3(0.6, 0.8, 1.0) * renderSettings.skyIntensity * payload.throughput * (WorldRayDirection().y + 1.1) / 2.1;
+    }
+
 }
 
 [shader("anyhit")]
