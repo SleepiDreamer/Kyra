@@ -134,12 +134,3 @@ public struct Material
 public static const uint MAT_FLAG_TRANSPARENT = (1 << 0);
 public static const uint MAT_FLAG_UV_TRANSFORM = (1 << 1);
 public static const uint MAT_FLAG_TRANSMISSION = 4;
-
-public struct Light
-{
-    public int type;
-    public float3 position;
-    public float3 direction;
-    public float3 color;
-    public float size;
-};

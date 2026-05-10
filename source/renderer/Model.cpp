@@ -96,23 +96,27 @@ void Model::TraverseNode(ID3D12GraphicsCommandList4* commandList, const fastgltf
         {
 	        case fastgltf::LightType::Directional:
 	        {
-	            light.type = Light::LightType::Directional;
+				light.directional.type = static_cast<uint32_t>(LightType::Directional);
 
 				XMVECTOR forward = XMVector3Normalize(worldTransform.r[2]);
 	            forward = XMVectorNegate(forward);
 	            XMFLOAT3 dir;
 	            XMStoreFloat3(&dir, forward);
-	            light.direction = { dir.x, dir.y, dir.z };
-				light.direction = glm::normalize(light.direction);
+	            light.directional.direction = { dir.x, dir.y, dir.z };
+				light.directional.direction = glm::normalize(light.directional.direction);
+                light.directional.angularSize = 0.053f;
+                light.directional.color = { rLight.color.x(), rLight.color.y(), rLight.color.z() } * rLight.intensity / 683.0f;
 	            break;
 	        }
 	        case fastgltf::LightType::Point:
 		    {
-	            light.type = Light::LightType::Point;
+                light.point.type = static_cast<uint32_t>(LightType::Point);
 
 	            XMFLOAT3 pos;
 	            XMStoreFloat3(&pos, worldTransform.r[3]);
-	            light.position = { pos.x, pos.y, pos.z };
+	            light.point.position = { pos.x, pos.y, pos.z };
+                light.point.radius = 0.1f;
+                light.point.color = { rLight.color.x(), rLight.color.y(), rLight.color.z() } * rLight.intensity;
 	            break;
 		    }
 			default:
@@ -122,12 +126,7 @@ void Model::TraverseNode(ID3D12GraphicsCommandList4* commandList, const fastgltf
 	        }
         }
 
-        light.size = 0.01f;
-        light.color = { rLight.color.x(), rLight.color.y(), rLight.color.z() };
-        if (rLight.intensity > 0.0f)
-        {
-            light.color *= rLight.intensity / 683.0f; // Normalize brightness
-		}
+
 		m_lights.push_back(light);
     }
 

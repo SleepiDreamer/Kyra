@@ -118,6 +118,7 @@
     <None Include="shaders\camera.slang" />
     <None Include="shaders\copy_rt.slang" />
     <None Include="shaders\helpers.slang" />
+    <None Include="shaders\lights.slang" />
     <None Include="shaders\pbr.slang" />
     <None Include="shaders\random.slang" />
     <None Include="shaders\rng.slang" />

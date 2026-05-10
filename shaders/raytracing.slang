@@ -3,6 +3,7 @@ import helpers;
 import settings;
 import rng;
 import random.sampling;
+import lights;
 import pbr;
 import camera;
 
@@ -186,22 +187,22 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     {
         uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
         Light light = lights[lightIdx];
-        float3 radiance = light.color;
+        uint lightType = light.GetType();
+        float3 radiance;
         float3 dirToLight;
-        float dist = 0.0;
-        if (light.type == 0)
+        float dist;
+
+        if (lightType == LIGHT_TYPE_DIRECTIONAL)
         {
-            // Point light
-            light.position += sampleUniformSphere(payload.rng.nextFloat2()) * light.size;
-            dist = length(light.position - hitPoint);
-            dirToLight = normalize(light.position - hitPoint);
-            radiance *= LightAttenuation(dist);
+            radiance = light.SampleDirectionalLight(payload.rng.nextFloat2(), dist, dirToLight);
         }
-        else if (light.type == 1)
+        else if (lightType == LIGHT_TYPE_POINT)
         {
-            // Directional light
-            dist = MAX_RAY_DEPTH;
-            dirToLight = sampleSun(payload.rng.nextFloat2(), -light.direction, light.size);
+            radiance = light.SamplePointLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight);
+        }
+        else if (lightType == LIGHT_TYPE_TRIANGLE)
+        {
+            radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight);
         }
 
         if (dot(dirToLight, normal) > 0.0)

@@ -304,6 +304,7 @@
     <None Include="shaders\tonemapping\hdr.slang" />
     <None Include="shaders\tonemapping\psycho.slang" />
     <None Include="shaders\copy_rt.slang" />
+    <None Include="shaders\lights.slang" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="external\glm\glm.natvis" />

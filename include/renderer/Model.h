@@ -8,8 +8,8 @@
 #include <filesystem>
 
 class GPUAllocator;
-class Light;
 struct MaterialData;
+struct Light;
 
 class Model
 {

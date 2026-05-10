@@ -17,6 +17,20 @@ Scene::Scene(RenderContext& context)
 	: m_context(context)
 {
 	m_lightBuffer = std::make_unique<StructuredBuffer>(m_context, 256, sizeof(Light), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
+
+	glm::vec3 v0 = { 0.1f, 0.1f, 0.1f };
+	glm::vec3 v1 = { 0.45f, 0.9f, 0.1f };
+	glm::vec3 v2 = { 0.9f, 0.1f, 0.1f };
+	std::vector<Light> lights;
+	auto& l = lights.emplace_back();
+	l.triangle.type = static_cast<uint32_t>(LightType::Triangle);
+	l.triangle.v0 = v0;
+	l.triangle.e1 = v1 - v0;
+	l.triangle.e2 = v2 - v0;
+	l.triangle.area = 0.5f * glm::length(glm::cross(l.triangle.e1, l.triangle.e2));
+	l.triangle.normal = glm::normalize(glm::cross(l.triangle.e1, l.triangle.e2));
+	l.triangle.materialIdx = 0;
+	AddLights(lights);
 }
 
 Scene::~Scene() = default;
@@ -128,7 +142,7 @@ void Scene::AddLights(const std::vector<Light>& lights)
 	}
 	if (!m_lights.empty())
 	{
-		m_lightBuffer->Update(m_lights.data(), (m_lights.size() + 255) & ~255);
+		m_lightBuffer->Update(m_lights.data(), static_cast<uint32_t>(m_lights.size()));
 	}
 }
 
