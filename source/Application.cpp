@@ -8,7 +8,7 @@
 
 #include <backends/imgui_impl_glfw.h>
 
-Application::Application(const bool debugLayer)
+Application::Application(const bool debugLayer, const std::vector<std::string>& inputPaths)
 {
 	m_window = std::make_unique<Window>(1920, 1080);
 	m_renderer = std::make_unique<Renderer>(*m_window, debugLayer);
@@ -17,8 +17,25 @@ Application::Application(const bool debugLayer)
 	m_camera->SetDirection(glm::vec3(0.0f, 0.0f, -1.0f));
 	m_camera->m_fov = 60.0f;
 	m_renderer->SetCamera(m_camera);
-	//m_renderer->LoadModel("assets/models/Sponza/Sponza.gltf");
-	m_renderer->LoadHDRI("assets/environments/kloppenheim_06_puresky_4k.hdr");
+
+	bool hdriLoaded = false;
+	for (const auto& path : inputPaths)
+	{
+		std::string extension = path.substr(path.find_last_of('.'));
+		if (extension == ".hdr")
+		{
+			m_renderer->LoadHDRI(path);
+			hdriLoaded = true;
+		}
+		if (extension == ".gltf" || extension == ".glb")
+		{
+			m_renderer->LoadModel(path);
+		}
+	}
+	if (!hdriLoaded)
+	{
+		m_renderer->LoadHDRI("assets/environments/kloppenheim_06_puresky_4k.hdr");
+	}
 
 	auto glfwWindow = m_window->GetGLFWWindow();
 

@@ -1,6 +1,8 @@
 #pragma once
 #include <glfw3.h>
 #include <memory>
+#include <string>
+#include <vector>
 
 class Window;
 class Camera;
@@ -9,7 +11,7 @@ class Renderer;
 class Application
 {
 public:
-	Application(bool debugLayer);
+	Application(bool debugLayer, const std::vector<std::string>& inputPaths);
 	~Application();
 
 	void Run();
