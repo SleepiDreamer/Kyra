@@ -36,7 +36,7 @@ public struct Light
     public float3 SampleDirectionalLight(float2 rand, out float dist, out float3 dirToLight)
     {
         dist = MAX_RAY_DEPTH;
-        dirToLight = sampleSun(rand, -DirDirection(), DirAngularSize());
+        dirToLight = sampleSun(rand, -DirDirection(), DirAngularSize() * 4.0);
         return DirColor();
     }
 

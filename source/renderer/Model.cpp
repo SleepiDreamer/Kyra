@@ -104,8 +104,8 @@ void Model::TraverseNode(ID3D12GraphicsCommandList4* commandList, const fastgltf
 	            XMStoreFloat3(&dir, forward);
 	            light.directional.direction = { dir.x, dir.y, dir.z };
 				light.directional.direction = glm::normalize(light.directional.direction);
-                light.directional.angularSize = 0.053f;
-                light.directional.color = { rLight.color.x(), rLight.color.y(), rLight.color.z() } * rLight.intensity / 683.0f;
+                light.directional.angularSize = 0.053f * 0.01745329252f;
+                light.directional.color = glm::vec3{ rLight.color.x(), rLight.color.y(), rLight.color.z() } * rLight.intensity / 683.0f; // normalize brightness
 	            break;
 	        }
 	        case fastgltf::LightType::Point:

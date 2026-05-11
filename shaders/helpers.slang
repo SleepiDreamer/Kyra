@@ -3,7 +3,9 @@ module helpers;
 import structs;
 import settings;
 
-static const float PI = 3.141592653589f;
+static const float PI = 3.141592653589;
+public static const float TO_DEGREES = 57.295779513;
+public static const float TO_RADIANS = 0.01745329252;
 
 public float sanitize(float x)
 {
@@ -22,9 +24,13 @@ public float Grayscale(float3 color)
 public float LinearToSrgb(float linear)
 {
     if (linear <= 0.0031308)
+    {
         return linear * 12.92;
+    }
     else
+    { 
         return 1.055 * pow(linear, 1.0 / 2.4) - 0.055;
+    }
 }
 
 public float3 LinearToSrgb(float3 linear)
@@ -35,9 +41,13 @@ public float3 LinearToSrgb(float3 linear)
 public float SrgbToLinear(float srgb)
 {
     if (srgb <= 0.04045)
+    {
         return srgb / 12.92;
+    }
     else
+    { 
         return pow((srgb + 0.055) / 1.055, 2.4);
+    }
 }
 
 public float2 sampleTriangle(float2 x0, float2 x1, float2 x2, float2 bary)
