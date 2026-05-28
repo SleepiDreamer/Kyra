@@ -53,10 +53,6 @@ public:
 private:
 	std::unique_ptr<StructuredBuffer> m_vertexBuffer = nullptr;
 	std::unique_ptr<TypedBuffer> m_indexBuffer = nullptr;
-    //GPUBuffer m_vertexBuffer;
-    //GPUBuffer m_indexBuffer;
-    //Descriptor m_vertexSrv;
-    //Descriptor m_indexSrv;
     uint32_t m_vertexCount = 0;
     uint32_t m_indexCount = 0;
     std::unique_ptr<BLAS> m_blas = nullptr;

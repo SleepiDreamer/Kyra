@@ -183,7 +183,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     if (renderSettings.bounces == 0) payload.radiance += albedo * payload.throughput * 0.1 * (normal.y + 3) / 4;
 
     // explicit lighting
-    if (renderData.numLights > 0 && !isTransmission)
+    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission)
     {
         uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
         Light light = lights[lightIdx];
