@@ -25,9 +25,38 @@ Model::~Model() = default;
 
 void Model::LoadGLTF(ID3D12GraphicsCommandList4* commandList, const std::filesystem::path& path)
 {
-    fastgltf::Parser parser(fastgltf::Extensions::KHR_lights_punctual | fastgltf::Extensions::KHR_materials_transmission | fastgltf::Extensions::KHR_materials_specular |
-        fastgltf::Extensions::KHR_materials_pbrSpecularGlossiness | fastgltf::Extensions::KHR_mesh_quantization | fastgltf::Extensions::KHR_texture_transform |
-        fastgltf::Extensions::KHR_materials_ior | fastgltf::Extensions::KHR_materials_emissive_strength);
+    constexpr auto extensions = 
+        fastgltf::Extensions::KHR_texture_transform |
+        fastgltf::Extensions::KHR_texture_basisu |
+        fastgltf::Extensions::MSFT_texture_dds |
+        fastgltf::Extensions::KHR_mesh_quantization |
+        fastgltf::Extensions::EXT_meshopt_compression |
+        fastgltf::Extensions::KHR_lights_punctual |
+        fastgltf::Extensions::EXT_texture_webp |
+        fastgltf::Extensions::KHR_materials_specular |
+        fastgltf::Extensions::KHR_materials_ior |
+        fastgltf::Extensions::KHR_materials_iridescence |
+        fastgltf::Extensions::KHR_materials_volume |
+        fastgltf::Extensions::KHR_materials_transmission |
+        fastgltf::Extensions::KHR_materials_clearcoat |
+        fastgltf::Extensions::KHR_materials_emissive_strength |
+        fastgltf::Extensions::KHR_materials_sheen |
+        fastgltf::Extensions::KHR_materials_unlit |
+        fastgltf::Extensions::KHR_materials_anisotropy |
+        fastgltf::Extensions::EXT_mesh_gpu_instancing |
+        fastgltf::Extensions::KHR_materials_pbrSpecularGlossiness |
+        fastgltf::Extensions::MSFT_packing_normalRoughnessMetallic |
+        fastgltf::Extensions::MSFT_packing_occlusionRoughnessMetallic |
+        fastgltf::Extensions::KHR_materials_dispersion |
+        fastgltf::Extensions::KHR_materials_variants |
+        fastgltf::Extensions::KHR_accessor_float64 |
+        fastgltf::Extensions::KHR_draco_mesh_compression |
+        fastgltf::Extensions::KHR_materials_diffuse_transmission |
+        fastgltf::Extensions::KHR_node_visibility |
+        fastgltf::Extensions::KHR_node_selectability |
+        fastgltf::Extensions::KHR_node_hoverability;
+
+    fastgltf::Parser parser(extensions);
 
     auto data = fastgltf::GltfDataBuffer::FromPath(path);
     if (data.error() != fastgltf::Error::None)
@@ -375,31 +404,27 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
                             &width, &height, &nrChannels, 4);
                     },
                     [&](const fastgltf::sources::CustomBuffer& cb) {
-                        std::cerr << "[Model] Unhandled buffer source: CustomBuffer for image: " << image.name << "\n";
+                        Log::Error("[Model] Unhandled buffer source: CustomBuffer for image: {}", image.name);
                     },
                     [&](auto& arg) {
-                        std::cerr << "[Model] Unhandled buffer source type: " << typeid(arg).name()
-                                  << " for image: " << image.name << "\n";
+                        Log::Error("[Model] Unhandled buffer source type: {}, for image: {}", typeid(arg).name(), image.name);
                     }
                 }, buffer.data);
             },
             [&](auto& arg) {
-                std::cerr << "[Model] Unhandled image source type: " << typeid(arg).name()
-                          << " for image: " << image.name << "\n";
+                Log::Error("[Model] Unhandled image source type: {} for image: {}", typeid(arg).name(), image.name);
             }
             }, image.data);
 
         if (data)
         {
-            DXGI_FORMAT fmt = linearImages.count(index)
-                ? DXGI_FORMAT_R8G8B8A8_UNORM
-                : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+            DXGI_FORMAT fmt = linearImages.contains(index) ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
             tex.Create(m_context, data, width, height, fmt, image.name.c_str());
             stbi_image_free(data);
         }
         else
         {
-            std::cerr << "[Model] Failed to load image: " << image.name << "\n";
+            Log::Error("[Model] Failed to load image: {}", image.name);
         }
 
         m_textures.push_back(std::move(tex));
