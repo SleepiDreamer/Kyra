@@ -251,7 +251,9 @@
       <Command>xcopy /D /Y "$(SolutionDir)external\slang\bin\*.dll" "$(OutDir)"
 xcopy /D /Y "$(SolutionDir)external\dxc\bin\*.dll" "$(OutDir)"
 xcopy /D /Y "$(SolutionDir)external\ngx\lib\dev\nvngx_dlss.dll" "$(OutDir)"
-xcopy /D /Y "$(SolutionDir)external\ngx\lib\dev\nvngx_dlssd.dll" "$(OutDir)"</Command>
+xcopy /D /Y "$(SolutionDir)external\ngx\lib\dev\nvngx_dlssd.dll" "$(OutDir)"
+xcopy /D /Y "$(SolutionDir)external\AgilitySDK\D3D12Core.dll" "$(OutDir)D3D12\"
+xcopy /D /Y "$(SolutionDir)external\AgilitySDK\d3d12SDKLayers.dll" "$(OutDir)D3D12\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -277,7 +279,9 @@ xcopy /D /Y "$(SolutionDir)external\ngx\lib\dev\nvngx_dlssd.dll" "$(OutDir)"</Co
       <Command>xcopy /D /Y "$(SolutionDir)external\slang\bin\*.dll" "$(OutDir)"
 xcopy /D /Y "$(SolutionDir)external\dxc\bin\*.dll" "$(OutDir)"
 xcopy /D /Y "$(SolutionDir)external\ngx\lib\rel\nvngx_dlss.dll" "$(OutDir)"
-xcopy /D /Y "$(SolutionDir)external\ngx\lib\rel\nvngx_dlssd.dll" "$(OutDir)"</Command>
+xcopy /D /Y "$(SolutionDir)external\ngx\lib\rel\nvngx_dlssd.dll" "$(OutDir)"
+xcopy /D /Y "$(SolutionDir)external\AgilitySDK\D3D12Core.dll" "$(OutDir)D3D12\"
+xcopy /D /Y "$(SolutionDir)external\AgilitySDK\d3d12SDKLayers.dll" "$(OutDir)D3D12\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
