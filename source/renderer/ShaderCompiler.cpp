@@ -286,7 +286,11 @@ ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& fil
     }
     CheckDiagnostics(diagnostics.get(), result);
 
-    if (!code) { result.errorLog = "Failed to generate code"; return result; }
+    if (!code)
+    {
+	    result.errorLog = "Failed to generate code"; 
+    	return result;
+    }
 
     result.blob.resize(code->getBufferSize());
     memcpy(result.blob.data(), code->getBufferPointer(), code->getBufferSize());

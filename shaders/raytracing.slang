@@ -48,7 +48,8 @@ void RayGen()
     if (DEPTH_OF_FIELD)
     {
         float3 origin;
-        ray.Direction = cam.ThinLensCamera(payload.rng, uv, renderData.camera, origin);
+        ray.Direction = cam.AnamorphicCamera(payload.rng, uv, renderData.camera, DOF_SWIRLINESS, DOF_STRETCH, origin);
+        if (length(ray.Direction) < 0.5) return;
         ray.Origin = origin;
     }
     else
@@ -61,7 +62,25 @@ void RayGen()
 
     while (!payload.done && payload.depth < renderSettings.bounces + 1)
     {
-        TraceRay(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
+        if (SER)
+        {
+            HitObject hit = HitObject.TraceRay<Payload>(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
+
+            if (hit.IsHit())
+            {
+                ReorderThread(hit, hit.GetGeometryIndex(), 1);
+            }
+            else
+            {
+                ReorderThread(hit, 0, 1);
+            }
+
+            hit.Invoke<Payload>(hit, payload);
+        }
+        else
+        {
+            TraceRay(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
+        }
 
         if (all(payload.throughput == 0.0)) payload.done = true;
 

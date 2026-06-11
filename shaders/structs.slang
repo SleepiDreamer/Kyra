@@ -1,7 +1,7 @@
 module structs;
 import rng;
 
-public struct [raypayload] Payload
+public [raypayload] struct Payload
 {
     public float3 radiance : write(caller, closesthit, miss) : read(caller, closesthit, miss);
     public float depth : write(caller) : read(caller, closesthit, miss);
@@ -12,7 +12,7 @@ public struct [raypayload] Payload
     public RNG rng : write(caller, closesthit) : read(caller, closesthit);
 };
 
-public struct [raypayload] ShadowPayload
+public [raypayload] struct ShadowPayload
 {
     public bool inShadow : write(caller, miss) : read(caller);
 };
