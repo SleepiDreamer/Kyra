@@ -63,6 +63,7 @@
     <ClInclude Include="include\renderer\StructuredBuffer.h" />
     <ClInclude Include="include\renderer\TypedBuffer.h" />
     <ClInclude Include="include\renderer\Light.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="external\imgui\backends\imgui_impl_dx12.cpp" />
@@ -140,6 +141,13 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="external\glm\glm.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Kyra.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="assets\images\Kyra.png" />
+    <Image Include="icon1.ico" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>

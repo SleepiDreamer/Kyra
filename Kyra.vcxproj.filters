@@ -147,6 +147,9 @@
     <ClInclude Include="include\Log.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\main.cpp">
@@ -308,5 +311,18 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="external\glm\glm.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Kyra.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="icon1.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="assets\images\Kyra.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>
