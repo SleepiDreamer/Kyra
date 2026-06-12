@@ -40,6 +40,7 @@ public:
 	void SetCamera(std::shared_ptr<Camera> camera) { m_camera = std::move(camera); }
 	void ToggleHDR() const;
 	void ToggleFullscreen();
+	void ToggleImGui();
 	void LoadModel(const std::string& path);
 	void LoadHDRI(const std::string& path);
 	void Resize(int width, int height);
@@ -66,6 +67,7 @@ private:
 	std::unique_ptr<ImGuiWrapper> m_imgui = nullptr;
 	std::unique_ptr<NGXWrapper> m_ngx = nullptr;
 	bool m_pendingResize = false;
+	bool m_showImgui = true;
 
 	std::unique_ptr<Scene> m_scene;
 	RenderSettings m_renderSettings{};

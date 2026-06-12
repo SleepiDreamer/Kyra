@@ -234,6 +234,10 @@ void Application::KeyCallback(GLFWwindow* window, int key, int scancode, int act
 	{
 		app->m_renderer->ToggleHDR();
 	}
+	if (key == GLFW_KEY_H && action == GLFW_PRESS)
+	{
+		app->m_renderer->ToggleImGui();
+	}
 }
 
 void Application::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)

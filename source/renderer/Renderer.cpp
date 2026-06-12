@@ -156,6 +156,11 @@ void Renderer::ToggleFullscreen()
 	Resize(m_window.GetWidth(), m_window.GetHeight());
 }
 
+void Renderer::ToggleImGui()
+{
+	m_showImgui = !m_showImgui;
+}
+
 void Renderer::LoadModel(const std::string& path)
 {
 	if (m_scene->LoadModel(path))
@@ -523,6 +528,7 @@ void Renderer::Render(const float deltaTime)
 	}
 
 	// ImGui window
+	if (m_showImgui)
 	{
 		if (!m_shaderCompiler->GetReloadError().empty())
 		{
