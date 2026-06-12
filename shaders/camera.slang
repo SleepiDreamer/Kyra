@@ -43,7 +43,7 @@ public struct Camera
         return normalize(focusPoint - rayPos);
     }
 
-    public float3 AnamorphicCamera(inout RNG rng, float2 uv, CameraData camera, float swirliness, float stretch, out float3 origin)
+    public float3 AnamorphicCamera(inout RNG rng, float2 uv, CameraData camera, out float3 origin)
     {
         float2 ndc = (uv * 2.0f) - 1.0f;
         float2 resolution = DispatchRaysDimensions().xy;
@@ -59,12 +59,14 @@ public struct Camera
             float2 sampleUV = uv + offset * 0.01;
             float2 vignetteOrigin = uv - centerDeviation * 0.01;
 
-            if (!(distance(sampleUV, vignetteOrigin) > 0.01 / swirliness))
+            if (!(distance(sampleUV, vignetteOrigin) > 0.01 / camera.swirliness))
             {
                 break;
             }
         }
+
         offset *= camera.aperture * 0.01;
+        offset.x /= camera.squeezeFactor;
 
         float tanHalfFov = tan(radians(camera.fov) * 0.5);
         float x = ndc.x * aspectRatio * tanHalfFov;

@@ -29,8 +29,8 @@ public struct CameraData
     public float aperture;
     public float focusDistance;
     public bool autoFocus;
-    uint _pad1;
-    uint _pad2;
+    public float squeezeFactor;
+    public float swirliness;
 };
 
 public struct RenderData

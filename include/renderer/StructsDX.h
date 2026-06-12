@@ -18,10 +18,10 @@ struct CameraData
 	float aperture;
 	float focusDistance;
 	bool autoFocus;
-	uint32_t _pad1;
-	uint32_t _pad2;
+	float squeezeFactor;
+	float swirliness;
 };
-IMGUI_REFLECT(CameraData, fov, aperture, focusDistance, autoFocus, position, forward, right, up)
+IMGUI_REFLECT(CameraData, fov, aperture, focusDistance, autoFocus, squeezeFactor, swirliness, position, forward, right, up)
 
 struct RenderData
 {

@@ -11,8 +11,6 @@ public export static const bool USE_RUSSIAN_ROULETTE = false;
 public export static const uint RUSSIAN_ROULETTE_START_BOUNCE = 0;
 
 public export static const bool DEPTH_OF_FIELD = true;
-public export static const float DOF_SWIRLINESS = 0.8;
-public export static const float DOF_STRETCH = 1.0;
 
 public export static const float BEER_ABSORPTION = 0.5;
 

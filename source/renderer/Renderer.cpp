@@ -255,6 +255,8 @@ void Renderer::Render(const float deltaTime)
 	camData.aperture = m_camera->m_aperture;
 	camData.focusDistance = m_camera->m_focusDistance;
 	camData.autoFocus = m_camera->m_autoFocus;
+	camData.squeezeFactor = m_camera->m_squeezeFactor;
+	camData.swirliness = m_camera->m_swirliness;
 
 	// Begin frame
 	{
@@ -622,6 +624,8 @@ void Renderer::Render(const float deltaTime)
 				m_camera->m_aperture = camData.aperture;
 				m_camera->m_focusDistance = camData.focusDistance;
 				m_camera->m_autoFocus = camData.autoFocus;
+				m_camera->m_squeezeFactor = camData.squeezeFactor;
+				m_camera->m_swirliness = camData.swirliness;
 			}
 			ImGui::EndTabItem();
 		}

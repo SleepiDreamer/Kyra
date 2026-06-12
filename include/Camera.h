@@ -23,6 +23,8 @@ public:
 	float m_aperture = 0.0f;
 	float m_focusDistance = 3.0f;
 	bool m_autoFocus = false;
+	float m_squeezeFactor = 1.0f;
+	float m_swirliness = 0.8f;
 private:
 	glm::vec3 m_position{ 0.0f, 0.0f, 0.0f };
 	glm::vec3 m_forward{ 0.0f, 0.0f, -1.0f };

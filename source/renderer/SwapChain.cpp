@@ -160,7 +160,7 @@ bool SwapChain::ToggleHDR()
 			{
 				ThrowIfFailed(m_swapChain->SetColorSpace1(colorSpace));
 				m_useHdr = true;
-				Log::Success("Turned on HDR");
+				Log::Success("Turned HDR on");
 			}
 		}
 		else
@@ -172,7 +172,7 @@ bool SwapChain::ToggleHDR()
 	{
 		ThrowIfFailed(m_swapChain->SetColorSpace1(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709));
 		m_useHdr = false;
-		Log::Success("Turned off HDR");
+		Log::Success("Turned HDR off");
 	}
 
 	return m_useHdr;

@@ -48,7 +48,7 @@ void RayGen()
     if (DEPTH_OF_FIELD)
     {
         float3 origin;
-        ray.Direction = cam.AnamorphicCamera(payload.rng, uv, renderData.camera, DOF_SWIRLINESS, DOF_STRETCH, origin);
+        ray.Direction = cam.AnamorphicCamera(payload.rng, uv, renderData.camera, origin);
         if (length(ray.Direction) < 0.5) return;
         ray.Origin = origin;
     }
