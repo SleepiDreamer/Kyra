@@ -11,7 +11,7 @@ SamplerState linearSampler : register(s0, space0);
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
-void CSMain(uint3 dtid : SV_DispatchThreadID)
+void Tonemapping(uint3 dtid : SV_DispatchThreadID)
 {
     uint2 resolution;
     outputTexture.GetDimensions(resolution.x, resolution.y);

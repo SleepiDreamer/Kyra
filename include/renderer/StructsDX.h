@@ -17,11 +17,11 @@ struct CameraData
 	glm::vec3 up;
 	float aperture;
 	float focusDistance;
-	uint32_t _pad0;
+	bool autoFocus;
 	uint32_t _pad1;
 	uint32_t _pad2;
 };
-IMGUI_REFLECT(CameraData, fov, aperture, focusDistance, position, forward, right, up)
+IMGUI_REFLECT(CameraData, fov, aperture, focusDistance, autoFocus, position, forward, right, up)
 
 struct RenderData
 {

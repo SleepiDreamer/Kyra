@@ -31,8 +31,8 @@ void AutoExposure(uint3 dtid : SV_DispatchThreadID)
     float avgLuminance = exp(avgLogLum);
 
     float prevExposure = outputUav[0];
-    float targetExposure = clamp(settings.targetExposure / avgLuminance, MIN_EXPOSURE, MAX_EXPOSURE);
-    float adaptationSpeed = targetExposure > prevExposure ? ADAPTATION_SPEED_UP : ADAPTATION_SPEED_DOWN;
+    float targetExposure = clamp(settings.targetExposure / avgLuminance, AE_MIN_EXPOSURE, AE_MAX_EXPOSURE);
+    float adaptationSpeed = targetExposure > prevExposure ? AE_ADAPTATION_SPEED_UP : AE_ADAPTATION_SPEED_DOWN;
     float deltaTime = min(renderData.deltaTime, 0.1f);
     float newExposure = lerp(prevExposure, targetExposure, 1.0 - exp(-adaptationSpeed * deltaTime));
     newExposure = clamp(newExposure, prevExposure * 0.8f, prevExposure * 1.25f);

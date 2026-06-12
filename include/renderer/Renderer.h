@@ -92,8 +92,9 @@ private:
 	std::unique_ptr<PostProcessPass> m_copyRtPass;
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;
 	std::unique_ptr<PostProcessPass> m_autoExposurePass;
-	std::unique_ptr<TypedBuffer> m_autoExposureBuffer;
-	GPUBuffer m_autoExposureReadback;
+	std::unique_ptr<PostProcessPass> m_autoFocusPass;
+	std::unique_ptr<TypedBuffer> m_exposureFocusBuffer;
+	GPUBuffer m_exposureFocusReadback;
 	std::vector<std::unique_ptr<PostProcessPass>> m_bloomPasses;
 };
 

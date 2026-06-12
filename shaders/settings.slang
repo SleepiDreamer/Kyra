@@ -18,10 +18,13 @@ public export static const float BEER_ABSORPTION = 0.5;
 
 // Auto Exposure
 public export static const int AE_SAMPLES = 32;
-public export static const float MIN_EXPOSURE = 0.5;
-public export static const float MAX_EXPOSURE = 1000.0;
-public export static const float ADAPTATION_SPEED_UP = 0.5;
-public export static const float ADAPTATION_SPEED_DOWN = 5.0;
+public export static const float AE_MIN_EXPOSURE = 0.5;
+public export static const float AE_MAX_EXPOSURE = 1000.0;
+public export static const float AE_ADAPTATION_SPEED_UP = 0.5;
+public export static const float AE_ADAPTATION_SPEED_DOWN = 5.0;
+
+// Auto Focus
+public export static const int AF_SPEED = 8;
 
 // Bloom
 public static const float bloomFilterRadius = 0.001;

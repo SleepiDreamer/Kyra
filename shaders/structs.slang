@@ -28,7 +28,7 @@ public struct CameraData
     public float3 up;
     public float aperture;
     public float focusDistance;
-    uint _pad0;
+    public bool autoFocus;
     uint _pad1;
     uint _pad2;
 };

@@ -82,7 +82,7 @@ Renderer::Renderer(Window& window, bool debug)
 	m_dlssOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"DLSS Output Buffer");
 	m_postProcessBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"Post Process Buffer");
 	m_outputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R10G10B10A2_UNORM, width, height, L"Output Buffer");
-	m_bloomBuffers.resize(7);
+	m_bloomBuffers.resize(6);
 	for (size_t i = 0; i < m_bloomBuffers.size(); i++)
 	{
 		m_bloomBuffers[i] = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width >> (i + 1), height >> (i + 1), L"Bloom Buffer " + std::to_wstring(i));
@@ -117,8 +117,9 @@ Renderer::Renderer(Window& window, bool debug)
 	// Post-process passes
 	{
 		m_copyRtPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/copy_rt.slang", "CopyRT");
-		m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "CSMain");
+		m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "Tonemapping");
 		m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autoexposure_pass.slang", "AutoExposure");
+		m_autoFocusPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autofocus_pass.slang", "AutoFocus");
 		
 		D3D12_STATIC_SAMPLER_DESC bloomSampler = BLOOM_SAMPLER;
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_downsample.slang", "BloomDownsample", bloomSampler));
@@ -126,10 +127,10 @@ Renderer::Renderer(Window& window, bool debug)
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_composite.slang", "BloomComposite", bloomSampler));
 	}
 
-	m_autoExposureBuffer = std::make_unique<TypedBuffer>(
-		m_context, 1, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
-	m_autoExposureReadback = m_allocator->CreateBuffer(
-		sizeof(float), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Auto Exposure Readback");
+	m_exposureFocusBuffer = std::make_unique<TypedBuffer>(
+		m_context, 2, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
+	m_exposureFocusReadback = m_allocator->CreateBuffer(
+		sizeof(float) * 2, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Auto Exposure Readback");
 
 	m_renderSettingsCB = std::make_unique<CBVBuffer<RenderSettings>>(*m_allocator, "Render Settings CB");
 	m_renderDataCB = std::make_unique<CBVBuffer<RenderData>>(*m_allocator, "Render Data CB");
@@ -221,14 +222,15 @@ void Renderer::Render(const float deltaTime)
 	glm::ivec2 windowSize = glm::ivec2(m_window.GetWidth(), m_window.GetHeight());
 	glm::ivec2 renderSize = m_renderSettings.denoising ? glm::ivec2(m_ngx->GetRenderWidth(), m_ngx->GetRenderHeight()) : windowSize;
 
-	if (m_postProcessSettings.autoExposure)
+	if (m_postProcessSettings.autoExposure || m_camera->m_autoFocus)
 	{
 		float* mapped = nullptr;
-		D3D12_RANGE readRange = { 0, sizeof(float) };
-		m_autoExposureReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
-		m_postProcessSettings.exposure = *mapped;
+		D3D12_RANGE readRange = { 0, sizeof(float) * 2 };
+		m_exposureFocusReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
+		if (m_postProcessSettings.autoExposure) m_postProcessSettings.exposure = mapped[0];
+		if (m_camera->m_autoFocus) m_camera->m_focusDistance = mapped[1];
 		D3D12_RANGE writeRange = { 0, 0 };
-		m_autoExposureReadback.resource->Unmap(0, &writeRange);
+		m_exposureFocusReadback.resource->Unmap(0, &writeRange);
 	}
 
 	if (m_reloadTimer >= 0.5f)
@@ -252,6 +254,7 @@ void Renderer::Render(const float deltaTime)
 	camData.fov = m_camera->m_fov;
 	camData.aperture = m_camera->m_aperture;
 	camData.focusDistance = m_camera->m_focusDistance;
+	camData.autoFocus = m_camera->m_autoFocus;
 
 	// Begin frame
 	{
@@ -477,31 +480,55 @@ void Renderer::Render(const float deltaTime)
 		}
 
 		// Auto exposure pass
+		if (m_postProcessSettings.autoExposure)
 		{
 			PIXScopedEvent(commandList.Get(), 0xac6bfa, "Auto Exposure");
 
-			if (m_postProcessSettings.autoExposure)
-			{
-				currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+			currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-				PostProcessPass::PostProcessBindings bindings;
-				bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
-				bindings.outputUav = m_autoExposureBuffer->GetUAV().gpuHandle;
-				bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-				bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-				bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-				bindings.constantBufferCount = 3;
-				bindings.width = 1;
-				bindings.height = 1;
+			PostProcessPass::PostProcessBindings bindings;
+			bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
+			bindings.outputUav = m_exposureFocusBuffer->GetUAV().gpuHandle;
+			bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBufferCount = 3;
+			bindings.width = 1;
+			bindings.height = 1;
 
-				m_autoExposurePass->Dispatch(commandList.Get(), bindings);
+			m_autoExposurePass->Dispatch(commandList.Get(), bindings);
 
-				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+			m_exposureFocusBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
 
-				commandList->CopyResource(m_autoExposureReadback.resource, m_autoExposureBuffer->GetResource());
+			commandList->CopyResource(m_exposureFocusReadback.resource, m_exposureFocusBuffer->GetResource());
 
-				m_autoExposureBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-			}
+			m_exposureFocusBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		}
+
+		// Auto focus pass
+		if (m_camera->m_autoFocus)
+		{
+			PIXScopedEvent(commandList.Get(), 0xac6bfa, "Auto Focus");
+
+			m_depthBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+			PostProcessPass::PostProcessBindings bindings;
+			bindings.inputSrv = m_depthBuffer->GetSRV().gpuHandle;
+			bindings.outputUav = m_exposureFocusBuffer->GetUAV().gpuHandle;
+			bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.constantBufferCount = 3;
+			bindings.width = 1;
+			bindings.height = 1;
+
+			m_autoFocusPass->Dispatch(commandList.Get(), bindings);
+
+			m_exposureFocusBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+			commandList->CopyResource(m_exposureFocusReadback.resource, m_exposureFocusBuffer->GetResource());
+
+			m_exposureFocusBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 
 		// Tonemapping pass
@@ -594,6 +621,7 @@ void Renderer::Render(const float deltaTime)
 				m_camera->m_fov = camData.fov;
 				m_camera->m_aperture = camData.aperture;
 				m_camera->m_focusDistance = camData.focusDistance;
+				m_camera->m_autoFocus = camData.autoFocus;
 			}
 			ImGui::EndTabItem();
 		}

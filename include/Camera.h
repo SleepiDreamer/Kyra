@@ -22,6 +22,7 @@ public:
 	float m_fov = 60.0f;
 	float m_aperture = 0.0f;
 	float m_focusDistance = 3.0f;
+	bool m_autoFocus = false;
 private:
 	glm::vec3 m_position{ 0.0f, 0.0f, 0.0f };
 	glm::vec3 m_forward{ 0.0f, 0.0f, -1.0f };
