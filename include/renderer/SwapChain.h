@@ -7,16 +7,17 @@
 #include <dxgi1_6.h>
 
 class Window;
+class Device;
 class CommandQueue;
 
 class SwapChain
 {
 public:
-	SwapChain(Window& window, RenderContext& context, IDXGIAdapter4* adapter);
+	SwapChain(Window& window, RenderContext& context, Device& device);
 	~SwapChain();
 
 	[[nodiscard]] static bool CheckTearingSupport();
-	[[nodiscard]] static bool CheckHDRSupport(IDXGIAdapter4* adapter);
+	[[nodiscard]] bool CheckHDRSupport();
 
 	[[nodiscard]] UINT GetCurrentBackBufferIndex() const { return m_currentBackBufferIndex; }
 	[[nodiscard]] ID3D12Resource* GetCurrentBackBuffer() const { return m_backBuffers[m_currentBackBufferIndex].Get(); }
@@ -27,6 +28,7 @@ public:
 	[[nodiscard]] DXGI_FORMAT GetFormat() const { return m_format; }
 	[[nodiscard]] bool IsHDR() const { return m_useHdr; }
 
+	bool ToggleHDR();
 	void ToggleFullscreen();
 	void CreateBackBuffers(const RenderContext& context);
 	void Resize(const RenderContext& context, uint32_t width, uint32_t height);
@@ -35,6 +37,8 @@ public:
 
 private:
 	Window& m_window;
+	Device& m_device;
+
 	std::unique_ptr<DescriptorHeap> m_rtvHeap = nullptr;
 	Microsoft::WRL::ComPtr<IDXGISwapChain4> m_swapChain = nullptr;
 	D3D12_VIEWPORT m_viewport;

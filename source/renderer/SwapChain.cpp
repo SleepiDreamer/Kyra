@@ -9,17 +9,19 @@
 #include <glfw3.h>
 #include <algorithm>
 
+#include "Device.h"
+
 using namespace Microsoft::WRL;
 
-SwapChain::SwapChain(Window& window, RenderContext& context, IDXGIAdapter4* adapter)
-	: m_window(window)
+SwapChain::SwapChain(Window& window, RenderContext& context, Device& device)
+	: m_window(window), m_device(device)
 {
 	m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(window.GetWidth()), static_cast<float>(window.GetHeight()));
 	m_scissorRect = CD3DX12_RECT(0, 0, window.GetWidth(), window.GetHeight());
 
 	m_useAdaptiveSync = CheckTearingSupport();
 	m_useVsync = !m_useAdaptiveSync;
-	m_useHdr = CheckHDRSupport(adapter);
+	m_useHdr = CheckHDRSupport();
 
 	if (m_useAdaptiveSync)
 	{
@@ -41,12 +43,13 @@ SwapChain::SwapChain(Window& window, RenderContext& context, IDXGIAdapter4* adap
 
 	// Create swap chain
 	{
-		ComPtr<IDXGIFactory4> factory;
-		UINT createFactoryFlags = 0;
 #ifdef _DEBUG
-		createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+		UINT createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#else
+		UINT createFactoryFlags = 0;
 #endif
 
+		auto factory = m_device.GetFactory();
 		ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)));
 
 		DXGI_SWAP_CHAIN_DESC1 swapChainDesc;
@@ -71,8 +74,9 @@ SwapChain::SwapChain(Window& window, RenderContext& context, IDXGIAdapter4* adap
 		ThrowIfFailed(swapchain1.As(&m_swapChain));
 
 		const DXGI_COLOR_SPACE_TYPE colorSpace = m_useHdr
-													 ? DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020
-													 : DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+			? DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020
+			: DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
+
 		UINT colorSpaceSupport = 0;
 		if (SUCCEEDED(m_swapChain->CheckColorSpaceSupport(colorSpace, &colorSpaceSupport)) && (colorSpaceSupport &
 			DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
@@ -103,8 +107,25 @@ bool SwapChain::CheckTearingSupport()
 	return tearingSupported == TRUE;
 }
 
-bool SwapChain::CheckHDRSupport(IDXGIAdapter4* adapter)
+bool SwapChain::CheckHDRSupport()
 {
+	auto factory = m_device.GetFactory();
+	auto adapter = m_device.GetAdapter();
+
+	if (!factory->IsCurrent())
+	{
+#ifdef _DEBUG
+		UINT createFactoryFlags = DXGI_CREATE_FACTORY_DEBUG;
+#else
+		UINT createFactoryFlags = 0;
+#endif
+		DXGI_ADAPTER_DESC3 adapterDesc;
+		adapter->GetDesc3(&adapterDesc);
+
+		ThrowIfFailed(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)));
+		ThrowIfFailed(factory->EnumAdapterByLuid(adapterDesc.AdapterLuid, IID_PPV_ARGS(&adapter)));
+	}
+
 	ComPtr<IDXGIOutput> output;
 	for (UINT i = 0; adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND; ++i)
 	{
@@ -122,6 +143,39 @@ bool SwapChain::CheckHDRSupport(IDXGIAdapter4* adapter)
 		output.Reset();
 	}
 	return false;
+}
+
+bool SwapChain::ToggleHDR()
+{
+	bool support = CheckHDRSupport();
+	if (!m_useHdr)
+	{
+		if (support)
+		{
+			constexpr DXGI_COLOR_SPACE_TYPE colorSpace = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
+
+			UINT colorSpaceSupport = 0;
+			if (SUCCEEDED(m_swapChain->CheckColorSpaceSupport(colorSpace, &colorSpaceSupport)) && (colorSpaceSupport &
+				DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT))
+			{
+				ThrowIfFailed(m_swapChain->SetColorSpace1(colorSpace));
+				m_useHdr = true;
+				Log::Success("Turned on HDR");
+			}
+		}
+		else
+		{
+			Log::Warning("HDR not available");
+		}
+	}
+	else
+	{
+		ThrowIfFailed(m_swapChain->SetColorSpace1(DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709));
+		m_useHdr = false;
+		Log::Success("Turned off HDR");
+	}
+
+	return m_useHdr;
 }
 
 void SwapChain::ToggleFullscreen()

@@ -41,7 +41,6 @@ void Device::EnableDebugLayer()
 
 void Device::CreateAdapter()
 {
-    ComPtr<IDXGIFactory4> factory;
     UINT createFactoryFlags = 0;
 
 #ifdef _DEBUG
@@ -49,13 +48,13 @@ void Device::CreateAdapter()
 #endif
 
     // Create factory
-    ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&factory)), "Failed to create DXGI Factory!");
+    ThrowIfFailed(CreateDXGIFactory2(createFactoryFlags, IID_PPV_ARGS(&m_factory)), "Failed to create DXGI Factory!");
 
     ComPtr<IDXGIAdapter1> adapter1; // Used to query for adapters
     DXGI_ADAPTER_DESC1 dxgiAdapterDesc1;
 
     SIZE_T maxVram = 0;
-    for (UINT i = 0; factory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; ++i)
+    for (UINT i = 0; m_factory->EnumAdapters1(i, &adapter1) != DXGI_ERROR_NOT_FOUND; ++i)
     {
         ThrowIfFailed(adapter1->GetDesc1(&dxgiAdapterDesc1));
 

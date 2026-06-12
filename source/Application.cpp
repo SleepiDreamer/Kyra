@@ -229,6 +229,11 @@ void Application::KeyCallback(GLFWwindow* window, int key, int scancode, int act
 
 		glfwGetCursorPos(window, &app->m_mouseXPrev, &app->m_mouseYPrev);
 	}
+
+	if (key == GLFW_KEY_P && action == GLFW_PRESS)
+	{
+		app->m_renderer->ToggleHDR();
+	}
 }
 
 void Application::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)

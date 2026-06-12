@@ -59,7 +59,7 @@ Renderer::Renderer(Window& window, bool debug)
 
 	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), m_samplerHeap.get(), m_uploadContext.get() };
 
-	m_swapChain = std::make_unique<SwapChain>(window, m_context, m_device->GetAdapter());
+	m_swapChain = std::make_unique<SwapChain>(window, m_context, *m_device);
 	m_imgui = std::make_unique<ImGuiWrapper>(window, m_context, m_swapChain->GetFormat(), NUM_FRAMES_IN_FLIGHT);
 
 	m_scene = std::make_unique<Scene>(m_context);
@@ -142,6 +142,11 @@ Renderer::Renderer(Window& window, bool debug)
 Renderer::~Renderer()
 {
 	m_commandQueue->Flush();
+}
+
+void Renderer::ToggleHDR() const
+{
+	m_swapChain->ToggleHDR();
 }
 
 void Renderer::ToggleFullscreen()
@@ -551,6 +556,14 @@ void Renderer::Render(const float deltaTime)
 			ImGui::Text("Frame: %u", m_renderData.frame);
 			ImGui::Text("Resolution: %ux%u", windowSize.x, windowSize.y);
 			ImGui::Text("Render Resolution: %ux%u", renderSize.x, renderSize.y);
+
+			if (ImGui::Button("Toggle"))
+			{
+				m_swapChain->ToggleHDR();
+			}
+			ImGui::SameLine();
+			ImGui::Text(m_swapChain->IsHDR() ? "HDR: On" : "HDR: Off");
+
 			auto responseRender = ImReflect::Input("Render Settings", m_renderSettings, config);
 			auto responsePost = ImReflect::Input("Post Process Settings", m_postProcessSettings, config);
 			if (responseRender.get<RenderSettings>().is_changed()) { ResetAccumulation(); }

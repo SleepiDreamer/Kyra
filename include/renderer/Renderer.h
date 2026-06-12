@@ -38,6 +38,7 @@ public:
 	void Render(float deltaTime);
 
 	void SetCamera(std::shared_ptr<Camera> camera) { m_camera = std::move(camera); }
+	void ToggleHDR() const;
 	void ToggleFullscreen();
 	void LoadModel(const std::string& path);
 	void LoadHDRI(const std::string& path);
