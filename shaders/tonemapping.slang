@@ -16,10 +16,10 @@ public float3 TonemapSDR(float3 color, TonemapOperatorSDR op, float exposure)
     {
         default:                           return color;
         case TonemapOperatorSDR::Linear:   return color;
-        case TonemapOperatorSDR::Aces:     return tonemapACES(color);
-        case TonemapOperatorSDR::Reinhard: return tonemapReinhard(color);
-        case TonemapOperatorSDR::AgX:      return tonemapAgX(color);
-        case TonemapOperatorSDR::GT7:      return tonemapGT7(color);
+        case TonemapOperatorSDR::Aces:     return TonemapACES(color);
+        case TonemapOperatorSDR::Reinhard: return TonemapReinhard(color);
+        case TonemapOperatorSDR::AgX:      return TonemapAgX(color);
+        case TonemapOperatorSDR::GT7:      return TonemapGT7(color);
     }
 }
 

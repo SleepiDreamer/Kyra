@@ -1,6 +1,6 @@
 module agx;
 
-public float3 tonemapAgX(float3 color)
+public float3 TonemapAgX(float3 color)
 {
     color = agx(color);
     color = agxLook(color);

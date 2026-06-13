@@ -412,7 +412,7 @@ float3 rec2020ToRec709(float3 c)
     );
 }
 
-public float3 tonemapGT7(float3 rgb)
+public float3 TonemapGT7(float3 rgb)
 {
     rgb = rec709ToRec2020(rgb);
 

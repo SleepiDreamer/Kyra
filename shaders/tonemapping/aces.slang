@@ -20,7 +20,7 @@ float3 rttAndOdtFit(float3 v)
     return a / b;
 }
 
-public float3 tonemapACES(float3 color)
+public float3 TonemapACES(float3 color)
 {
     color = mul(acesInputMatrix, color);
     color = rttAndOdtFit(color);
