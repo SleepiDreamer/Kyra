@@ -5,25 +5,25 @@ import tonemapping.aces;
 import tonemapping.reinhard;
 import tonemapping.agx;
 import tonemapping.gt7;
-import tonemapping.psycho;
 import tonemapping.hdr;
+import tonemapping.psycho;
 
-public float3 tonemapSDR(float3 color, TonemapOperator op, float exposure)
+public float3 TonemapSDR(float3 color, TonemapOperatorSDR op, float exposure)
 {
     color *= exposure;
 
     switch (op)
     {
-        case TonemapOperator::Linear:   return color;
-        case TonemapOperator::Aces:     return tonemapACES(color);
-        case TonemapOperator::Reinhard: return tonemapReinhard(color);
-        case TonemapOperator::AgX:      return tonemapAgX(color);
-        case TonemapOperator::GT7:      return tonemapGT7(color);
-        default:                        return color;
+        default:                           return color;
+        case TonemapOperatorSDR::Linear:   return color;
+        case TonemapOperatorSDR::Aces:     return tonemapACES(color);
+        case TonemapOperatorSDR::Reinhard: return tonemapReinhard(color);
+        case TonemapOperatorSDR::AgX:      return tonemapAgX(color);
+        case TonemapOperatorSDR::GT7:      return tonemapGT7(color);
     }
 }
 
-public float3 tonemapHDR(float3 luminance, TonemapOperator op, float maxNits, float exposure)
+public float3 TonemapHDR(float3 luminance, TonemapOperatorHDR op, float maxNits, float exposure)
 {
     luminance *= exposure;
 
@@ -31,11 +31,11 @@ public float3 tonemapHDR(float3 luminance, TonemapOperator op, float maxNits, fl
 
     switch (op)
     {
-    default:                        tonemapped = tonemapHDRLinear(luminance, maxNits); break;
-    case TonemapOperator::Linear:   tonemapped = tonemapHDRLinear(luminance, maxNits); break;
-    case TonemapOperator::Psycho:   tonemapped = tonemapPsycho(luminance, maxNits); break;
+    default:                           tonemapped = TonemapHDRLinear(luminance, maxNits); break;
+    case TonemapOperatorHDR::Linear:   tonemapped = TonemapHDRLinear(luminance, maxNits); break;
+    case TonemapOperatorHDR::Custom:   tonemapped = TonemapHDRCustom(luminance, maxNits); break;
+    case TonemapOperatorHDR::Psycho:   tonemapped = TonemapPsycho(luminance, maxNits); break;
     }
 
     return LinearToPQ(tonemapped);
-
 }

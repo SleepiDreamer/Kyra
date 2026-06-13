@@ -145,9 +145,9 @@ Renderer::~Renderer()
 	m_commandQueue->Flush();
 }
 
-void Renderer::ToggleHDR() const
+void Renderer::ToggleHDR()
 {
-	m_swapChain->ToggleHDR();
+	m_postProcessSettings.hdr = m_swapChain->ToggleHDR();
 }
 
 void Renderer::ToggleFullscreen()
@@ -276,6 +276,7 @@ void Renderer::Render(const float deltaTime)
 	m_renderData.camera.jitterY = jitter.y;
 	m_renderSettingsCB->Update(backBufferIndex, m_renderSettings);
 	m_renderDataCB->Update(backBufferIndex, m_renderData);
+	m_postProcessSettings.hdr = m_swapChain->IsHDR();
 	m_postProcessSettingsCB->Update(backBufferIndex, m_postProcessSettings);
 
 	// Record commands
@@ -609,6 +610,22 @@ void Renderer::Render(const float deltaTime)
 			if (responseRender.get_member<&RenderSettings::dlssQuality>().is_changed())
 			{
 				m_pendingResize = true;
+			}
+			if (m_postProcessSettings.hdr)
+			{
+				const char* enumNames[] = { "Linear", "Custom", "Psycho" };
+				static int currentIndex = static_cast<int>(m_postProcessSettings.tonemapperHDR);
+				if (ImGui::Combo("Tonemapper", &currentIndex, enumNames, IM_ARRAYSIZE(enumNames))) {
+					m_postProcessSettings.tonemapperHDR = static_cast<TonemapOperatorHDR>(currentIndex);
+				}
+			}
+			else
+			{
+				const char* enumNames[] = { "Linear", "ACES", "Reinhard", "AgX", "GT7" };
+				static int currentIndex = static_cast<int>(m_postProcessSettings.tonemapperSDR);
+				if (ImGui::Combo("Tonemapper", &currentIndex, enumNames, IM_ARRAYSIZE(enumNames))) {
+					m_postProcessSettings.tonemapperSDR = static_cast<TonemapOperatorSDR>(currentIndex);
+				}
 			}
 			ImGui::EndTabItem();
 		}

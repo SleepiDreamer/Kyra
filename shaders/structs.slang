@@ -80,19 +80,27 @@ public struct RenderSettings
     DLSSQuality dlssQuality;
 };
 
-public enum TonemapOperator
+public enum class TonemapOperatorSDR
 {
     Linear,
     Aces,
     Reinhard,
     AgX,
     GT7,
+};
+
+public enum class TonemapOperatorHDR
+{
+    Linear,
+    Custom,
     Psycho,
 };
 
 public struct PostProcessSettings
 {
-    public TonemapOperator tonemapper;
+    public TonemapOperatorSDR tonemapperSDR;
+    public TonemapOperatorHDR tonemapperHDR;
+    public bool hdr;
     public bool autoExposure;
     public float targetExposure;
     public float exposure;

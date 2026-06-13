@@ -24,11 +24,11 @@ void Tonemapping(uint3 dtid : SV_DispatchThreadID)
     { 
         if (renderData.hdrEnabled)
         {
-            result = tonemapHDR(result, settings.tonemapper, 800.0f, settings.exposure);
+            result = TonemapHDR(result, settings.tonemapperHDR, 800.0f, settings.exposure);
         }
         else
         {
-            result = tonemapSDR(result, settings.tonemapper, settings.exposure);
+            result = TonemapSDR(result, settings.tonemapperSDR, settings.exposure);
         }
     }
 

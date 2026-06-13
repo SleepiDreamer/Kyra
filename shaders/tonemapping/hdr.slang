@@ -82,7 +82,17 @@ float3 Saturation(float3 color, float strength)
     return lerp(luma.xxx, color, strength);
 }
 
-public float3 tonemapHDRLinear(float3 luminance, float maxNits)
+public float3 TonemapHDRLinear(float3 luminance, float maxNits)
+{
+    luminance *= 0.05;
+
+    float3 wcg = Rec709ToRec2020(luminance);
+    float3 nits = wcg * maxNits;
+    
+    return nits;
+}
+
+public float3 TonemapHDRCustom(float3 luminance, float maxNits)
 {
     luminance *= 0.05;
 
@@ -101,6 +111,6 @@ public float3 tonemapHDRLinear(float3 luminance, float maxNits)
 
     float rolloff = 0.7;
     nits = SoftShoulder(nits, maxNits * (1.0 - rolloff), maxNits);
-    
+
     return nits;
 }

@@ -32,6 +32,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#define DO_INDENT false
 
 // ============================================================================
 // File: extern/svh/tag_invoke.hpp
@@ -3178,7 +3179,9 @@ namespace ImReflect {
 					ImGui::SetTooltip("Const object");
 				}
 			}
+#if DO_INDENT
 			if (!empty) ImGui::Indent();
+#endif
 			visit_struct::context<ImContext>::for_each(value,
 				[&](const char* name, auto& field) {
 					auto& member_settings = settings.get_member(value, field);
@@ -3190,7 +3193,9 @@ namespace ImReflect {
 					InputImpl(label.c_str(), field, member_settings, member_response); // recurse
 					ImGui::PopID();
 				});
+#if DO_INDENT
 			if (!empty) ImGui::Unindent();
+#endif
 			ImGui::PopID();
 		}
 
@@ -3349,9 +3354,16 @@ namespace ImReflect::Detail {
 	struct scope_indent {
 		float width = 0.0f;
 		scope_indent(float _width = 0.0f) : width(_width) {
+#if DO_INDENT
 			ImGui::Indent(width);
+#endif
 		}
-		~scope_indent() { ImGui::Unindent(width); }
+		~scope_indent()
+		{
+#if DO_INDENT
+			ImGui::Unindent(width);
+#endif
+		}
 	};
 
 	inline void text_label(const std::string& text) {
@@ -5701,7 +5713,9 @@ namespace ImReflect {
 
 				const std::string item_label = std::string("##map_item_") + std::to_string(i);
 				const auto item_id = Detail::scope_id(item_label.c_str());
+#if DO_INDENT
 				ImGui::Indent();
+#endif
 
 				ImGui::Text("==");
 
@@ -5748,7 +5762,9 @@ namespace ImReflect {
 					ImGui::EndPopup();
 				}
 
+#if DO_INDENT
 				ImGui::Unindent();
+#endif
 
 				++i;
 			}

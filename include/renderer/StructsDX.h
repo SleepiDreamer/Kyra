@@ -71,25 +71,33 @@ struct RenderSettings
 };
 IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
 
-enum TonemapOperator
+enum class TonemapOperatorSDR
 {
 	Linear,
 	Aces,
 	Reinhard,
 	AgX,
 	GT7,
+};
+
+enum class TonemapOperatorHDR
+{
+	Linear,
+	Custom,
 	Psycho,
 };
 
 struct PostProcessSettings
 {
-	TonemapOperator tonemapper = AgX;
+	TonemapOperatorSDR tonemapperSDR = TonemapOperatorSDR::AgX;
+	TonemapOperatorHDR tonemapperHDR = TonemapOperatorHDR::Custom;
+	BOOL hdr = false;
 	BOOL autoExposure = true;
 	float targetExposure = 1.0f;
 	float exposure = 10.0f;
 	float bloomStrength = 0.05f;
 };
-IMGUI_REFLECT(PostProcessSettings, tonemapper, autoExposure, exposure, targetExposure, bloomStrength)
+IMGUI_REFLECT(PostProcessSettings, autoExposure, exposure, targetExposure, bloomStrength)
 
 struct HitGroupRecord
 {
