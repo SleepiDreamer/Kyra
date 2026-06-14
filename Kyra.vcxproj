@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Log.h" />
+    <ClInclude Include="include\renderer\ComputePass.h" />
     <ClInclude Include="include\renderer\ImGuiWrapper.h" />
     <ClInclude Include="include\Camera.h" />
     <ClInclude Include="external\D3D12MA\D3D12MemAlloc.h" />
@@ -74,6 +75,7 @@
     <ClCompile Include="external\imgui\imgui_widgets.cpp" />
     <ClCompile Include="external\imgui\misc\cpp\imgui_stdlib.cpp" />
     <ClCompile Include="external\mikkt\mikktspace.c" />
+    <ClCompile Include="source\renderer\ComputePass.cpp" />
     <ClCompile Include="source\renderer\Light.cpp" />
     <ClCompile Include="source\renderer\NGXWrapper.cpp" />
     <ClCompile Include="source\renderer\PostProcessPass.cpp" />
@@ -119,6 +121,7 @@
     <None Include="shaders\bloom_upsample.slang" />
     <None Include="shaders\camera.slang" />
     <None Include="shaders\copy_rt.slang" />
+    <None Include="shaders\emissive_parse.slang" />
     <None Include="shaders\helpers.slang" />
     <None Include="shaders\lights.slang" />
     <None Include="shaders\pbr.slang" />

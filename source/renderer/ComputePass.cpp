@@ -1,4 +1,4 @@
-#include "PostProcessPass.h"
+#include "ComputePass.h"
 #include "ShaderCompiler.h"
 #include "Shader.h"
 #include "CommandQueue.h"
@@ -8,15 +8,15 @@
 
 using namespace Microsoft::WRL;
 
-PostProcessPass::PostProcessPass(RenderContext& context, const std::string& shaderPath, 
-								 const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler)
+ComputePass::ComputePass(RenderContext& context, const std::string& shaderPath,
+    const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler)
     : m_context(context), m_entryPoint(entryPoint), m_customSampler(customSampler)
 {
     m_shader = std::make_unique<Shader>(*m_context.shaderCompiler, shaderPath, std::vector<std::string>{ entryPoint }, false);
 
     if (m_shader->IsValid())
     {
-		Log::Info("Compiled shader: {}", shaderPath);
+        Log::Info("Compiled shader: {}", shaderPath);
     }
     else
     {
@@ -29,34 +29,37 @@ PostProcessPass::PostProcessPass(RenderContext& context, const std::string& shad
     // Shader hot reload callback
     m_context.shaderCompiler->RegisterShaderReload(m_shader.get());
     m_context.shaderCompiler->ShaderRecompileCallback([this](const Shader* shader)
-    {
-        if (shader == m_shader.get())
         {
-            m_context.commandQueue->Flush();
-            m_pso.Reset();
-            BuildPSO();
-        }
-    });
+            if (shader == m_shader.get())
+            {
+                m_context.commandQueue->Flush();
+                m_pso.Reset();
+                BuildPSO();
+            }
+        });
 }
 
-PostProcessPass::~PostProcessPass() = default;
+ComputePass::~ComputePass() = default;
 
-void PostProcessPass::BuildRootSignature()
+void ComputePass::BuildRootSignature()
 {
-    CD3DX12_DESCRIPTOR_RANGE1 srvRange;
-    srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+    CD3DX12_ROOT_PARAMETER1 params[CONSTANTS_OFFSET + 1] = {};
+    for (uint32_t i = 0; i < MAX_SRVS; i++)
+    {
+        params[SRV_OFFSET + i].InitAsShaderResourceView(i, 0); // t0+:0
+    }
 
-    CD3DX12_DESCRIPTOR_RANGE1 uavRange;
-    uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0);
+    for (uint32_t i = 0; i < MAX_UAVS; i++)
+    {
+        params[UAV_OFFSET + i].InitAsUnorderedAccessView(i, 0); // u0+:0
+    }
 
-    CD3DX12_ROOT_PARAMETER1 params[7] = {};
-    params[0].InitAsDescriptorTable(1, &srvRange);  // t0:0
-    params[1].InitAsDescriptorTable(1, &uavRange);  // u0:0
-    params[2].InitAsConstantBufferView(0, 0);       // b0:0
-    params[3].InitAsConstantBufferView(1, 0);       // b1:0
-    params[4].InitAsConstantBufferView(2, 0);       // b2:0
-    params[5].InitAsConstantBufferView(3, 0);       // b3:0
-	params[6].InitAsConstants(16, 4, 0);            // b4:0
+    for (uint32_t i = 0; i < MAX_CBVS; i++)
+    {
+        params[CBV_OFFSET + i].InitAsConstantBufferView(i, 0); // b0+:0
+    }
+
+    params[CONSTANTS_OFFSET].InitAsConstants(MAX_CONSTANTS, 0, 1); // b0:1
 
     D3D12_STATIC_SAMPLER_DESC sampler;
     if (m_customSampler.has_value())
@@ -80,7 +83,7 @@ void PostProcessPass::BuildRootSignature()
     }
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-    desc.Init_1_1(std::size(params), params, 1, &sampler);
+    desc.Init_1_1(std::size(params), params, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED);
 
     ComPtr<ID3DBlob> sigBlob, errorBlob;
     HRESULT hr = D3DX12SerializeVersionedRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_1, &sigBlob, &errorBlob);
@@ -93,36 +96,41 @@ void PostProcessPass::BuildRootSignature()
 
     ThrowIfFailed(m_context.device->CreateRootSignature(0, sigBlob->GetBufferPointer(),
         sigBlob->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)));
-    m_rootSignature->SetName(L"Post-Process Root Signature");
+    m_rootSignature->SetName(L"Compute Pass Root Signature");
 }
 
-void PostProcessPass::BuildPSO()
+void ComputePass::BuildPSO()
 {
     D3D12_COMPUTE_PIPELINE_STATE_DESC desc{};
     desc.pRootSignature = m_rootSignature.Get();
     desc.CS = m_shader->GetBytecode();
 
     ThrowIfFailed(m_context.device->CreateComputePipelineState(&desc, IID_PPV_ARGS(&m_pso)));
-    m_pso->SetName(L"Post-Process PSO");
+    m_pso->SetName(L"Compute Pass PSO");
 }
 
-void PostProcessPass::Dispatch(ID3D12GraphicsCommandList4* commandList, const PostProcessBindings& bindings) const
+void ComputePass::Dispatch(ID3D12GraphicsCommandList4* commandList, const ComputeBindings& bindings) const
 {
     commandList->SetComputeRootSignature(m_rootSignature.Get());
     commandList->SetPipelineState(m_pso.Get());
 
-    commandList->SetComputeRootDescriptorTable(0, bindings.inputSrv);
-    commandList->SetComputeRootDescriptorTable(1, bindings.outputUav);
+    for (uint32_t i = 0; i < bindings.srvCount; i++)
+    {
+        commandList->SetComputeRootShaderResourceView(SRV_OFFSET + i, bindings.srvs[i]);
+    }
+    for (uint32_t i = 0; i < bindings.uavCount; i++)
+    {
+        commandList->SetComputeRootUnorderedAccessView(UAV_OFFSET + i, bindings.uavs[i]);
+    }
     for (uint32_t i = 0; i < bindings.cbvCount; i++)
     {
-	    commandList->SetComputeRootConstantBufferView(2 + i, bindings.cbvs[i]);
+        commandList->SetComputeRootConstantBufferView(CBV_OFFSET + i, bindings.cbvs[i]);
     }
     if (bindings.rootConstantCount > 0)
     {
-        commandList->SetComputeRoot32BitConstants(6, bindings.rootConstantCount, bindings.rootConstants, 0);
+        commandList->SetComputeRoot32BitConstants(CONSTANTS_OFFSET, bindings.rootConstantCount, bindings.rootConstants, 0);
     }
 
-    uint32_t groupsX = (bindings.width + THREAD_GROUP_SIZE - 1) / THREAD_GROUP_SIZE;
-    uint32_t groupsY = (bindings.height + THREAD_GROUP_SIZE - 1) / THREAD_GROUP_SIZE;
-    commandList->Dispatch(groupsX, groupsY, 1);
+    uint32_t groupsX = (bindings.threads + THREAD_GROUP_SIZE - 1) / THREAD_GROUP_SIZE;
+    commandList->Dispatch(groupsX, 1, 1);
 }

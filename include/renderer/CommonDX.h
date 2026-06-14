@@ -9,6 +9,7 @@ class GPUAllocator;
 class CommandQueue;
 class DescriptorHeap;
 class UploadContext;
+class ShaderCompiler;
 struct ID3D12Device10;
 
 inline constexpr uint8_t NUM_FRAMES_IN_FLIGHT = 3;
@@ -38,6 +39,21 @@ constexpr D3D12_RESOURCE_DESC TEXTURE_RESOURCE = {
     D3D12_TEXTURE_LAYOUT_UNKNOWN,
     D3D12_RESOURCE_FLAG_NONE
 };
+constexpr D3D12_STATIC_SAMPLER_DESC POINT_SAMPLER = {
+    D3D12_FILTER_MIN_MAG_MIP_POINT,
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+    D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+    0.0f,
+    0,
+    D3D12_COMPARISON_FUNC_NEVER,
+    D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+    0.0f,
+    D3D12_FLOAT32_MAX,
+    0,
+    0,
+    D3D12_SHADER_VISIBILITY_ALL
+};
 constexpr D3D12_STATIC_SAMPLER_DESC BLOOM_SAMPLER = {
     D3D12_FILTER_MIN_MAG_LINEAR_MIP_POINT,
     D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
@@ -62,4 +78,5 @@ struct RenderContext
     DescriptorHeap* descriptorHeap = nullptr;
     DescriptorHeap* samplerHeap = nullptr;
     UploadContext* uploadContext = nullptr;
+    ShaderCompiler* shaderCompiler = nullptr;
 };

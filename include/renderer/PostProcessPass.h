@@ -11,7 +11,7 @@ class CommandQueue;
 class PostProcessPass
 {
 public:
-    PostProcessPass(RenderContext& context, ShaderCompiler& compiler, const std::string& shaderPath, const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler = std::nullopt);
+    PostProcessPass(RenderContext& context, const std::string& shaderPath, const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler = std::nullopt);
     ~PostProcessPass();
     PostProcessPass(const PostProcessPass&) = delete;
     PostProcessPass& operator=(const PostProcessPass&) = delete;
@@ -21,8 +21,8 @@ public:
 
         D3D12_GPU_DESCRIPTOR_HANDLE inputSrv;
         D3D12_GPU_DESCRIPTOR_HANDLE outputUav;
-        D3D12_GPU_VIRTUAL_ADDRESS constantBuffers[4] = {};
-        uint32_t constantBufferCount = 0;
+        D3D12_GPU_VIRTUAL_ADDRESS cbvs[4] = {};
+        uint32_t cbvCount = 0;
         uint32_t rootConstants[16] = {};
         uint32_t rootConstantCount = 0;
         uint32_t width;

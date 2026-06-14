@@ -9,6 +9,8 @@ class Texture;
 class CommandQueue;
 class GPUAllocator;
 class StructuredBuffer;
+class ComputePass;
+class PostProcessPass;
 struct HitGroupRecord;
 
 class Scene
@@ -32,13 +34,18 @@ public:
 
 private:
 	void UploadMaterialData();
+	void LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList) const;
 
 	RenderContext& m_context;
+
 	std::unique_ptr<TLAS> m_tlas;
 	std::vector<Model> m_models;
 	std::unique_ptr<Texture> m_hdri;
 	std::unique_ptr<StructuredBuffer> m_materialBuffer;
 	std::unique_ptr<StructuredBuffer> m_lightBuffer;
 	std::vector<Light> m_lights;
-};
 
+	std::unique_ptr<ComputePass> m_emissiveComputePass;
+	std::unique_ptr<StructuredBuffer> m_emissiveCounter;
+	//GPUBuffer m_emissiveReadbackBuffer;
+};

@@ -26,7 +26,6 @@ public:
     Mesh();
     ~Mesh();
 
-    Mesh(const Mesh&) = delete;
     Mesh& operator=(const Mesh&) = delete;
     Mesh(Mesh&& other) noexcept;
     Mesh& operator=(Mesh&& other) noexcept;
@@ -46,6 +45,7 @@ public:
     [[nodiscard]] Descriptor GetVertexSRV() const;
     [[nodiscard]] Descriptor GetIndexSRV() const;
 	[[nodiscard]] D3D12_RAYTRACING_INSTANCE_DESC GetInstanceDesc(UINT instanceId) const;
+    [[nodiscard]] DirectX::XMFLOAT4X4 GetTransform() const { return m_transform; }
 
     int32_t m_materialIndex = -1;
     DirectX::XMFLOAT4X4 m_transform;

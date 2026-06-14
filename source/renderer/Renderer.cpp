@@ -56,15 +56,15 @@ Renderer::Renderer(Window& window, bool debug)
 	m_samplerHeap = std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 256, true, L"Sampler Descriptor Heap");
 	m_allocator = std::make_unique<GPUAllocator>(device, m_device->GetAdapter());
 	m_uploadContext = std::make_unique<UploadContext>(*m_allocator, device);
+	m_shaderCompiler = std::make_unique<ShaderCompiler>("shaders/");
 
-	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), m_samplerHeap.get(), m_uploadContext.get() };
+	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), m_samplerHeap.get(), m_uploadContext.get(), m_shaderCompiler.get() };
 
 	m_swapChain = std::make_unique<SwapChain>(window, m_context, *m_device);
 	m_imgui = std::make_unique<ImGuiWrapper>(window, m_context, m_swapChain->GetFormat(), NUM_FRAMES_IN_FLIGHT);
 
 	m_scene = std::make_unique<Scene>(m_context);
 
-	m_shaderCompiler = std::make_unique<ShaderCompiler>("shaders/");
 
 	m_ngx = std::make_unique<NGXWrapper>(m_context, window);
 	m_ngx->Initialize();
@@ -116,15 +116,15 @@ Renderer::Renderer(Window& window, bool debug)
 
 	// Post-process passes
 	{
-		m_copyRtPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/copy_rt.slang", "CopyRT");
-		m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/tonemapping_pass.slang", "Tonemapping");
-		m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autoexposure_pass.slang", "AutoExposure");
-		m_autoFocusPass = std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/autofocus_pass.slang", "AutoFocus");
+		m_copyRtPass = std::make_unique<PostProcessPass>(m_context, "shaders/copy_rt.slang", "CopyRT");
+		m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, "shaders/tonemapping_pass.slang", "Tonemapping");
+		m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, "shaders/autoexposure_pass.slang", "AutoExposure");
+		m_autoFocusPass = std::make_unique<PostProcessPass>(m_context, "shaders/autofocus_pass.slang", "AutoFocus");
 		
 		D3D12_STATIC_SAMPLER_DESC bloomSampler = BLOOM_SAMPLER;
-		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_downsample.slang", "BloomDownsample", bloomSampler));
-		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_upsample.slang", "BloomUpsample", bloomSampler));
-		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, *m_shaderCompiler, "shaders/bloom_composite.slang", "BloomComposite", bloomSampler));
+		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, "shaders/bloom_downsample.slang", "BloomDownsample", bloomSampler));
+		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, "shaders/bloom_upsample.slang", "BloomUpsample", bloomSampler));
+		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, "shaders/bloom_composite.slang", "BloomComposite", bloomSampler));
 	}
 
 	m_exposureFocusBuffer = std::make_unique<TypedBuffer>(
@@ -361,9 +361,9 @@ void Renderer::Render(const float deltaTime)
 			PostProcessPass::PostProcessBindings bindings;
 			bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
 			bindings.outputUav = m_postProcessBuffer->GetUAV().gpuHandle;
-			bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBufferCount = 2;
+			bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvCount = 2;
 			bindings.rootConstants[0] = currentBuffer->GetWidth();
 			bindings.rootConstants[1] = currentBuffer->GetHeight();
 			bindings.rootConstantCount = 2;
@@ -395,10 +395,10 @@ void Renderer::Render(const float deltaTime)
 					PostProcessPass::PostProcessBindings bindings;
 					bindings.inputSrv = bloomInput->GetSRV().gpuHandle;
 					bindings.outputUav = bloomOutput->GetUAV().gpuHandle;
-					bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-					bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-					bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-					bindings.constantBufferCount = 3;
+					bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+					bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+					bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+					bindings.cbvCount = 3;
 					bindings.rootConstants[0] = bloomInput->GetWidth();
 					bindings.rootConstants[1] = bloomInput->GetHeight();
 					bindings.rootConstants[2] = bloomOutput->GetWidth();
@@ -435,10 +435,10 @@ void Renderer::Render(const float deltaTime)
 					PostProcessPass::PostProcessBindings bindings;
 					bindings.inputSrv = bloomInput->GetSRV().gpuHandle;
 					bindings.outputUav = bloomOutput->GetUAV().gpuHandle;
-					bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-					bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-					bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-					bindings.constantBufferCount = 3;
+					bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+					bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+					bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+					bindings.cbvCount = 3;
 					bindings.rootConstants[0] = bloomInput->GetWidth();
 					bindings.rootConstants[1] = bloomInput->GetHeight();
 					bindings.rootConstants[2] = bloomOutput->GetWidth();
@@ -464,10 +464,10 @@ void Renderer::Render(const float deltaTime)
 				PostProcessPass::PostProcessBindings bindings;
 				bindings.inputSrv = bloomInput->GetSRV().gpuHandle;
 				bindings.outputUav = currentBuffer->GetUAV().gpuHandle;
-				bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-				bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-				bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-				bindings.constantBufferCount = 3;
+				bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+				bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+				bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+				bindings.cbvCount = 3;
 				bindings.rootConstants[0] = bloomInput->GetWidth();
 				bindings.rootConstants[1] = bloomInput->GetHeight();
 				bindings.rootConstants[2] = currentBuffer->GetWidth();
@@ -492,10 +492,10 @@ void Renderer::Render(const float deltaTime)
 			PostProcessPass::PostProcessBindings bindings;
 			bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
 			bindings.outputUav = m_exposureFocusBuffer->GetUAV().gpuHandle;
-			bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBufferCount = 3;
+			bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvCount = 3;
 			bindings.width = 1;
 			bindings.height = 1;
 
@@ -518,10 +518,10 @@ void Renderer::Render(const float deltaTime)
 			PostProcessPass::PostProcessBindings bindings;
 			bindings.inputSrv = m_depthBuffer->GetSRV().gpuHandle;
 			bindings.outputUav = m_exposureFocusBuffer->GetUAV().gpuHandle;
-			bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBufferCount = 3;
+			bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvCount = 3;
 			bindings.width = 1;
 			bindings.height = 1;
 
@@ -544,10 +544,10 @@ void Renderer::Render(const float deltaTime)
 			PostProcessPass::PostProcessBindings bindings;
 			bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
 			bindings.outputUav = m_outputBuffer->GetUAV().gpuHandle;
-			bindings.constantBuffers[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBuffers[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBuffers[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.constantBufferCount = 3;
+			bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvCount = 3;
 			bindings.width = static_cast<uint32_t>(m_swapChain->GetViewport().Width);
 			bindings.height = static_cast<uint32_t>(m_swapChain->GetViewport().Height);
 

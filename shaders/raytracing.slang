@@ -197,14 +197,18 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
     }
 
-    payload.radiance += emission * payload.throughput;
+    if (float(DispatchRaysIndex().x) / float(DispatchRaysDimensions().x) < 0.5)
+    { 
+        payload.radiance += emission * payload.throughput;
+    }
 
     if (renderSettings.bounces == 0) payload.radiance += albedo * payload.throughput * 0.1 * (normal.y + 3) / 4;
 
     // explicit lighting
-    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission)
+    //if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission)
+    if (float(DispatchRaysIndex().x) / float(DispatchRaysDimensions().x) > 0.5)
     {
-        uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
+        uint lightIdx = uint(payload.rng.nextFloat() * /*renderData.numLights*/ 162);
         Light light = lights[lightIdx];
         uint lightType = light.GetType();
         float3 radiance;
@@ -230,7 +234,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
             shadowRay.Origin = OffsetRay(hitPoint, flatNormal);
             shadowRay.Direction = dirToLight;
             shadowRay.TMin = 0.0;
-            shadowRay.TMax = dist - 0.001;
+            shadowRay.TMax = dist - 0.0001;
 
             ShadowPayload shadowPayload;
             shadowPayload.inShadow = true;

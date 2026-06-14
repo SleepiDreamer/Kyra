@@ -8,29 +8,28 @@
 #include "UploadContext.h"
 #include "GPUAllocator.h"
 #include "StructuredBuffer.h"
+#include "ComputePass.h"
 #include "StructsDX.h"
 #include "Log.h"
 
 #include <stb_image.h>
 
+#include "PostProcessPass.h"
+
 Scene::Scene(RenderContext& context)
 	: m_context(context)
 {
-	m_lightBuffer = std::make_unique<StructuredBuffer>(m_context, 256, sizeof(Light), D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
+	constexpr uint32_t numLights = 1024;
+	m_lightBuffer = std::make_unique<StructuredBuffer>(
+		m_context, numLights, static_cast<uint32_t>(sizeof(Light)), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
+	//m_emissiveReadbackBuffer = m_context.allocator->CreateBuffer(
+	//	sizeof(Light) * numLights, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Readback");
 
-	//glm::vec3 v0 = { 0.1f, 0.1f, 0.1f };
-	//glm::vec3 v1 = { 0.45f, 0.9f, 0.1f };
-	//glm::vec3 v2 = { 0.9f, 0.1f, 0.1f };
-	//std::vector<Light> lights;
-	//auto& l = lights.emplace_back();
-	//l.triangle.type = static_cast<uint32_t>(LightType::Triangle);
-	//l.triangle.v0 = v0;
-	//l.triangle.e1 = v1 - v0;
-	//l.triangle.e2 = v2 - v0;
-	//l.triangle.area = 0.5f * glm::length(glm::cross(l.triangle.e1, l.triangle.e2));
-	//l.triangle.normal = glm::normalize(glm::cross(l.triangle.e1, l.triangle.e2));
-	//l.triangle.materialIdx = 0;
-	//AddLights(lights);
+	auto sampler = POINT_SAMPLER;
+	m_emissiveComputePass = std::make_unique<ComputePass>(
+		m_context, "shaders/emissive_parse.slang", "ParseEmissives", sampler);
+	m_emissiveCounter = std::make_unique<StructuredBuffer>(
+		m_context, 1, sizeof(uint32_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Light Counter Buffer");
 }
 
 Scene::~Scene() = default;
@@ -70,6 +69,7 @@ bool Scene::LoadModel(const std::string& path)
 	UploadMaterialData();
 
 	m_context.uploadContext->Flush();
+	m_context.commandQueue->Flush();
 
 	commandList = m_context.commandQueue->GetCommandList();
 
@@ -82,6 +82,8 @@ bool Scene::LoadModel(const std::string& path)
 		}
 	}
 	AddLights(newModel.GetLights());
+
+	LoadEmissiveVertices(newModel, commandList.Get());
 
 	m_context.commandQueue->ExecuteCommandList(commandList);
 	m_context.commandQueue->Flush();
@@ -178,6 +180,69 @@ void Scene::UploadMaterialData()
 
 	m_context.uploadContext->Upload(
 		m_materialBuffer->GetBuffer(), materials.data(), numMaterials * sizeof(MaterialData));
+}
+
+static uint32_t floatToUint(const float f)
+{
+	uint32_t u; 
+	std::memcpy(&u, &f, sizeof(u)); 
+	return u;
+};
+
+void Scene::LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList) const
+{
+	ID3D12DescriptorHeap* heap = { m_context.descriptorHeap->GetHeap() };
+	commandList->SetDescriptorHeaps(1, &heap);
+
+	auto& meshes = model.GetMeshes();
+	for (auto& mesh : meshes)
+	{
+		if (mesh.m_materialIndex < 0) continue;
+
+		uint32_t numIndices = mesh.GetIndexCount();
+		uint32_t numTriangles = numIndices / 3;
+		
+		DirectX::XMFLOAT4X4 transform = mesh.GetTransform();
+
+		ComputePass::ComputeBindings bindings;
+		bindings.srvs[0] = mesh.GetVertexBuffer()->GetGPUVirtualAddress();
+		bindings.srvs[1] = mesh.GetIndexBuffer()->GetGPUVirtualAddress();
+		bindings.srvs[2] = m_materialBuffer->GetResource()->GetGPUVirtualAddress();
+		bindings.srvCount = 3;
+		bindings.uavs[0] = m_lightBuffer->GetResource()->GetGPUVirtualAddress();
+		bindings.uavs[1] = m_emissiveCounter->GetResource()->GetGPUVirtualAddress();
+		bindings.uavCount = 2;
+		bindings.rootConstants[0] =  floatToUint(transform._11);
+		bindings.rootConstants[1] =  floatToUint(transform._21);
+		bindings.rootConstants[2] =  floatToUint(transform._31);
+		bindings.rootConstants[3] =  floatToUint(transform._41);
+		bindings.rootConstants[4] =  floatToUint(transform._12);
+		bindings.rootConstants[5] =  floatToUint(transform._22);
+		bindings.rootConstants[6] =  floatToUint(transform._32);
+		bindings.rootConstants[7] = floatToUint(transform._42);
+		bindings.rootConstants[8] = floatToUint(transform._13);
+		bindings.rootConstants[9] = floatToUint(transform._23);
+		bindings.rootConstants[10] = floatToUint(transform._33);
+		bindings.rootConstants[11] = floatToUint(transform._43);
+		//bindings.rootConstants[3] =  floatToUint(transform._11);
+		//bindings.rootConstants[4] =  floatToUint(transform._12);
+		//bindings.rootConstants[5] =  floatToUint(transform._13);
+		//bindings.rootConstants[6] =  floatToUint(transform._14);
+		//bindings.rootConstants[7] =  floatToUint(transform._21);
+		//bindings.rootConstants[8] =  floatToUint(transform._22);
+		//bindings.rootConstants[9] =  floatToUint(transform._23);
+		//bindings.rootConstants[10] = floatToUint(transform._24);
+		//bindings.rootConstants[11] = floatToUint(transform._31);
+		//bindings.rootConstants[12] = floatToUint(transform._32);
+		//bindings.rootConstants[13] = floatToUint(transform._33);
+		//bindings.rootConstants[14] = floatToUint(transform._34);
+		bindings.rootConstants[12] = numTriangles;
+		bindings.rootConstants[13] = m_lights.size();
+		bindings.rootConstants[14] = mesh.m_materialIndex;
+		bindings.rootConstantCount = 15;
+		bindings.threads = numTriangles;
+		m_emissiveComputePass->Dispatch(commandList, bindings);
+	}
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Scene::GetTLASAddress() const
