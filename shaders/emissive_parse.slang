@@ -8,8 +8,9 @@ struct Data
     float4 modelRow1;
     float4 modelRow2;
     uint numTris;
-    uint numElements;
     uint materialIndex;
+    uint indexBufferIdx;
+    uint vertexBufferIdx;
 };
 
 StructuredBuffer<Vertex> vertices       : register(t0, space0);
@@ -29,7 +30,7 @@ float3 Transform(float3 p)
 }
 
 [shader("compute")]
-[numthreads(64, 1, 1)]
+[numthreads(32, 1, 1)]
 void ParseEmissives(uint3 dtid : SV_DispatchThreadID)
 {
     uint triIdx = dtid.x;
@@ -64,8 +65,10 @@ void ParseEmissives(uint3 dtid : SV_DispatchThreadID)
         lights[curElement].SetTriArea(area);
         lights[curElement].SetTriE1(e1);
         lights[curElement].SetTriE2(e2);
-        lights[curElement].SetTriMaterialIdx(material.emissiveIndex);
-        lights[curElement].SetTriNormal(normalize(cross(e1, e2)));
+        lights[curElement].SetTriMaterialIdx(data.materialIndex);
+        lights[curElement].SetTriPrimIdx(triIdx);
+        lights[curElement].SetTriIdxBufIdx(data.indexBufferIdx);
+        lights[curElement].SetTriVtxBufIdx(data.vertexBufferIdx);
         lights[curElement].SetTriV0(w0);
         lights[curElement].SetType(LIGHT_TYPE_TRIANGLE);
     }

@@ -30,11 +30,11 @@ public:
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetLightBufferAddress() const;
 	[[nodiscard]] std::vector<HitGroupRecord> GetHitGroupRecords() const;
 	[[nodiscard]] int32_t GetHDRIDescriptorIndex() const;
-	[[nodiscard]] uint32_t GetNumLights() const { return static_cast<uint32_t>(m_lights.size()); }
+	[[nodiscard]] uint32_t GetNumLights() const { return m_numLights; }
 
 private:
 	void UploadMaterialData();
-	void LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList) const;
+	void LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList);
 
 	RenderContext& m_context;
 
@@ -44,8 +44,9 @@ private:
 	std::unique_ptr<StructuredBuffer> m_materialBuffer;
 	std::unique_ptr<StructuredBuffer> m_lightBuffer;
 	std::vector<Light> m_lights;
+	uint32_t m_numLights = 0;
 
 	std::unique_ptr<ComputePass> m_emissiveComputePass;
 	std::unique_ptr<StructuredBuffer> m_emissiveCounter;
-	//GPUBuffer m_emissiveReadbackBuffer;
+	GPUBuffer m_emissiveCounterReadback;
 };

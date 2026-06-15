@@ -21,15 +21,20 @@ Scene::Scene(RenderContext& context)
 {
 	constexpr uint32_t numLights = 1024;
 	m_lightBuffer = std::make_unique<StructuredBuffer>(
-		m_context, numLights, static_cast<uint32_t>(sizeof(Light)), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
-	//m_emissiveReadbackBuffer = m_context.allocator->CreateBuffer(
-	//	sizeof(Light) * numLights, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Readback");
+		m_context, numLights, static_cast<uint32_t>(sizeof(Light)), 
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
 
 	auto sampler = POINT_SAMPLER;
 	m_emissiveComputePass = std::make_unique<ComputePass>(
 		m_context, "shaders/emissive_parse.slang", "ParseEmissives", sampler);
+
 	m_emissiveCounter = std::make_unique<StructuredBuffer>(
-		m_context, 1, sizeof(uint32_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Light Counter Buffer");
+		m_context, 1, sizeof(uint32_t), 
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Light Counter Buffer");
+
+	m_emissiveCounterReadback = m_context.allocator->CreateBuffer(
+		sizeof(uint32_t) * 1, D3D12_RESOURCE_STATE_COPY_DEST, 
+		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Counter Readback");
 }
 
 Scene::~Scene() = default;
@@ -87,6 +92,16 @@ bool Scene::LoadModel(const std::string& path)
 
 	m_context.commandQueue->ExecuteCommandList(commandList);
 	m_context.commandQueue->Flush();
+
+	// Emissive light counter readback
+	{
+		uint32_t* mapped = nullptr;
+		D3D12_RANGE readRange = { 0, sizeof(uint32_t) };
+		m_emissiveCounterReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
+		m_numLights = mapped[0];
+		D3D12_RANGE writeRange = { 0, 0 };
+		m_emissiveCounterReadback.resource->Unmap(0, &writeRange);
+	}
 
 	auto time = std::chrono::steady_clock::now() - startTime;
 	Log::Success("Loaded model: {}. Took {:.2f} s.", path, std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0);
@@ -189,7 +204,7 @@ static uint32_t floatToUint(const float f)
 	return u;
 };
 
-void Scene::LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList) const
+void Scene::LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList)
 {
 	ID3D12DescriptorHeap* heap = { m_context.descriptorHeap->GetHeap() };
 	commandList->SetDescriptorHeaps(1, &heap);
@@ -224,25 +239,39 @@ void Scene::LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4*
 		bindings.rootConstants[9] = floatToUint(transform._23);
 		bindings.rootConstants[10] = floatToUint(transform._33);
 		bindings.rootConstants[11] = floatToUint(transform._43);
-		//bindings.rootConstants[3] =  floatToUint(transform._11);
-		//bindings.rootConstants[4] =  floatToUint(transform._12);
-		//bindings.rootConstants[5] =  floatToUint(transform._13);
-		//bindings.rootConstants[6] =  floatToUint(transform._14);
-		//bindings.rootConstants[7] =  floatToUint(transform._21);
-		//bindings.rootConstants[8] =  floatToUint(transform._22);
-		//bindings.rootConstants[9] =  floatToUint(transform._23);
-		//bindings.rootConstants[10] = floatToUint(transform._24);
-		//bindings.rootConstants[11] = floatToUint(transform._31);
-		//bindings.rootConstants[12] = floatToUint(transform._32);
-		//bindings.rootConstants[13] = floatToUint(transform._33);
-		//bindings.rootConstants[14] = floatToUint(transform._34);
 		bindings.rootConstants[12] = numTriangles;
-		bindings.rootConstants[13] = m_lights.size();
-		bindings.rootConstants[14] = mesh.m_materialIndex;
-		bindings.rootConstantCount = 15;
+		bindings.rootConstants[13] = mesh.m_materialIndex;
+		bindings.rootConstants[14] = mesh.GetIndexSRV().index;
+		bindings.rootConstants[15] = mesh.GetVertexSRV().index;
+		bindings.rootConstantCount = 16;
 		bindings.threads = numTriangles;
 		m_emissiveComputePass->Dispatch(commandList, bindings);
 	}
+
+	D3D12_RESOURCE_BARRIER uavBarriers[] = {
+		CD3DX12_RESOURCE_BARRIER::UAV(m_emissiveCounter->GetResource())
+	};
+	commandList->ResourceBarrier(_countof(uavBarriers), uavBarriers);
+
+	m_context.commandQueue->Flush();
+
+	// after all dispatches:
+	CD3DX12_RESOURCE_BARRIER toCopy = CD3DX12_RESOURCE_BARRIER::Transition(
+		m_emissiveCounter->GetResource(),
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COPY_SOURCE);
+	commandList->ResourceBarrier(1, &toCopy);
+
+	commandList->CopyBufferRegion(m_emissiveCounterReadback.resource, 0,
+		m_emissiveCounter->GetResource(), 0, sizeof(uint32_t));
+
+	// transition back if the buffer is touched again later this submit
+	CD3DX12_RESOURCE_BARRIER back = CD3DX12_RESOURCE_BARRIER::Transition(
+		m_emissiveCounter->GetResource(),
+		D3D12_RESOURCE_STATE_COPY_SOURCE,
+		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	commandList->ResourceBarrier(1, &back);
+
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Scene::GetTLASAddress() const

@@ -134,6 +134,10 @@ void RayGen()
 [shader("closesthit")]
 void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
+    uint2 idx = DispatchRaysIndex().xy;
+    float2 size = DispatchRaysDimensions().xy;
+    float2 screenUv = idx / size;
+
     uint baseIdx = PrimitiveIndex() * 3;
     uint i0 = indices[baseIdx];
     uint i1 = indices[baseIdx + 1];
@@ -197,7 +201,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
     }
 
-    if (float(DispatchRaysIndex().x) / float(DispatchRaysDimensions().x) < 0.5)
+    if (screenUv.x <= 0.5 || payload.depth == 0)
     { 
         payload.radiance += emission * payload.throughput;
     }
@@ -205,10 +209,9 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     if (renderSettings.bounces == 0) payload.radiance += albedo * payload.throughput * 0.1 * (normal.y + 3) / 4;
 
     // explicit lighting
-    //if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission)
-    if (float(DispatchRaysIndex().x) / float(DispatchRaysDimensions().x) > 0.5)
+    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission && screenUv.x > 0.5)
     {
-        uint lightIdx = uint(payload.rng.nextFloat() * /*renderData.numLights*/ 162);
+        uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
         Light light = lights[lightIdx];
         uint lightType = light.GetType();
         float3 radiance;
@@ -225,7 +228,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         }
         else if (lightType == LIGHT_TYPE_TRIANGLE)
         {
-            radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight);
+            Material triMaterial = materials[light.TriMaterialIdx()];
+            radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight, material);
         }
 
         if (dot(dirToLight, normal) > 0.0)
