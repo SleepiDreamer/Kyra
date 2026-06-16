@@ -82,7 +82,7 @@ public struct Light
         float2 uv = vtx[i0].uv * b0 + vtx[i1].uv * b1 + vtx[i2].uv * b2;
 
         SamplerState sampler = DescriptorHandle<SamplerState>(uint2(material.samplerIndex, 0));
-        float3 radiance = sampleOrDefault(material.emissiveIndex, sampler, uv, float3(1.0));
+        float3 radiance = sampleOrDefault(material.emissiveIndex, sampler, uv, float3(15));
 
         return radiance * float3(abs(dot(n, -dirToLight)) / d2); // TODO: add texturing
     }

@@ -229,7 +229,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         else if (lightType == LIGHT_TYPE_TRIANGLE)
         {
             Material triMaterial = materials[light.TriMaterialIdx()];
-            radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight, material);
+            radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight, triMaterial);
         }
 
         if (dot(dirToLight, normal) > 0.0)

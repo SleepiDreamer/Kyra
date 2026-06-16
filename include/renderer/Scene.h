@@ -34,7 +34,7 @@ public:
 
 private:
 	void UploadMaterialData();
-	void LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList);
+	void LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList) const;
 
 	RenderContext& m_context;
 

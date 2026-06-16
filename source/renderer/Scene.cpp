@@ -204,7 +204,7 @@ static uint32_t floatToUint(const float f)
 	return u;
 };
 
-void Scene::LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList)
+void Scene::LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList) const
 {
 	ID3D12DescriptorHeap* heap = { m_context.descriptorHeap->GetHeap() };
 	commandList->SetDescriptorHeaps(1, &heap);
@@ -271,7 +271,6 @@ void Scene::LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4*
 		D3D12_RESOURCE_STATE_COPY_SOURCE,
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	commandList->ResourceBarrier(1, &back);
-
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Scene::GetTLASAddress() const
