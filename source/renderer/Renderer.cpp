@@ -214,6 +214,14 @@ void Renderer::Render(const float deltaTime)
 		Resize(m_window.GetWidth(), m_window.GetHeight());
 		m_pendingResize = false;
 	}
+	if (m_resetAccumulation)
+	{
+		if (!m_renderSettings.denoising)
+		{
+			m_renderData.frame = 0;
+		}
+		m_resetAccumulation = false;
+	}
 
 	auto backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 	auto backBuffer = m_swapChain->GetCurrentBackBuffer();

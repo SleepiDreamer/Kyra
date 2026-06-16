@@ -201,7 +201,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
     }
 
-    if (screenUv.x <= 0.5 || payload.depth == 0)
+    if (screenUv.x <= renderSettings.compSlider || payload.depth == 0)
     { 
         payload.radiance += emission * payload.throughput;
     }
@@ -209,7 +209,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     if (renderSettings.bounces == 0) payload.radiance += albedo * payload.throughput * 0.1 * (normal.y + 3) / 4;
 
     // explicit lighting
-    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission && screenUv.x > 0.5)
+    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission && screenUv.x > renderSettings.compSlider)
     {
         uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
         Light light = lights[lightIdx];

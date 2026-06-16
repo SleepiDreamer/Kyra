@@ -72,6 +72,7 @@ public struct RenderSettings
 {
     public DebugMode debugMode;
     public uint bounces;
+    public float compSlider;
     public float skyIntensity;
     public float lightIntensity;
     public bool whiteAlbedo;

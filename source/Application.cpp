@@ -77,6 +77,22 @@ void Application::Run()
 void Application::Update(const float deltaTime)
 {
 	auto window = m_window->GetGLFWWindow();
+	
+	// Comparison slider
+	{
+		if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS)
+		{
+			if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+			{
+				double mouseX, mouseY;
+				glfwGetCursorPos(window, &mouseX, &mouseY);
+				float x = static_cast<float>(mouseX) / static_cast<float>(m_window->GetWidth());
+				m_renderer->m_renderSettings.compSlider = x;
+				m_renderer->ResetAccumulation();
+			}
+		}
+	}
+
 	float cameraSpeed = m_movementSpeed;
 
 	// Keyboard and mouse

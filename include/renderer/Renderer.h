@@ -44,7 +44,9 @@ public:
 	void LoadModel(const std::string& path);
 	void LoadHDRI(const std::string& path);
 	void Resize(int width, int height);
-	void ResetAccumulation() { if (!m_renderSettings.denoising) m_renderData.frame = -1; }
+	void ResetAccumulation() { m_resetAccumulation = true; }
+
+	RenderSettings m_renderSettings{};
 
 private:
 	Window& m_window;
@@ -70,8 +72,8 @@ private:
 	bool m_showImgui = true;
 
 	std::unique_ptr<Scene> m_scene;
-	RenderSettings m_renderSettings{};
 	RenderData m_renderData{};
+	bool m_resetAccumulation = false;
 	PostProcessSettings m_postProcessSettings{};
 	std::unique_ptr<CBVBuffer<RenderSettings>> m_renderSettingsCB;
 	std::unique_ptr<CBVBuffer<RenderData>> m_renderDataCB;
