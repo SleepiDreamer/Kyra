@@ -64,18 +64,12 @@ void RayGen()
     {
         if (SER)
         {
-            HitObject hit = HitObject.TraceRay<Payload>(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
+            HitObject hitObj = HitObject.TraceRay<Payload>(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
 
-            if (hit.IsHit())
-            {
-                ReorderThread(hit, hit.GetGeometryIndex(), 1);
-            }
-            else
-            {
-                ReorderThread(hit, 0, 1);
-            }
+            uint hint = hitObj.IsHit();
+            ReorderThread(hitObj, hint, 1);
 
-            hit.Invoke<Payload>(hit, payload);
+            hitObj.Invoke<Payload>(hitObj, payload);
         }
         else
         {
@@ -137,6 +131,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     uint2 idx = DispatchRaysIndex().xy;
     float2 size = DispatchRaysDimensions().xy;
     float2 screenUv = idx / size;
+    bool left = screenUv.x < renderSettings.compSlider;
+    bool right = !left;
 
     uint baseIdx = PrimitiveIndex() * 3;
     uint i0 = indices[baseIdx];
@@ -201,15 +197,16 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
     }
 
-    if (screenUv.x <= renderSettings.compSlider || payload.depth == 0)
+    if (left || payload.depth == 0)
     { 
-        payload.radiance += emission * payload.throughput;
+        payload.radiance += emission * renderSettings.lightIntensity * payload.throughput;
     }
 
-    if (renderSettings.bounces == 0) payload.radiance += albedo * payload.throughput * 0.1 * (normal.y + 3) / 4;
+    // w_self = p_self / (p_bsdf + p_light)
+    // p_light(w) = (1/numLights) * p_area * dist^2 / abs(costheta_light)
 
     // explicit lighting
-    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission && screenUv.x > renderSettings.compSlider)
+    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission && right)
     {
         uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
         Light light = lights[lightIdx];
@@ -228,7 +225,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         }
         else if (lightType == LIGHT_TYPE_TRIANGLE)
         {
-            Material triMaterial = materials[light.TriMaterialIdx()];
+            Material triMaterial = materials[light.TriMatIdx()];
             radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight, triMaterial);
         }
 
@@ -249,7 +246,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
             if (!shadowPayload.inShadow)
             {
                 float3 outgoing = radiance * PBRDirect(normal, dirToLight, -WorldRayDirection(), albedo, roughness, metallic);
-                payload.radiance += outgoing * payload.throughput * renderSettings.lightIntensity;
+                payload.radiance += outgoing * renderSettings.lightIntensity * renderData.numLights * payload.throughput;
             }
         }
     }

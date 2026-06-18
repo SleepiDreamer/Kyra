@@ -100,40 +100,42 @@ public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 al
     }
 
     float3 F = Fresnel(F0, VdotH);
-
     float specularChance = (F.r + F.g + F.b) / 3.0;
 
     if (rng.nextFloat() < specularChance)
     {
-        float2 rand = rng.nextFloat2();
-
-        float3 B = GetPerpendicularVector(n);
-        float3 T = cross(B, n);
-
-        float3 Ve = float3(dot(v, T), dot(v, B), dot(n, v));
-        float3 hLocal = SampleGGXVNDF(Ve, roughness, rand);
-
-        float3 h = T * hLocal.x + B * hLocal.y + n * hLocal.z;
+#if 0 // preserve normal map brightness, but lose energy
         l = reflect(-v, h);
-
-        if (dot(l, g) < 0.0)
+        if (dot(g, l) < 0.0)
         {
             l = reflect(l, g);
             h = normalize(v + l);
         }
 
+        if (dot(n, l) <= 0.0) { 
+            l = float3(0); return 0.0; 
+        }
+
+        float VdotH2 = dot(v, h);
+        float3 F2 = Fresnel(F0, VdotH2);
         float NdotL = saturate(dot(n, l));
-        if (NdotL <= 0.0)
-            return 0.0;
-
-        if (dot(g, n) * dot(g, l) < 0.0)
-            return 0.0;
-
         float G1_l = GGXSmithG(NdotL, roughness);
 
-        float3 singleScatter = F * G1_l;
+        return F2 * G1_l / specularChance;
+#else
+        l = reflect(-v, h);
 
-        return saturate(singleScatter / specularChance);
+        if (dot(n, l) <= 0.0 || dot(g, l) <= 0.0)
+        {
+            l = float3(0);
+            return 0.0;
+        }
+
+        float NdotL = saturate(dot(n, l));
+        float G1_l = GGXSmithG(NdotL, roughness);
+
+        return F * G1_l / specularChance;
+#endif
     }
     else
     {
@@ -147,7 +149,7 @@ public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 al
             return 0.0;
 
         float3 transmitted = (1.0 - F) * diffuseColor;
-        return saturate(transmitted / (1.0 - specularChance));
+        return transmitted / (1.0 - specularChance);
     }
 
     // BRDF: D * G * F / (4 * NdotL * NdotV)

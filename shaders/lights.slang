@@ -16,35 +16,33 @@ public struct Light
     public float4 data2;
     public float4 data3;
 
-    public uint GetType() { return asuint(this.data0.w); }
-    [mutating] public void SetType(uint type) { this.data0.w = asfloat(type); }
+    public uint GetType() { return asuint(this.data0.w) >> 28; }
+    [mutating] public void SetType(uint type) { this.data0.w = asfloat((asuint(this.data0.w) & 0x0FFFFFFF) | (type << 28)); }
 
-    [ForceInline] public float3 DirDirection() { return this.data0.xyz; }
-    [ForceInline] public float3 DirColor() { return this.data1.xyz; }
+    [ForceInline] public float3 DirDirection()  { return this.data0.xyz; }
+    [ForceInline] public float3 DirColor()      { return this.data1.xyz; }
     [ForceInline] public float DirAngularSize() { return this.data1.w; }
 
-    [ForceInline] public float3 PointPos() { return this.data0.xyz; }
-    [ForceInline] public float3 PointColor() { return this.data1.xyz; }
-    [ForceInline] public float PointSize() { return this.data1.w; }
+    [ForceInline] public float3 PointPos()  { return this.data0.xyz; }
+    [ForceInline] public float3 PointColor(){ return this.data1.xyz; }
+    [ForceInline] public float PointSize()  { return this.data1.w; }
 
-    [ForceInline] public float3 TriV0() { return this.data0.xyz; }
-    [ForceInline] public float3 TriE1() { return this.data1.xyz; }
-    [ForceInline] public float TriArea() { return this.data1.w; }
-    [ForceInline] public float3 TriE2() { return this.data2.xyz; }
-    [ForceInline] public uint TriVtxBufIdx() { return asuint(this.data2.w); }
-    [ForceInline] public uint TriIdxBufIdx() { return asuint(this.data3.x); }
-    [ForceInline] public uint TriPrimIdx() { return asuint(this.data3.y); }
-    [ForceInline] public uint TriMaterialIdx() { return asuint(this.data3.w); }
+    [ForceInline] public float3 TriV0()     { return this.data0.xyz; }
+    [ForceInline] public float3 TriE1()     { return this.data1.xyz; }
+    [ForceInline] public float3 TriE2()     { return this.data2.xyz; }
+    [ForceInline] public uint TriMatIdx()   { return asuint(this.data0.w) & 0x0FFFFFFF; }
+    [ForceInline] public float2 TriUV0()    { return float2(this.data1.w, this.data2.w); }
+    [ForceInline] public float2 TriUV1()    { return float2(this.data3.x, this.data3.y); }
+    [ForceInline] public float2 TriUV2()    { return float2(this.data3.z, this.data3.w); }
     [ForceInline] public float3 TriNormal() { return normalize(cross(TriE1(), TriE2())); }
 
     [ForceInline] [mutating] public void SetTriV0(float3 v0) { this.data0 = float4(v0, this.data0.w); }
     [ForceInline] [mutating] public void SetTriE1(float3 e1) { this.data1 = float4(e1, this.data1.w); }
-    [ForceInline] [mutating] public void SetTriArea(float area) { this.data1.w = area; }
     [ForceInline] [mutating] public void SetTriE2(float3 e2) { this.data2 = float4(e2, this.data2.w); }
-    [ForceInline] [mutating] public void SetTriVtxBufIdx(uint i) { this.data2.w = asfloat(i); }
-    [ForceInline] [mutating] public void SetTriIdxBufIdx(uint i) { this.data3.x = asfloat(i); }
-    [ForceInline] [mutating] public void SetTriPrimIdx(uint i) { this.data3.y = asfloat(i); }
-    [ForceInline] [mutating] public void SetTriMaterialIdx(uint idx) { this.data3.w = asfloat(idx); }
+    [ForceInline] [mutating] public void SetTriMatIdx(uint idx) { this.data0.w = asfloat((asuint(this.data0.w) & 0xF0000000) | (idx & 0x0FFFFFFF)); }
+    [ForceInline] [mutating] public void SetTriUV0(float2 uv) { this.data1.w = uv.x; this.data2.w = uv.y; }
+    [ForceInline] [mutating] public void SetTriUV1(float2 uv) { this.data3.x = uv.x; this.data3.y = uv.y; }
+    [ForceInline] [mutating] public void SetTriUV2(float2 uv) { this.data3.z = uv.x; this.data3.w = uv.y; }
 
     public float3 SampleDirectionalLight(float2 rand, out float dist, out float3 dirToLight)
     {
@@ -72,18 +70,14 @@ public struct Light
         float3 n = TriNormal();
         float3 d = p - hitPoint;
         float d2 = dot(d, d);
+        float a = 0.5 * length(cross(TriE1(), TriE2()));
         dist = sqrt(d2);
         dirToLight = d / dist;
 
-        StructuredBuffer<uint> idx = DescriptorHandle<StructuredBuffer<uint>>(uint2(TriIdxBufIdx(), 0));
-        StructuredBuffer<Vertex> vtx = DescriptorHandle<StructuredBuffer<Vertex>>(uint2(TriVtxBufIdx(), 0));
-        uint t = TriPrimIdx();
-        uint i0 = idx[t * 3 + 0], i1 = idx[t * 3 + 1], i2 = idx[t * 3 + 2];
-        float2 uv = vtx[i0].uv * b0 + vtx[i1].uv * b1 + vtx[i2].uv * b2;
-
         SamplerState sampler = DescriptorHandle<SamplerState>(uint2(material.samplerIndex, 0));
-        float3 radiance = sampleOrDefault(material.emissiveIndex, sampler, uv, float3(15));
+        float2 uv = TriUV0() * b0 + TriUV1() * b1 + TriUV2() * b2;
+        float3 radiance = sampleOrDefault(material.emissiveIndex, sampler, uv, material.emissiveFactor);
 
-        return radiance * float3(abs(dot(n, -dirToLight)) / d2); // TODO: add texturing
+        return radiance * float3(abs(dot(n, -dirToLight)) * a / d2);
     }
 };

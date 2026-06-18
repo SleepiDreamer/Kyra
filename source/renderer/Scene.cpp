@@ -19,7 +19,7 @@
 Scene::Scene(RenderContext& context)
 	: m_context(context)
 {
-	constexpr uint32_t numLights = 1024;
+	constexpr uint32_t numLights = 4194304; // 2^22
 	m_lightBuffer = std::make_unique<StructuredBuffer>(
 		m_context, numLights, static_cast<uint32_t>(sizeof(Light)), 
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Light Buffer");
@@ -61,13 +61,14 @@ bool Scene::LoadModel(const std::string& path)
 
 	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instances = {};
 	int instanceId = 0;
-	for (const auto& model : m_models)
+	for (auto& model : m_models)
 	{
-		for (const auto& mesh : model.GetMeshes())
+		for (auto& mesh : model.GetMeshes())
 		{
 			instances.emplace_back(mesh.GetInstanceDesc(instanceId++));
 		}
 	}
+
 	m_tlas = std::make_unique<TLAS>(m_context);
 	m_tlas->Build(m_context.device, instances);
 
@@ -86,6 +87,14 @@ bool Scene::LoadModel(const std::string& path)
 			TransitionResource(commandList.Get(), tex.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 	}
+	for (auto& mesh : newModel.GetMeshes())
+	{
+		if (mesh.m_materialIndex >= 0)
+		{
+			mesh.m_materialIndex += m_materialIdxOffset;
+		}
+	}
+	m_materialIdxOffset += static_cast<uint32_t>(newModel.GetMaterials().size());
 	AddLights(newModel.GetLights());
 
 	LoadEmissiveVertices(newModel, commandList.Get());
@@ -204,7 +213,7 @@ static uint32_t floatToUint(const float f)
 	return u;
 };
 
-void Scene::LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4* commandList) const
+void Scene::LoadEmissiveVertices(Model& model, ID3D12GraphicsCommandList4* commandList) const
 {
 	ID3D12DescriptorHeap* heap = { m_context.descriptorHeap->GetHeap() };
 	commandList->SetDescriptorHeaps(1, &heap);
@@ -241,9 +250,7 @@ void Scene::LoadEmissiveVertices(const Model& model, ID3D12GraphicsCommandList4*
 		bindings.rootConstants[11] = floatToUint(transform._43);
 		bindings.rootConstants[12] = numTriangles;
 		bindings.rootConstants[13] = mesh.m_materialIndex;
-		bindings.rootConstants[14] = mesh.GetIndexSRV().index;
-		bindings.rootConstants[15] = mesh.GetVertexSRV().index;
-		bindings.rootConstantCount = 16;
+		bindings.rootConstantCount = 14;
 		bindings.threads = numTriangles;
 		m_emissiveComputePass->Dispatch(commandList, bindings);
 	}
@@ -288,19 +295,18 @@ D3D12_GPU_VIRTUAL_ADDRESS Scene::GetLightBufferAddress() const
 	return m_lightBuffer ? m_lightBuffer->GetResource() ? m_lightBuffer->GetResource()->GetGPUVirtualAddress() : 0 : 0;
 }
 
-std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const
+std::vector<HitGroupRecord> Scene::GetHitGroupRecords()
 {
 	std::vector<HitGroupRecord> records;
-	uint32_t materialOffset = 0;
-	for (const auto& model : m_models)
+	for (auto& model : m_models)
 	{
-		for (const auto& mesh : model.GetMeshes())
+		for (auto& mesh : model.GetMeshes())
 		{
 			HitGroupRecord record{};
 			record.vertexBuffer = mesh.GetVertexBuffer()->GetGPUVirtualAddress();
 			record.indexBuffer = mesh.GetIndexBuffer()->GetGPUVirtualAddress();
 			record.materialIndex = mesh.m_materialIndex >= 0
-				? materialOffset + static_cast<uint32_t>(mesh.m_materialIndex)
+				? static_cast<uint32_t>(mesh.m_materialIndex) 
 				: 0;
 			if (mesh.m_materialIndex >= 0 && mesh.m_materialIndex < model.GetMaterials().size())
 			{
@@ -308,7 +314,6 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords() const
 			}
 			records.push_back(record);
 		}
-		materialOffset += static_cast<uint32_t>(model.GetMaterials().size());
 	}
 	return records;
 }

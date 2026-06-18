@@ -22,7 +22,7 @@ public:
     Model(Model&&) = default;
     Model& operator=(Model&&) = default;
 
-    [[nodiscard]] const std::vector<Mesh>& GetMeshes() const { return m_meshes; }
+    [[nodiscard]] std::vector<Mesh>& GetMeshes() { return m_meshes; }
     [[nodiscard]] const std::vector<Texture>& GetTextures() const { return m_textures; }
 	[[nodiscard]] const std::vector<MaterialData>& GetMaterials() const { return m_materials; }
 	[[nodiscard]] const std::vector<Light>& GetLights() const { return m_lights; }
