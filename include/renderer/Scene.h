@@ -1,7 +1,6 @@
 #pragma once
-#include "GPUBuffer.h"
-#include "DescriptorHeap.h"
 #include "Light.h"
+#include "LightManager.h"
 
 class Model;
 class TLAS;
@@ -11,6 +10,7 @@ class GPUAllocator;
 class StructuredBuffer;
 class ComputePass;
 class PostProcessPass;
+class LightManager;
 struct HitGroupRecord;
 
 class Scene
@@ -21,20 +21,19 @@ public:
 
 	bool LoadModel(const std::string& path);
 	void LoadHDRI(const std::string& path);
-	void AddLights(const std::vector<Light>& lights);
+	void AddLights(const std::vector<Light>& lights) const;
 
 	[[nodiscard]] const std::vector<Model>& GetModels() const { return m_models; }
 	[[nodiscard]] const TLAS& GetTLAS() const { return *m_tlas; }
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetTLASAddress() const;
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetMaterialsBufferAddress() const;
-	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetLightBufferAddress() const;
+	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetLightBufferAddress() const { return m_lightManager->GetLightBufferAddress(); }
 	[[nodiscard]] std::vector<HitGroupRecord> GetHitGroupRecords();
 	[[nodiscard]] int32_t GetHDRIDescriptorIndex() const;
-	[[nodiscard]] uint32_t GetNumLights() const { return m_numLights; }
+	[[nodiscard]] uint32_t GetNumLights() const { return m_lightManager->GetNumLights(); }
 
 private:
 	void UploadMaterialData();
-	void LoadEmissiveVertices(Model& model, ID3D12GraphicsCommandList4* commandList) const;
 
 	RenderContext& m_context;
 
@@ -42,12 +41,7 @@ private:
 	std::vector<Model> m_models;
 	std::unique_ptr<Texture> m_hdri;
 	std::unique_ptr<StructuredBuffer> m_materialBuffer;
-	std::unique_ptr<StructuredBuffer> m_lightBuffer;
-	std::vector<Light> m_lights;
-	uint32_t m_numLights = 0;
 	uint32_t m_materialIdxOffset = 0;
 
-	std::unique_ptr<ComputePass> m_emissiveComputePass;
-	std::unique_ptr<StructuredBuffer> m_emissiveCounter;
-	GPUBuffer m_emissiveCounterReadback;
+	std::unique_ptr<LightManager> m_lightManager;
 };

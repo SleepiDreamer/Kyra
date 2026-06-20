@@ -37,6 +37,7 @@
     <ClInclude Include="include\renderer\CBVBuffer.h" />
     <ClInclude Include="include\renderer\GPUBuffer.h" />
     <ClInclude Include="include\renderer\GPUAllocator.h" />
+    <ClInclude Include="include\renderer\LightManager.h" />
     <ClInclude Include="include\renderer\StructsDX.h" />
     <ClInclude Include="include\renderer\TLAS.h" />
     <ClInclude Include="include\renderer\CommonDX.h" />
@@ -77,6 +78,7 @@
     <ClCompile Include="external\mikkt\mikktspace.c" />
     <ClCompile Include="source\renderer\ComputePass.cpp" />
     <ClCompile Include="source\renderer\Light.cpp" />
+    <ClCompile Include="source\renderer\LightManager.cpp" />
     <ClCompile Include="source\renderer\NGXWrapper.cpp" />
     <ClCompile Include="source\renderer\PostProcessPass.cpp" />
     <ClCompile Include="source\renderer\MikkT.cpp" />
