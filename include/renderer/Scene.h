@@ -41,7 +41,7 @@ private:
 	std::vector<Model> m_models;
 	std::unique_ptr<Texture> m_hdri;
 	std::unique_ptr<StructuredBuffer> m_materialBuffer;
-	uint32_t m_materialIdxOffset = 0;
+	uint32_t m_materialIdxOffset = 1; // default material
 
 	std::unique_ptr<LightManager> m_lightManager;
 };

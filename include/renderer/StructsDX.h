@@ -110,12 +110,12 @@ struct HitGroupRecord
 
 struct MaterialData
 {
-	glm::vec4 albedoFactor = glm::vec4(1.0f);
+	glm::vec4 albedoFactor = glm::vec4(0.9f);
 	int32_t albedoIndex = -1;
-	glm::vec3 emissiveFactor = glm::vec3(1.0f);
+	glm::vec3 emissiveFactor = glm::vec3(0.0f);
 	int32_t emissiveIndex = -1;
-	float metallicFactor = 1.0f;
-	float roughnessFactor = 1.0f;
+	float metallicFactor = 0.0f;
+	float roughnessFactor = 0.5f;
 	int32_t metallicRoughnessIndex = -1;
 	int32_t normalIndex = -1;
 	uint32_t samplerIndex = 0;

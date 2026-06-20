@@ -145,6 +145,9 @@ void Scene::AddLights(const std::vector<Light>& lights) const
 void Scene::UploadMaterialData()
 {
 	std::vector<MaterialData> materials;
+
+	materials.push_back(MaterialData{});
+
 	for (const auto& model : m_models)
 	{
 		for (const auto& texture : model.GetMaterials())
