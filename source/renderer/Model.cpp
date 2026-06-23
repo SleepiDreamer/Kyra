@@ -61,7 +61,7 @@ void Model::LoadGLTF(ID3D12GraphicsCommandList4* commandList, const std::filesys
     auto data = fastgltf::GltfDataBuffer::FromPath(path);
     if (data.error() != fastgltf::Error::None)
     {
-        ThrowError("Failed to load glTF file: " + path.string());
+        Log::Error("Failed to load glTF file: {}", path.string());
     }
 
     constexpr auto options =
@@ -74,19 +74,19 @@ void Model::LoadGLTF(ID3D12GraphicsCommandList4* commandList, const std::filesys
     {
 		if (error == fastgltf::Error::UnknownRequiredExtension)
         {
-			printf("This model contains an unsupported required extension");
+			Log::Error("This model contains an unsupported required extension");
 		}
         else if (error == fastgltf::Error::MissingExtensions)
         {
-			printf("This model requires one or more extensions that are not enabled in the parser");
+            Log::Error("This model requires one or more extensions that are not enabled in the parser");
         }
 		else if (error == fastgltf::Error::UnsupportedVersion)
         {
-			printf("This model uses an unsupported glTF version");
+            Log::Error("This model uses an unsupported glTF version");
         }
         else
         {
-			ThrowError("Failed to parse glTF: " + path.string());
+			Log::Error("Failed to parse glTF: {}", path.string());
         }
     }
 

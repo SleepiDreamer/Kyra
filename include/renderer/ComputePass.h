@@ -11,7 +11,9 @@ class CommandQueue;
 class ComputePass
 {
 public:
-    ComputePass(RenderContext& context, const std::string& shaderPath, const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler = std::nullopt);
+    ComputePass(RenderContext& context, const std::string& shaderPath, 
+        const std::string& entryPoint, std::string name, 
+        const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler = std::nullopt);
     ~ComputePass();
     ComputePass(const ComputePass&) = delete;
     ComputePass& operator=(const ComputePass&) = delete;
@@ -37,7 +39,8 @@ public:
         uint32_t cbvCount = 0;
         uint32_t rootConstants[MAX_CONSTANTS] = {};
         uint32_t rootConstantCount = 0;
-        uint32_t threads;
+        glm::uvec3 threads = glm::uvec3(1, 1, 1);
+		glm::uvec3 threadGroupSize = glm::uvec3(32, 1, 1);
     };
 
     void Dispatch(ID3D12GraphicsCommandList4* commandList, const ComputeBindings& bindings) const;
@@ -46,12 +49,12 @@ private:
     void BuildRootSignature();
     void BuildPSO();
 
+    std::string m_name;
+
     RenderContext& m_context;
     std::unique_ptr<Shader> m_shader;
     std::string m_entryPoint;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> m_rootSignature;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> m_pso;
     std::optional<D3D12_STATIC_SAMPLER_DESC> m_customSampler;
-
-    static constexpr uint32_t THREAD_GROUP_SIZE = 32;
 };

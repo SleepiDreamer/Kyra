@@ -3,26 +3,32 @@ import helpers;
 import settings;
 import rng;
 import random.sampling;
-import lights;
+import emissive.lights;
+import emissive.emissive_common;
 import pbr;
 import camera;
 
-uniform RWTexture2D<float4> rtOutputBuffer          : register(u0, space0);
-uniform RWTexture2D<float4> albedoBuffer            : register(u1, space0);
-uniform RWTexture2D<float4> specularAlbedoBuffer    : register(u2, space0);
-uniform RWTexture2D<float4> normalRoughnessBuffer   : register(u3, space0);
-uniform RWTexture2D<float2> motionVectorsBuffer     : register(u4, space0);
-uniform RWTexture2D<float> depthBuffer              : register(u5, space0);
-uniform RaytracingAccelerationStructure sceneBVH    : register(t0, space0);
-StructuredBuffer<Material> materials                : register(t1, space0);
-StructuredBuffer<Light> lights                      : register(t2, space0);
-SamplerState linearSampler                          : register(s0, space0);
-ConstantBuffer<RenderSettings> renderSettings       : register(b0, space0);
-ConstantBuffer<RenderData> renderData               : register(b1, space0);
+RWTexture2D<float4> rtOutputBuffer            : register(u0, space0);
+RWTexture2D<float4> albedoBuffer              : register(u1, space0);
+RWTexture2D<float4> specularAlbedoBuffer      : register(u2, space0);
+RWTexture2D<float4> normalRoughnessBuffer     : register(u3, space0);
+RWTexture2D<float2> motionVectorsBuffer       : register(u4, space0);
+RWTexture2D<float> depthBuffer                : register(u5, space0);
 
-StructuredBuffer<Vertex> vertices                   : register(t0, space1);
-StructuredBuffer<uint> indices                      : register(t1, space1);
-cbuffer HitGroupConstants                           : register(b0, space1)
+RaytracingAccelerationStructure sceneBVH      : register(t0, space0);
+StructuredBuffer<Material> materials          : register(t1, space0);
+StructuredBuffer<Light> lights                : register(t2, space0);
+StructuredBuffer<float> powerBuffer           : register(t3, space0);
+StructuredBuffer<AliasRow> aliasTable         : register(t4, space0);
+
+SamplerState linearSampler                    : register(s0, space0);
+
+ConstantBuffer<RenderSettings> renderSettings : register(b0, space0);
+ConstantBuffer<RenderData> renderData         : register(b1, space0);
+
+StructuredBuffer<Vertex> vertices             : register(t0, space1);
+StructuredBuffer<uint> indices                : register(t1, space1);
+cbuffer HitGroupConstants                     : register(b0, space1)
 {
     uint materialIndex;
 };
@@ -208,7 +214,17 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     // explicit lighting
     if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission && right)
     {
+#if 0
         uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
+#else
+        float2 rand = payload.rng.nextFloat2();
+        float wn = renderData.totalPower / renderData.numLights;
+
+        uint i = min((uint)floor(rand.x * renderData.numLights), renderData.numLights - 1);
+        uint lightIdx = (rand.y * wn < aliasTable[i].threshold) ? i : aliasTable[i].alias;
+
+        float pdf = powerBuffer[lightIdx] / renderData.totalPower;
+#endif
         Light light = lights[lightIdx];
         uint lightType = light.GetType();
         float3 radiance;

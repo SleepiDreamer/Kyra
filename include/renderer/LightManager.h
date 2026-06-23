@@ -15,19 +15,42 @@ public:
 
 	void AddLights(const std::vector<Light>& lights);
 	void LoadEmissiveVertices(Model& model, const StructuredBuffer* materialBuffer, ID3D12GraphicsCommandList4* commandList) const;
-	void ReadCounterCallback();
+	void BuildAliasTable(ID3D12GraphicsCommandList4* commandList);
 
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetLightBufferAddress() const;
+	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetPowerBufferAddress() const;
+	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetAliasTableAddress() const;
 	[[nodiscard]] uint32_t GetNumLights() const { return m_numLights; }
+	[[nodiscard]] float GetTotalPower() const { return m_totalPower; }
 
 private:
+
 	RenderContext& m_context;
 
 	std::unique_ptr<StructuredBuffer> m_lightBuffer;
 	std::vector<Light> m_lights;
 	uint32_t m_numLights = 0;
+	float m_totalPower = 0.0f;
 
-	std::unique_ptr<ComputePass> m_emissiveComputePass;
-	std::unique_ptr<StructuredBuffer> m_emissiveCounter;
-	GPUBuffer m_emissiveCounterReadback;
+	std::unique_ptr<StructuredBuffer> m_counters;
+	std::unique_ptr<StructuredBuffer> m_powerBuffer;
+	std::unique_ptr<StructuredBuffer> m_aliasTable;
+	std::unique_ptr<StructuredBuffer> m_aliasLight;
+	std::unique_ptr<StructuredBuffer> m_aliasHeavy;
+	std::unique_ptr<StructuredBuffer> m_lightPrefix;
+	std::unique_ptr<StructuredBuffer> m_heavyPrefix;
+	std::unique_ptr<StructuredBuffer> m_blockSums;
+	std::unique_ptr<StructuredBuffer> m_splitsSpillBuffer;
+	GPUBuffer m_countersReadback;
+
+	std::unique_ptr<ComputePass> m_parsePass;
+	std::unique_ptr<ComputePass> m_partitionPass;
+
+	std::unique_ptr<ComputePass> m_scanLocalPass;
+	std::unique_ptr<ComputePass> m_scanBlockSumsPass;
+	std::unique_ptr<ComputePass> m_scanAddOffsetsPass;
+
+	static constexpr uint32_t splitsCapacity = 1024;
+	std::unique_ptr<ComputePass> m_splitPass;
+	std::unique_ptr<ComputePass> m_packPass;
 };

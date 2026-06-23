@@ -23,7 +23,7 @@ GPUBuffer GPUAllocator::CreateBuffer(const uint64_t size, const D3D12_RESOURCE_S
 {
     if (size == 0)
     {
-		std::cerr << "Warning: Creating zero-sized buffer (" << name << ")\n";
+		Log::Warning("Creating zero-sized buffer ({})", name);
     }
 
     D3D12_RESOURCE_DESC resourceDesc = BUFFER_RESOURCE;

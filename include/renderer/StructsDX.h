@@ -30,6 +30,7 @@ struct RenderData
 	int32_t hdriIndex = -1;
 	uint32_t frame = 0;
 	uint32_t numLights = 0;
+	float totalPower = 0.0f;
 	float deltaTime = 0.0f;
 	bool hdrEnabled = false;
 };

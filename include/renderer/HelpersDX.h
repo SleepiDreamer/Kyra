@@ -6,11 +6,7 @@
 #include <iostream>
 #include <stdexcept>
 
-inline void ThrowError(const std::string& msg)
-{
-    std::cerr << msg << std::endl;
-    __debugbreak();
-}
+#include "Log.h"
 
 inline void ThrowIfFailed(const HRESULT hr, const char* msg = "")
 {
@@ -25,8 +21,8 @@ inline void ThrowIfFailed(const HRESULT hr, const char* msg = "")
 		0,
 		nullptr);
 
-    	std::cerr << "HRESULT: " << hrCstr << std::endl;
-        ThrowError(msg);
+    	Log::Error("HRESULT: {}", hrCstr);
+		Log::Critical("{}", msg);
     }
 }
 
@@ -114,7 +110,7 @@ inline uint32_t FormatByteSize(const DXGI_FORMAT format)
     case DXGI_FORMAT_R16G16B16A16_FLOAT:return 8;
     case DXGI_FORMAT_R8G8B8A8_UNORM:    return 4;
     default:
-        ThrowError("Unknown DXGI_FORMAT byte size");
+        Log::Error("Unknown DXGI_FORMAT byte size");
         return 0;
     }
 }

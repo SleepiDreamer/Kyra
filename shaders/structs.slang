@@ -40,6 +40,7 @@ public struct RenderData
     public int hdriIndex;
     public uint frame;
     public uint numLights;
+    public float totalPower;
     public float deltaTime;
     public bool hdrEnabled;
 }

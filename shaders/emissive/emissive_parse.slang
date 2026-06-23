@@ -1,6 +1,7 @@
 import structs;
 import helpers;
 import lights;
+import emissive_common;
 
 struct Data
 {
@@ -16,10 +17,15 @@ struct Data
 StructuredBuffer<Vertex> vertices       : register(t0, space0);
 StructuredBuffer<uint> indices          : register(t1, space0);
 StructuredBuffer<Material> materials    : register(t2, space0);
+
 RWStructuredBuffer<Light> lights        : register(u0, space0);
-RWStructuredBuffer<uint> lightCounter   : register(u1, space0);
+RWStructuredBuffer<Counters> counters   : register(u1, space0);
+RWStructuredBuffer<float> powerBuffer   : register(u2, space0);
+
 ConstantBuffer<Data> data               : register(b0, space1);
+
 SamplerState pointSampler               : register(s0, space0);
+
 
 float3 Transform(float3 p)
 {
@@ -60,7 +66,7 @@ void ParseEmissives(uint3 dtid : SV_DispatchThreadID)
     if (power > 0.0)
     {
         uint curElement;
-        InterlockedAdd(lightCounter[0], 1, curElement);
+        InterlockedAdd(counters[0].numLights, 1, curElement);
 
         lights[curElement].SetTriV0(w0);
         lights[curElement].SetTriE1(e1);
@@ -70,5 +76,21 @@ void ParseEmissives(uint3 dtid : SV_DispatchThreadID)
         lights[curElement].SetTriUV1(v1.uv);
         lights[curElement].SetTriUV2(v2.uv);
         lights[curElement].SetType(LIGHT_TYPE_TRIANGLE);
+
+        powerBuffer[curElement] = power;
+
+        float oldPower = counters[0].totalPower;
+        float originalPower;
+        [allow_uav_condition]
+        while (true)
+        {
+            float newPower = oldPower + power;
+            InterlockedCompareExchangeFloatBitwise(counters[0].totalPower, oldPower, newPower, originalPower);
+            if (asuint(originalPower) == asuint(oldPower))
+            {
+                break;
+            }
+            oldPower = originalPower;
+        }
     }
 }

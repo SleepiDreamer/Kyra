@@ -16,14 +16,14 @@ ShaderCompiler::ShaderCompiler(std::string directory)
     slang::createGlobalSession(m_globalSession.writeRef());
     if (!m_globalSession)
     {
-        ThrowError("Failed to create Slang global session");
+        Log::Critical("Failed to create Slang global session");
     }
 
     m_directoryWatch = FindFirstChangeNotificationA(m_includeDirectory.c_str(), TRUE, FILE_NOTIFY_CHANGE_LAST_WRITE);
 
     if (m_directoryWatch == INVALID_HANDLE_VALUE)
     {
-		std::cerr << "Failed to set up directory watch for shader hot reload: " << GetLastError() << "\n";
+		Log::Error("Failed to set up directory watch for shader hot reload: {}", GetLastError());
     }
 }
 
@@ -89,14 +89,23 @@ void ShaderCompiler::ParseImportsRecursive(const std::string& filePath, std::uno
         }
 
         // Replace period with slash
-        std::ranges::replace(moduleName, '.', '/');
+    	std::ranges::replace(moduleName, '.', '/');
 
-		std::string resolved = std::filesystem::canonical(directory + "/" += moduleName + ".slang").string();
-		if (!dependencies.contains(resolved))
-		{
-			dependencies.insert(resolved);
-			newDependencies.push_back(resolved);
-		}
+        std::vector<std::string> searchPaths = { directory, m_includeDirectory };
+        for (const auto& searchPath : searchPaths)
+        {
+            std::string potentialPath = searchPath + "/" + moduleName + ".slang";
+            if (std::filesystem::exists(potentialPath))
+            {
+                std::string resolved = std::filesystem::canonical(potentialPath).string();
+                if (dependencies.insert(resolved).second)
+                {
+	                newDependencies.push_back(resolved);
+                }
+
+                break;
+            }
+        }
     }
 
     if (recurse)
@@ -203,7 +212,6 @@ void ShaderCompiler::CheckDiagnostics(slang::IBlob* diagnosticsBlob, Compilation
 {
     if (diagnosticsBlob != nullptr)
     {
-	    //std::cerr << static_cast<const char*>(diagnosticsBlob->getBufferPointer()) << "\n";
 		result.errorLog += static_cast<const char*>(diagnosticsBlob->getBufferPointer());
     }
 }
@@ -235,9 +243,9 @@ ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& fil
     sessionDesc.targetCount = 1;
 
     std::string directory = std::filesystem::path(filePath).parent_path().string();
-    const char* searchPaths[] = { directory.c_str() };
+    const char* searchPaths[] = { directory.c_str(), m_includeDirectory.c_str() };
     sessionDesc.searchPaths = searchPaths;
-    sessionDesc.searchPathCount = 1;
+    sessionDesc.searchPathCount = _countof(searchPaths);
 
     Slang::ComPtr<slang::ISession> session;
     m_globalSession->createSession(sessionDesc, session.writeRef());

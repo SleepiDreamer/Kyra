@@ -123,7 +123,12 @@
     <None Include="shaders\bloom_upsample.slang" />
     <None Include="shaders\camera.slang" />
     <None Include="shaders\copy_rt.slang" />
-    <None Include="shaders\emissive_parse.slang" />
+    <None Include="shaders\emissive\emissive_common.slang" />
+    <None Include="shaders\emissive\emissive_parse.slang" />
+    <None Include="shaders\emissive\pack_pass.slang" />
+    <None Include="shaders\emissive\partition_pass.slang" />
+    <None Include="shaders\emissive\prefixsum_pass.slang" />
+    <None Include="shaders\emissive\split_pass.slang" />
     <None Include="shaders\helpers.slang" />
     <None Include="shaders\lights.slang" />
     <None Include="shaders\pbr.slang" />

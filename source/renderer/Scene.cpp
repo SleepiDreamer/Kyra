@@ -63,6 +63,8 @@ bool Scene::LoadModel(const std::string& path)
 	m_context.commandQueue->Flush();
 
 	commandList = m_context.commandQueue->GetCommandList();
+	ID3D12DescriptorHeap* heap = { m_context.descriptorHeap->GetHeap() };
+	commandList->SetDescriptorHeaps(1, &heap);
 
 	auto& newModel = m_models.back();
 	for (auto& tex : newModel.GetTextures())
@@ -87,7 +89,13 @@ bool Scene::LoadModel(const std::string& path)
 	m_context.commandQueue->ExecuteCommandList(commandList);
 	m_context.commandQueue->Flush();
 
-	m_lightManager->ReadCounterCallback();
+	commandList = m_context.commandQueue->GetCommandList();
+	commandList->SetDescriptorHeaps(1, &heap);
+
+	m_lightManager->BuildAliasTable(commandList.Get());
+
+	m_context.commandQueue->ExecuteCommandList(commandList);
+	m_context.commandQueue->Flush();
 
 	auto time = std::chrono::steady_clock::now() - startTime;
 	Log::Success("Loaded model: {}. Took {:.2f} s.", path, std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0);

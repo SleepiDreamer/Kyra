@@ -28,9 +28,12 @@ public:
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetTLASAddress() const;
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetMaterialsBufferAddress() const;
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetLightBufferAddress() const { return m_lightManager->GetLightBufferAddress(); }
+	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetPowerBufferAddress() const { return m_lightManager->GetPowerBufferAddress(); }
+	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetLightAliasTableBufferAddress() const { return m_lightManager->GetAliasTableAddress(); }
 	[[nodiscard]] std::vector<HitGroupRecord> GetHitGroupRecords();
 	[[nodiscard]] int32_t GetHDRIDescriptorIndex() const;
 	[[nodiscard]] uint32_t GetNumLights() const { return m_lightManager->GetNumLights(); }
+	[[nodiscard]] float GetTotalLightPower() const { return m_lightManager->GetTotalPower(); }
 
 private:
 	void UploadMaterialData();
