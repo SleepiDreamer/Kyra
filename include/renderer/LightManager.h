@@ -23,8 +23,9 @@ public:
 	[[nodiscard]] uint32_t GetNumLights() const { return m_numLights; }
 	[[nodiscard]] float GetTotalPower() const { return m_totalPower; }
 
-private:
+	void DumpReadbacks() const;
 
+private:
 	RenderContext& m_context;
 
 	std::unique_ptr<StructuredBuffer> m_lightBuffer;
@@ -53,4 +54,14 @@ private:
 	static constexpr uint32_t splitsCapacity = 1024;
 	std::unique_ptr<ComputePass> m_splitPass;
 	std::unique_ptr<ComputePass> m_packPass;
+
+	GPUBuffer m_lightsReadback;
+	GPUBuffer m_powerReadback;
+	GPUBuffer m_lightPrefixReadback;
+	GPUBuffer m_heavyPrefixReadback;
+	GPUBuffer m_lightReadback;
+	GPUBuffer m_heavyReadback;
+	GPUBuffer m_tableReadback;
+	GPUBuffer m_blocksumsReadback;
+	GPUBuffer m_splitsSpillBufferReadback;
 };

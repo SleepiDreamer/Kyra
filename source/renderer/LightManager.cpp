@@ -4,11 +4,39 @@
 #include "GPUAllocator.h"
 #include "GPUBuffer.h"
 #include "StructuredBuffer.h"
-
-#include <DirectXMath.h>
-
 #include "Model.h"
 
+#include <pix3.h>
+#include <DirectXMath.h>
+
+struct ReadbackCopy
+{
+	StructuredBuffer* src;
+	ID3D12Resource*   dst;
+	UINT64            bytes;
+};
+
+struct Counters
+{
+	uint32_t numLights;
+	float totalPower;
+	uint32_t numLightEntries;
+	uint32_t numHeavyEntries;
+};
+
+void CopyBuffersToReadback(ID3D12GraphicsCommandList4* cmd, const std::vector<ReadbackCopy>& copies)
+{
+	if (copies.empty()) return;
+
+	for (const auto& c : copies)
+		c.src->Transition(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
+
+	for (const auto& c : copies)
+		cmd->CopyBufferRegion(c.dst, 0, c.src->GetResource(), 0, c.bytes);
+
+	for (const auto& c : copies)
+		c.src->Transition(cmd, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+}
 
 LightManager::LightManager(RenderContext& context)
 	: m_context(context)
@@ -70,6 +98,34 @@ LightManager::LightManager(RenderContext& context)
 	m_scanAddOffsetsPass = std::make_unique<ComputePass>(m_context, "shaders/emissive/prefixsum_pass.slang", "ScanAddOffsets", "AliasScanAddOffsets");
 	m_splitPass = std::make_unique<ComputePass>(m_context, "shaders/emissive/split_pass.slang", "Split", "AliasSplit");
 	m_packPass = std::make_unique<ComputePass>(m_context, "shaders/emissive/pack_pass.slang", "Pack", "AliasPack");
+
+	m_lightsReadback = m_context.allocator->CreateBuffer(
+		numLights * sizeof(Light), D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Lights Readback");
+	m_powerReadback = m_context.allocator->CreateBuffer(
+		numLights * sizeof(uint32_t), D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Power Readback");
+	m_lightPrefixReadback = m_context.allocator->CreateBuffer(
+		numLights * sizeof(uint32_t), D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Light Prefix Readback");
+	m_heavyPrefixReadback = m_context.allocator->CreateBuffer(
+		numLights * sizeof(uint32_t), D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Heavy Prefix Readback");
+	m_lightReadback = m_context.allocator->CreateBuffer(
+		numLights * sizeof(uint32_t), D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Light Readback");
+	m_heavyReadback = m_context.allocator->CreateBuffer(
+		numLights * sizeof(uint32_t), D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Heavy Readback");
+	m_tableReadback = m_context.allocator->CreateBuffer(
+		numLights * sizeof(uint32_t) * 2, D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Alias Table Readback");
+	m_blocksumsReadback = m_context.allocator->CreateBuffer(
+		numBlocks * sizeof(uint32_t), D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Block Sums Readback");
+	m_splitsSpillBufferReadback = m_context.allocator->CreateBuffer(
+		splitsCapacity * sizeof(uint32_t) * 2, D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Split/Spill Readback");
 }
 
 void LightManager::AddLights(const std::vector<Light>& lights)
@@ -93,6 +149,12 @@ static uint32_t floatToUint(const float f)
 
 void LightManager::LoadEmissiveVertices(Model& model, const StructuredBuffer* materialBuffer, ID3D12GraphicsCommandList4* commandList) const
 {
+	PIXScopedEvent(commandList, 0x76b900, "Load Emissive Vertices");
+
+	m_lightBuffer->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	m_counters->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	m_powerBuffer->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 	auto& meshes = model.GetMeshes();
 	for (auto& mesh : meshes)
 	{
@@ -131,31 +193,19 @@ void LightManager::LoadEmissiveVertices(Model& model, const StructuredBuffer* ma
 		m_parsePass->Dispatch(commandList, bindings);
 	}
 
-	D3D12_RESOURCE_BARRIER uavBarriers[] = {
-		CD3DX12_RESOURCE_BARRIER::UAV(m_counters->GetResource())
-	};
-	commandList->ResourceBarrier(_countof(uavBarriers), uavBarriers);
+	m_counters->UAVBarrier(commandList);
 
 	m_context.commandQueue->Flush();
 
-	CD3DX12_RESOURCE_BARRIER toCopy = CD3DX12_RESOURCE_BARRIER::Transition(
-		m_counters->GetResource(),
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-		D3D12_RESOURCE_STATE_COPY_SOURCE);
-	commandList->ResourceBarrier(1, &toCopy);
-
-	commandList->CopyBufferRegion(m_countersReadback.resource, 0,
-		m_counters->GetResource(), 0, m_counters->GetSize());
-
-	CD3DX12_RESOURCE_BARRIER back = CD3DX12_RESOURCE_BARRIER::Transition(
-		m_counters->GetResource(),
-		D3D12_RESOURCE_STATE_COPY_SOURCE,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-	commandList->ResourceBarrier(1, &back);
+	m_counters->Transition(commandList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	commandList->CopyBufferRegion(m_countersReadback.resource, 0, m_counters->GetResource(), 0, m_counters->GetSize());
+	m_counters->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
 void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 {
+	PIXScopedEvent(commandList, 0x76b900, "Build Alias Table");
+
 	// Readbacks
 	{
 		// uint
@@ -177,11 +227,17 @@ void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 			D3D12_RANGE writeRange = { 0, 0 };
 			m_countersReadback.resource->Unmap(0, &writeRange);
 		}
-		Log::Info("LightManager: {} emissive lights, total power: {}", m_numLights, m_totalPower);
 	}
+
+	Log::Info("LightManager: {} lights, total power: {}", m_numLights, m_totalPower);
 
 	// Partition pass
 	{
+		m_powerBuffer->Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		m_counters->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		m_aliasLight->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		m_aliasHeavy->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 		ComputePass::ComputeBindings bindings;
 		bindings.srvs[0] = m_powerBuffer->GetResource()->GetGPUVirtualAddress();
 		bindings.srvCount = 1;
@@ -189,29 +245,29 @@ void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 		bindings.uavs[1] = m_aliasLight->GetResource()->GetGPUVirtualAddress();
 		bindings.uavs[2] = m_aliasHeavy->GetResource()->GetGPUVirtualAddress();
 		bindings.uavCount = 3;
-		bindings.rootConstants[0];
 		bindings.rootConstantCount = 0;
 		bindings.threads.x = m_numLights;
 		bindings.threadGroupSize.x = 32;
 		m_partitionPass->Dispatch(commandList, bindings);
 
-		D3D12_RESOURCE_BARRIER afterPartition[] = {
-			CD3DX12_RESOURCE_BARRIER::UAV(m_counters->GetResource()),
-			CD3DX12_RESOURCE_BARRIER::UAV(m_aliasLight->GetResource()),
-			CD3DX12_RESOURCE_BARRIER::UAV(m_aliasHeavy->GetResource()),
-		};
-		commandList->ResourceBarrier(_countof(afterPartition), afterPartition);
+		m_counters->UAVBarrier(commandList);
 	}
+
+	constexpr uint32_t kScanGroup = 256;
+	const uint32_t numBlocks = (m_numLights + kScanGroup - 1) / kScanGroup;
 
 	// Prefix sum pass
 	{
-		auto runScan = [&](const StructuredBuffer* list, const StructuredBuffer* prefixOut, const uint32_t heavyFlag)
+		auto runScan = [&](StructuredBuffer* list, StructuredBuffer* prefixOut, const uint32_t heavyFlag)
 		{
-			constexpr uint32_t kScanGroup = 256;
-			const uint32_t numBlocks = (m_numLights + kScanGroup - 1) / kScanGroup;
 
 			// per-block local scan + block total
 			{
+				list->Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+				prefixOut->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				m_blockSums->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+				m_counters->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 				ComputePass::ComputeBindings bindings;
 				bindings.srvs[0] = m_powerBuffer->GetResource()->GetGPUVirtualAddress();
 				bindings.srvs[1] = list->GetResource()->GetGPUVirtualAddress();
@@ -227,11 +283,9 @@ void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 				bindings.threadGroupSize.x = 256;
 				m_scanLocalPass->Dispatch(commandList, bindings);
 
-				D3D12_RESOURCE_BARRIER uavBarriers[] = {
-					CD3DX12_RESOURCE_BARRIER::UAV(prefixOut->GetResource()),
-					CD3DX12_RESOURCE_BARRIER::UAV(m_blockSums->GetResource())
-				};
-				commandList->ResourceBarrier(_countof(uavBarriers), uavBarriers);
+				prefixOut->UAVBarrier(commandList);
+				m_blockSums->UAVBarrier(commandList);
+				m_counters->UAVBarrier(commandList);
 			}
 
 			// scan block totals
@@ -246,10 +300,7 @@ void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 				bindings.threadGroupSize.x = 1;
 				m_scanBlockSumsPass->Dispatch(commandList, bindings);
 
-				D3D12_RESOURCE_BARRIER uavBarriers[] = {
-					CD3DX12_RESOURCE_BARRIER::UAV(m_blockSums->GetResource())
-				};
-				commandList->ResourceBarrier(_countof(uavBarriers), uavBarriers);
+				m_blockSums->UAVBarrier(commandList);
 			}
 
 			// add offset back
@@ -265,19 +316,24 @@ void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 				bindings.threadGroupSize.x = 256;
 				m_scanAddOffsetsPass->Dispatch(commandList, bindings);
 
-				D3D12_RESOURCE_BARRIER uavBarriers[] = {
-					CD3DX12_RESOURCE_BARRIER::UAV(prefixOut->GetResource())
-				};
-				commandList->ResourceBarrier(_countof(uavBarriers), uavBarriers);
+				prefixOut->UAVBarrier(commandList);
+				m_blockSums->UAVBarrier(commandList);
 			}
-		};
+			};
 
 		runScan(m_aliasLight.get(), m_lightPrefix.get(), 0);
 		runScan(m_aliasHeavy.get(), m_heavyPrefix.get(), 1);
 	}
 
+	const uint32_t s = std::min(splitsCapacity - 1, m_numLights);
+
 	// Split pass
 	{
+		m_lightPrefix->Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		m_heavyPrefix->Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		m_splitsSpillBuffer->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		m_counters->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 		ComputePass::ComputeBindings bindings;
 		bindings.srvs[0] = m_lightPrefix->GetResource()->GetGPUVirtualAddress();
 		bindings.srvs[1] = m_heavyPrefix->GetResource()->GetGPUVirtualAddress();
@@ -285,37 +341,58 @@ void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 		bindings.uavs[0] = m_splitsSpillBuffer->GetResource()->GetGPUVirtualAddress();
 		bindings.uavs[1] = m_counters->GetResource()->GetGPUVirtualAddress();
 		bindings.uavCount = 2;
-		bindings.rootConstants[0] = splitsCapacity - 1;
+		bindings.rootConstants[0] = s;
 		bindings.rootConstants[1] = m_numLights;
 		bindings.rootConstantCount = 2;
-		bindings.threads.x = splitsCapacity;
+		bindings.threads.x = s + 1;
 		bindings.threadGroupSize.x = 64;
 		m_splitPass->Dispatch(commandList, bindings);
 
-		D3D12_RESOURCE_BARRIER afterSplit[] = {
-			CD3DX12_RESOURCE_BARRIER::UAV(m_splitsSpillBuffer->GetResource()),
-		};
-		commandList->ResourceBarrier(_countof(afterSplit), afterSplit);
+		m_splitsSpillBuffer->UAVBarrier(commandList);
+		m_counters->UAVBarrier(commandList);
 	}
 
 	// Pack pass
+	if (true)
 	{
+		m_aliasLight->Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		m_aliasHeavy->Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		m_splitsSpillBuffer->Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		m_aliasTable->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		m_counters->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
 		ComputePass::ComputeBindings bindings;
 		bindings.srvs[0] = m_powerBuffer->GetResource()->GetGPUVirtualAddress();
-		bindings.srvs[1] = m_lightPrefix->GetResource()->GetGPUVirtualAddress();
-		bindings.srvs[2] = m_heavyPrefix->GetResource()->GetGPUVirtualAddress();
+		bindings.srvs[1] = m_aliasLight->GetResource()->GetGPUVirtualAddress();  // t1: light worklist
+		bindings.srvs[2] = m_aliasHeavy->GetResource()->GetGPUVirtualAddress();  // t2: heavy worklist
 		bindings.srvs[3] = m_splitsSpillBuffer->GetResource()->GetGPUVirtualAddress();
 		bindings.srvCount = 4;
 		bindings.uavs[0] = m_aliasTable->GetResource()->GetGPUVirtualAddress();
 		bindings.uavs[1] = m_counters->GetResource()->GetGPUVirtualAddress();
 		bindings.uavCount = 2;
-		bindings.rootConstants[0] = splitsCapacity - 1;
+		bindings.rootConstants[0] = s;
 		bindings.rootConstants[1] = m_numLights;
 		bindings.rootConstantCount = 2;
-		bindings.threads.x = splitsCapacity - 1;
+		bindings.threads.x = s;
 		bindings.threadGroupSize.x = 64;
 		m_packPass->Dispatch(commandList, bindings);
+
+		m_aliasTable->UAVBarrier(commandList);
+		m_counters->UAVBarrier(commandList);
 	}
+
+	std::vector<ReadbackCopy> copies = {
+		{ m_lightBuffer.get(),       m_lightsReadback.resource,            m_numLights * sizeof(Light)          },
+		{ m_powerBuffer.get(),       m_powerReadback.resource,             m_numLights * sizeof(uint32_t)       },
+		{ m_aliasLight.get(),        m_lightReadback.resource,             m_numLights * sizeof(uint32_t)       },
+		{ m_aliasHeavy.get(),        m_heavyReadback.resource,             m_numLights * sizeof(uint32_t)       },
+		{ m_lightPrefix.get(),       m_lightPrefixReadback.resource,       m_numLights * sizeof(uint32_t)       },
+		{ m_heavyPrefix.get(),       m_heavyPrefixReadback.resource,       m_numLights * sizeof(uint32_t)       },
+		{ m_blockSums.get(),         m_blocksumsReadback.resource,         numBlocks * sizeof(uint32_t)         },
+		{ m_splitsSpillBuffer.get(), m_splitsSpillBufferReadback.resource, splitsCapacity * sizeof(uint32_t) * 2  },
+		{ m_aliasTable.get(),        m_tableReadback.resource,             m_numLights * sizeof(uint32_t) * 2   },
+		{ m_counters.get(),          m_countersReadback.resource,          sizeof(uint32_t) * 4                 } };
+	CopyBuffersToReadback(commandList, copies);
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS LightManager::GetLightBufferAddress() const
@@ -331,4 +408,110 @@ D3D12_GPU_VIRTUAL_ADDRESS LightManager::GetPowerBufferAddress() const
 D3D12_GPU_VIRTUAL_ADDRESS LightManager::GetAliasTableAddress() const
 {
 	return m_aliasTable ? m_aliasTable->GetResource() ? m_aliasTable->GetResource()->GetGPUVirtualAddress() : 0 : 0;
+}
+
+namespace {
+	struct AliasRowRB { float    threshold; uint32_t alias; }; // table stride = 8
+	struct SplitRB { uint32_t j;          float    spill; }; // splits stride = 8
+
+	template <typename T>
+	std::vector<T> Readback(ID3D12Resource* res, uint32_t count)
+	{
+		std::vector<T> out(count);
+		if (count == 0) return out;
+		void* mapped = nullptr;
+		D3D12_RANGE readRange = { 0, count * sizeof(T) };
+		res->Map(0, &readRange, &mapped);
+		std::memcpy(out.data(), mapped, count * sizeof(T));
+		D3D12_RANGE writeRange = { 0, 0 };
+		res->Unmap(0, &writeRange);
+		return out;
+	}
+}
+
+void LightManager::DumpReadbacks() const
+{
+	const uint32_t N = m_numLights;                          // active count (26), not capacity
+
+	// Counters first, so we know how far the worklists are actually filled.
+	uint32_t nL = N, nH = 0;
+	float    W = m_totalPower;
+	{
+		auto c = Readback<uint32_t>(m_countersReadback.resource, 4); // {numLights, totalPower(float bits), nL, nH}
+		std::memcpy(&W, &c[1], sizeof(float));
+		nL = c[2];
+		nH = c[3];
+	}
+	const uint32_t s = std::min(splitsCapacity - 1, N);
+	const uint32_t numBlocks = (N + 255) / 256;
+	const float    WN = W / (float)N;
+
+	printf("\n========== EMISSIVE READBACK DUMP (N=%u, W=%.6f, W/N=%.6f, nL=%u, nH=%u) ==========\n",
+		N, W, WN, nL, nH);
+	if (nL + nH != N)
+		printf("  !! WARNING: nL + nH (%u) != N (%u) -- partition dropped items.\n", nL + nH, N);
+
+	// ---- powers (float bits in a uint-stride buffer) ----
+	{
+		auto p = Readback<float>(m_powerReadback.resource, N);
+		printf("\n-- powers --\n");
+		for (uint32_t i = 0; i < N; i++) printf("  [%3u] %.6f\n", i, p[i]);
+	}
+
+	// ---- light / heavy worklists (uint indices; only nL / nH are valid) ----
+	{
+		auto l = Readback<uint32_t>(m_lightReadback.resource, nL);
+		auto h = Readback<uint32_t>(m_heavyReadback.resource, nH);
+		printf("\n-- light worklist (%u) --\n  ", nL);
+		for (uint32_t i = 0; i < nL; i++) printf("%u ", l[i]);
+		printf("\n-- heavy worklist (%u) --\n  ", nH);
+		for (uint32_t i = 0; i < nH; i++) printf("%u ", h[i]);
+		printf("\n");
+
+		// sanity: do the worklists cover every index 0..N-1 exactly once?
+		std::vector<int> seen(N, 0);
+		bool bad = false;
+		for (uint32_t i = 0; i < nL; i++) { if (l[i] >= N || seen[l[i]]++) bad = true; }
+		for (uint32_t i = 0; i < nH; i++) { if (h[i] >= N || seen[h[i]]++) bad = true; }
+		for (uint32_t i = 0; i < N; i++) if (seen[i] != 1) bad = true;
+		printf("  worklist coverage: %s\n", bad ? "BAD (missing/dup/oob index)" : "ok (clean permutation)");
+	}
+
+	// ---- prefix sums (float bits) ----
+	{
+		auto lp = Readback<float>(m_lightPrefixReadback.resource, nL);
+		auto hp = Readback<float>(m_heavyPrefixReadback.resource, nH);
+		printf("\n-- light prefix (inclusive weights) --\n  ");
+		for (uint32_t i = 0; i < nL; i++) printf("%.4f ", lp[i]);
+		printf("\n-- heavy prefix (inclusive weights) --\n  ");
+		for (uint32_t i = 0; i < nH; i++) printf("%.4f ", hp[i]);
+		printf("\n");
+	}
+
+	// ---- block sums (float bits) ----
+	{
+		auto b = Readback<float>(m_blocksumsReadback.resource, numBlocks);
+		printf("\n-- block sums (%u) --\n  ", numBlocks);
+		for (uint32_t i = 0; i < numBlocks; i++) printf("%.4f ", b[i]);
+		printf("\n");
+	}
+
+	// ---- splits (j is uint, spill is float) : boundaries 0..s ----
+	{
+		auto sp = Readback<SplitRB>(m_splitsSpillBufferReadback.resource, s + 1);
+		printf("\n-- splits (boundaries 0..%u) --\n", s);
+		for (uint32_t k = 0; k <= s; k++) printf("  [%3u] j=%u spill=%.6f\n", k, sp[k].j, sp[k].spill);
+	}
+
+	// ---- alias table (threshold is float, alias is uint) ----
+	{
+		auto t = Readback<AliasRowRB>(m_tableReadback.resource, N);
+		printf("\n-- alias table --\n");
+		for (uint32_t i = 0; i < N; i++)
+			printf("  [%3u] threshold=%.6f  alias=%u  (selfP=%.4f)\n",
+				i, t[i].threshold, t[i].alias,
+				WN > 0.0f ? t[i].threshold / WN : 0.0f);
+	}
+
+	printf("================================================================================\n\n");
 }

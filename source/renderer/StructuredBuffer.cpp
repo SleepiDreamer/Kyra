@@ -22,7 +22,7 @@ void StructuredBuffer::Init(const uint32_t elementCount)
     m_elementCount = elementCount;
 
     m_buffer = m_context.allocator->CreateBuffer(
-        static_cast<uint64_t>(m_elementCount) * m_stride, D3D12_RESOURCE_STATE_COMMON, 
+        static_cast<uint64_t>(m_elementCount) * m_stride, m_currentState, 
         m_flags | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, m_heapType, m_name.c_str());
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
@@ -65,4 +65,25 @@ void StructuredBuffer::Update(const void* data, uint32_t elementCount)
     }
 
 	m_context.uploadContext->Upload(m_buffer, data, static_cast<uint64_t>(elementCount) * m_stride);
+}
+
+void StructuredBuffer::Transition(ID3D12GraphicsCommandList* commandList, const D3D12_RESOURCE_STATES newState)
+{
+    if (newState != m_currentState)
+    {
+        D3D12_RESOURCE_BARRIER barrier = {};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Transition.pResource = m_buffer.resource;
+        barrier.Transition.StateBefore = m_currentState;
+        barrier.Transition.StateAfter = newState;
+        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        commandList->ResourceBarrier(1, &barrier);
+        m_currentState = newState;
+    }
+}
+
+void StructuredBuffer::UAVBarrier(ID3D12GraphicsCommandList* commandList) const
+{
+    const D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(m_buffer.resource);
+    commandList->ResourceBarrier(1, &uavBarrier);
 }

@@ -1,4 +1,5 @@
 #include "Scene.h"
+
 #include "Model.h"
 #include "Mesh.h"
 #include "TLAS.h"
@@ -13,8 +14,6 @@
 #include "Log.h"
 
 #include <stb_image.h>
-
-#include "PostProcessPass.h"
 
 Scene::Scene(RenderContext& context)
 	: m_context(context)
@@ -96,6 +95,8 @@ bool Scene::LoadModel(const std::string& path)
 
 	m_context.commandQueue->ExecuteCommandList(commandList);
 	m_context.commandQueue->Flush();
+
+	//m_lightManager->DumpReadbacks();
 
 	auto time = std::chrono::steady_clock::now() - startTime;
 	Log::Success("Loaded model: {}. Took {:.2f} s.", path, std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0);

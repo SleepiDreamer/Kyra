@@ -30,7 +30,7 @@ void Device::EnableDebugLayer()
     debugInterface->EnableDebugLayer();
     Log::Info("Debug layer enabled!");
 
-#if 1 // GPU-based validation
+#if 0 // GPU-based validation
     ComPtr<ID3D12Debug1> debug1;
     if (SUCCEEDED(debugInterface.As(&debug1)))
     {

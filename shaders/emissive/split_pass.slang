@@ -2,8 +2,8 @@ import emissive_common;
 
 struct SplitParams { uint numSplits; uint numActive; };   // s, N
 
-StructuredBuffer<float> lightPrefix : register(t0, space0); // inclusive prefix of light weights
-StructuredBuffer<float> heavyPrefix : register(t1, space0); // inclusive prefix of heavy weights
+StructuredBuffer<float> lightPrefix : register(t0, space0);
+StructuredBuffer<float> heavyPrefix : register(t1, space0);
 
 RWStructuredBuffer<SplitEntry> splits : register(u0, space0);
 RWStructuredBuffer<Counters> counters : register(u1, space0);
@@ -34,8 +34,7 @@ void Split(uint3 dtid : SV_DispatchThreadID)
     uint nPrime = (uint)(((uint64_t)N * k) / s);   // buckets to the left of this boundary
     float T = (float)nPrime * WN;
 
-    // Largest j in [0, min(nPrime, nH)] with sigma(j) <= T.
-    uint lo = 0;
+    uint lo = (nPrime > nL) ? (nPrime - nL) : 0u;
     uint hi = min(nPrime, nH);
     while (lo < hi)
     {

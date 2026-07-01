@@ -2,8 +2,8 @@ struct Counters
 {
     uint numLights;
     float totalPower;
-    uint numHeavyEntries;
     uint numLightEntries;
+    uint numHeavyEntries;
 }
 
 struct SplitEntry

@@ -39,7 +39,17 @@ void Pack(uint3 dtid : SV_DispatchThreadID)
     uint i = iPrev;
     uint j = jPrev;
     float w = spill;
-    if (spill == 0.0) { w = powerBuffer[heavy[j]]; }   // fresh heavy item, full weight
+    if (spill == 0.0)
+    {
+        if (jPrev < nH)
+        {
+            w = powerBuffer[heavy[jPrev]];
+        }
+        else
+        {
+            w = WN + 1.0;
+        }
+    }
 
     [loop]
     while (true)

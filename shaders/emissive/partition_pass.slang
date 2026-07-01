@@ -15,7 +15,6 @@ ConstantBuffer<Data> data             : register(b0, space1);
 
 SamplerState pointSampler             : register(s0, space0);
 
-
 [shader("compute")]
 [numthreads(32, 1, 1)]
 void Partition(uint3 dtid: SV_DispatchThreadID)

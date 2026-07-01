@@ -216,6 +216,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     {
 #if 0
         uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
+        float pdf = 1.0 / renderData.numLights;
 #else
         float2 rand = payload.rng.nextFloat2();
         float wn = renderData.totalPower / renderData.numLights;
@@ -262,7 +263,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
             if (!shadowPayload.inShadow)
             {
                 float3 outgoing = radiance * PBRDirect(normal, dirToLight, -WorldRayDirection(), albedo, roughness, metallic);
-                payload.radiance += outgoing * renderSettings.lightIntensity * renderData.numLights * payload.throughput;
+                payload.radiance += outgoing * renderSettings.lightIntensity * payload.throughput / pdf;
             }
         }
     }
