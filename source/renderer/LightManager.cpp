@@ -81,7 +81,6 @@ LightManager::LightManager(RenderContext& context)
 		m_context, splitsCapacity, static_cast<uint32_t>(sizeof(uint32_t) * 2),
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Emissive Split/Spill Buffer");
 
-	// numLights, total power
 	m_counters = std::make_unique<StructuredBuffer>(
 		m_context, 1, sizeof(uint32_t) * 4,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Emissive Counters Buffer");
@@ -91,7 +90,8 @@ LightManager::LightManager(RenderContext& context)
 		D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Emissive Counter Readback");
 
 	auto sampler = POINT_SAMPLER;
-	m_parsePass = std::make_unique<ComputePass>(m_context, "shaders/emissive/emissive_parse.slang", "ParseEmissives", "ParseEmissives", sampler);
+	m_parseLightsPass = std::make_unique<ComputePass>(m_context, "shaders/emissive/emissive_parse.slang", "ParseLights", "ParseEmissives", sampler);
+	m_parsePass = std::make_unique<ComputePass>(m_context, "shaders/emissive/emissive_parse.slang", "ParseTriangles", "ParseEmissives", sampler);
 	m_partitionPass = std::make_unique<ComputePass>(m_context, "shaders/emissive/partition_pass.slang", "Partition", "AliasPartition");
 	m_scanLocalPass = std::make_unique<ComputePass>(m_context, "shaders/emissive/prefixsum_pass.slang", "ScanLocal", "AliasScanLocal");
 	m_scanBlockSumsPass = std::make_unique<ComputePass>(m_context,"shaders/emissive/prefixsum_pass.slang", "ScanBlockSums", "AliasScanBlockSums");
@@ -130,13 +130,11 @@ LightManager::LightManager(RenderContext& context)
 
 void LightManager::AddLights(const std::vector<Light>& lights)
 {
+	m_pending = true;
+
 	for (const auto& light : lights)
 	{
-		m_lights.push_back(light);
-	}
-	if (!m_lights.empty())
-	{
-		m_lightBuffer->Update(m_lights.data(), static_cast<uint32_t>(m_lights.size()));
+		m_pendingLights.push_back(light);
 	}
 }
 
@@ -146,6 +144,63 @@ static uint32_t floatToUint(const float f)
 	std::memcpy(&u, &f, sizeof(u));
 	return u;
 };
+
+void LightManager::CopyLightsToCPU(ID3D12GraphicsCommandList4* commandList)
+{
+	m_lightsReadback.Transition(commandList, D3D12_RESOURCE_STATE_COPY_DEST);
+	m_lightBuffer->Transition(commandList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	commandList->CopyBufferRegion(m_lightsReadback.resource, 0, m_lightBuffer->GetResource(), 0, m_lightBuffer->GetSize());
+}
+
+void LightManager::UploadPendingLights(ID3D12GraphicsCommandList4* commandList)
+{
+	if (!m_pending || m_pendingLights.empty()) return;
+
+	std::vector<Light> lights;
+	uint32_t numNewLights = static_cast<uint32_t>(m_pendingLights.size());
+
+	// Map light readback
+	{
+		Light* mapped = nullptr;
+		D3D12_RANGE readRange = { 0, m_lightBuffer->GetSize() };
+		m_lightsReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
+		lights = std::vector<Light>(mapped, mapped + m_numLights);
+		D3D12_RANGE writeRange = { 0, 0 };
+		m_lightsReadback.resource->Unmap(0, &writeRange);
+	}
+	
+	// Insert pending lights
+	{
+		lights.insert(lights.end(), m_pendingLights.begin(), m_pendingLights.end());
+		m_pendingLights.clear();
+		m_pending = false;
+	}
+
+	// Copy lights to GPU buffer
+	{
+		m_lightBuffer->Update(lights.data(), static_cast<uint32_t>(lights.size()));
+	}
+
+	// Parse new lights
+	{
+		m_lightBuffer->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		m_counters->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		m_powerBuffer->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		ComputePass::ComputeBindings bindings;
+		bindings.srvCount = 0;
+		bindings.uavs[0] = m_lightBuffer->GetResource()->GetGPUVirtualAddress();
+		bindings.uavs[1] = m_counters->GetResource()->GetGPUVirtualAddress();
+		bindings.uavs[2] = m_powerBuffer->GetResource()->GetGPUVirtualAddress();
+		bindings.uavCount = 3;
+		bindings.rootConstants[0] = numNewLights;
+		bindings.rootConstantCount = 1;
+		bindings.threads.x = numNewLights;
+		m_parseLightsPass->Dispatch(commandList, bindings);
+
+		m_counters->UAVBarrier(commandList);
+	}
+}
 
 void LightManager::LoadEmissiveVertices(Model& model, const StructuredBuffer* materialBuffer, ID3D12GraphicsCommandList4* commandList) const
 {
@@ -202,32 +257,32 @@ void LightManager::LoadEmissiveVertices(Model& model, const StructuredBuffer* ma
 	m_counters->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 }
 
+void LightManager::NumLightsCallback()
+{
+	// uint
+	{
+		uint32_t* mapped = nullptr;
+		D3D12_RANGE readRange = { 0, m_counters->GetSize() };
+		m_countersReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
+		m_numLights = mapped[0];
+		D3D12_RANGE writeRange = { 0, 0 };
+		m_countersReadback.resource->Unmap(0, &writeRange);
+	}
+
+	// float
+	{
+		float* mapped = nullptr;
+		D3D12_RANGE readRange = { 0, m_counters->GetSize() };
+		m_countersReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
+		m_totalPower = mapped[1];
+		D3D12_RANGE writeRange = { 0, 0 };
+		m_countersReadback.resource->Unmap(0, &writeRange);
+	}
+}
+
 void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 {
 	PIXScopedEvent(commandList, 0x76b900, "Build Alias Table");
-
-	// Readbacks
-	{
-		// uint
-		{
-			uint32_t* mapped = nullptr;
-			D3D12_RANGE readRange = { 0, m_counters->GetSize() };
-			m_countersReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
-			m_numLights = mapped[0];
-			D3D12_RANGE writeRange = { 0, 0 };
-			m_countersReadback.resource->Unmap(0, &writeRange);
-		}
-
-		// float
-		{
-			float* mapped = nullptr;
-			D3D12_RANGE readRange = { 0, m_counters->GetSize() };
-			m_countersReadback.resource->Map(0, &readRange, reinterpret_cast<void**>(&mapped));
-			m_totalPower = mapped[1];
-			D3D12_RANGE writeRange = { 0, 0 };
-			m_countersReadback.resource->Unmap(0, &writeRange);
-		}
-	}
 
 	Log::Info("LightManager: {} lights, total power: {}", m_numLights, m_totalPower);
 
@@ -393,6 +448,19 @@ void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 		{ m_aliasTable.get(),        m_tableReadback.resource,             m_numLights * sizeof(uint32_t) * 2   },
 		{ m_counters.get(),          m_countersReadback.resource,          sizeof(uint32_t) * 4                 } };
 	CopyBuffersToReadback(commandList, copies);
+}
+
+void LightManager::UpdateAliasCounters(const uint32_t numLights, const float totalPower) const
+{
+	struct Counters
+	{
+		uint32_t numLights;
+		float totalPower;
+		uint32_t numLightEntries;
+		uint32_t numHeavyEntries;
+	};
+	Counters counters = { numLights, totalPower, 0, 0 };
+	m_counters->Update(&counters, 0);
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS LightManager::GetLightBufferAddress() const

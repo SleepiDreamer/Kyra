@@ -212,58 +212,66 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     // p_light(w) = (1/numLights) * p_area * dist^2 / abs(costheta_light)
 
     // explicit lighting
-    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission && right)
+    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission)
     {
-#if 0
-        uint lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
-        float pdf = 1.0 / renderData.numLights;
-#else
-        float2 rand = payload.rng.nextFloat2();
-        float wn = renderData.totalPower / renderData.numLights;
+        uint lightIdx;
+        float pdf;
+        if (left)
+        {
+            lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
+            pdf = 1.0 / renderData.numLights;
+        }
+        else
+        {
+            float2 rand = payload.rng.nextFloat2();
+            float wn = renderData.totalPower / renderData.numLights;
 
-        uint i = min((uint)floor(rand.x * renderData.numLights), renderData.numLights - 1);
-        uint lightIdx = (rand.y * wn < aliasTable[i].threshold) ? i : aliasTable[i].alias;
+            uint i = min((uint)floor(rand.x * renderData.numLights), renderData.numLights - 1);
+            lightIdx = (rand.y * wn < aliasTable[i].threshold) ? i : aliasTable[i].alias;
+            pdf = powerBuffer[lightIdx] / renderData.totalPower;
+        }
 
-        float pdf = powerBuffer[lightIdx] / renderData.totalPower;
-#endif
         Light light = lights[lightIdx];
         uint lightType = light.GetType();
         float3 radiance;
         float3 dirToLight;
         float dist;
 
-        if (lightType == LIGHT_TYPE_DIRECTIONAL)
+        if (lightType != LIGHT_TYPE_TRIANGLE || right)
         {
-            radiance = light.SampleDirectionalLight(payload.rng.nextFloat2(), dist, dirToLight);
-        }
-        else if (lightType == LIGHT_TYPE_POINT)
-        {
-            radiance = light.SamplePointLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight);
-        }
-        else if (lightType == LIGHT_TYPE_TRIANGLE)
-        {
-            Material triMaterial = materials[light.TriMatIdx()];
-            radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight, triMaterial);
-        }
-
-        if (dot(dirToLight, normal) > 0.0)
-        {
-            RayDesc shadowRay;
-            shadowRay.Origin = OffsetRay(hitPoint, flatNormal);
-            shadowRay.Direction = dirToLight;
-            shadowRay.TMin = 0.0;
-            shadowRay.TMax = dist - 0.0001;
-
-            ShadowPayload shadowPayload;
-            shadowPayload.inShadow = true;
-
-            TraceRay(sceneBVH, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
-                     0xFF, 0, 1, 1, shadowRay, shadowPayload);
-
-            if (!shadowPayload.inShadow)
+            if (lightType == LIGHT_TYPE_DIRECTIONAL)
             {
-                float3 outgoing = radiance * PBRDirect(normal, dirToLight, -WorldRayDirection(), albedo, roughness, metallic);
-                payload.radiance += outgoing * renderSettings.lightIntensity * payload.throughput / pdf;
+                radiance = light.SampleDirectionalLight(payload.rng.nextFloat2(), dist, dirToLight);
+            }
+            else if (lightType == LIGHT_TYPE_POINT)
+            {
+                radiance = light.SamplePointLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight);
+            }
+            else if (lightType == LIGHT_TYPE_TRIANGLE)
+            {
+                Material triMaterial = materials[light.TriMatIdx()];
+                radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight, triMaterial);
+            }
+
+            if (dot(dirToLight, normal) > 0.0)
+            {
+                RayDesc shadowRay;
+                shadowRay.Origin = OffsetRay(hitPoint, flatNormal);
+                shadowRay.Direction = dirToLight;
+                shadowRay.TMin = 0.0;
+                shadowRay.TMax = dist - 0.001;
+
+                ShadowPayload shadowPayload;
+                shadowPayload.inShadow = true;
+
+                TraceRay(sceneBVH, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
+                         0xFF, 0, 1, 1, shadowRay, shadowPayload);
+
+                if (!shadowPayload.inShadow)
+                {
+                    float3 outgoing = radiance * PBRDirect(normal, dirToLight, -WorldRayDirection(), albedo, roughness, metallic);
+                    payload.radiance += outgoing * renderSettings.lightIntensity * payload.throughput / pdf;
+                }
             }
         }
     }

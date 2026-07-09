@@ -16,8 +16,8 @@ public struct Light
     public float4 data2;
     public float4 data3;
 
-    public uint GetType() { return asuint(this.data0.w) >> 28; }
-    [mutating] public void SetType(uint type) { this.data0.w = asfloat((asuint(this.data0.w) & 0x0FFFFFFF) | (type << 28)); }
+    public uint GetType() { return asuint(this.data0.w) >> 24; }
+    [mutating] public void SetType(uint type) { this.data0.w = asfloat((asuint(this.data0.w) & 0x00FFFFFF) | (type << 24)); }
 
     [ForceInline] public float3 DirDirection()  { return this.data0.xyz; }
     [ForceInline] public float3 DirColor()      { return this.data1.xyz; }
@@ -30,7 +30,7 @@ public struct Light
     [ForceInline] public float3 TriV0()     { return this.data0.xyz; }
     [ForceInline] public float3 TriE1()     { return this.data1.xyz; }
     [ForceInline] public float3 TriE2()     { return this.data2.xyz; }
-    [ForceInline] public uint TriMatIdx()   { return asuint(this.data0.w) & 0x0FFFFFFF; }
+    [ForceInline] public uint TriMatIdx()   { return asuint(this.data0.w) & 0x00FFFFFF; }
     [ForceInline] public float2 TriUV0()    { return float2(this.data1.w, this.data2.w); }
     [ForceInline] public float2 TriUV1()    { return float2(this.data3.x, this.data3.y); }
     [ForceInline] public float2 TriUV2()    { return float2(this.data3.z, this.data3.w); }
@@ -39,8 +39,7 @@ public struct Light
     [ForceInline] [mutating] public void SetTriV0(float3 v0) { this.data0 = float4(v0, this.data0.w); }
     [ForceInline] [mutating] public void SetTriE1(float3 e1) { this.data1 = float4(e1, this.data1.w); }
     [ForceInline] [mutating] public void SetTriE2(float3 e2) { this.data2 = float4(e2, this.data2.w); }
-    [ForceInline] [mutating] public void SetTriMatIdx(uint idx) { this.data0.w = asfloat((asuint(this.data0.w) & 0xF0000000) | (idx & 0x0FFFFFFF)); }
-    [ForceInline] [mutating] public void SetTriUV0(float2 uv) { this.data1.w = uv.x; this.data2.w = uv.y; }
+    [ForceInline] [mutating] public void SetTriMatIdx(uint idx) { this.data0.w = asfloat((asuint(this.data0.w) & 0xFF000000) | (idx & 0x00FFFFFF)); }    [ForceInline] [mutating] public void SetTriUV0(float2 uv) { this.data1.w = uv.x; this.data2.w = uv.y; }
     [ForceInline] [mutating] public void SetTriUV1(float2 uv) { this.data3.x = uv.x; this.data3.y = uv.y; }
     [ForceInline] [mutating] public void SetTriUV2(float2 uv) { this.data3.z = uv.x; this.data3.w = uv.y; }
 

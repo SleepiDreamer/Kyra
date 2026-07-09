@@ -14,8 +14,12 @@ public:
 	~LightManager() = default;
 
 	void AddLights(const std::vector<Light>& lights);
+	void CopyLightsToCPU(ID3D12GraphicsCommandList4* commandList);
+	void UploadPendingLights(ID3D12GraphicsCommandList4* commandList);
 	void LoadEmissiveVertices(Model& model, const StructuredBuffer* materialBuffer, ID3D12GraphicsCommandList4* commandList) const;
+	void NumLightsCallback();
 	void BuildAliasTable(ID3D12GraphicsCommandList4* commandList);
+	void UpdateAliasCounters(uint32_t numLights, float totalPower) const;
 
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetLightBufferAddress() const;
 	[[nodiscard]] D3D12_GPU_VIRTUAL_ADDRESS GetPowerBufferAddress() const;
@@ -29,7 +33,8 @@ private:
 	RenderContext& m_context;
 
 	std::unique_ptr<StructuredBuffer> m_lightBuffer;
-	std::vector<Light> m_lights;
+	std::vector<Light> m_pendingLights;
+	bool m_pending = false;
 	uint32_t m_numLights = 0;
 	float m_totalPower = 0.0f;
 
@@ -44,6 +49,7 @@ private:
 	std::unique_ptr<StructuredBuffer> m_splitsSpillBuffer;
 	GPUBuffer m_countersReadback;
 
+	std::unique_ptr<ComputePass> m_parseLightsPass;
 	std::unique_ptr<ComputePass> m_parsePass;
 	std::unique_ptr<ComputePass> m_partitionPass;
 

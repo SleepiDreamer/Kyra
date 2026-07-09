@@ -37,7 +37,7 @@ float3 Transform(float3 p)
 
 [shader("compute")]
 [numthreads(32, 1, 1)]
-void ParseEmissives(uint3 dtid : SV_DispatchThreadID)
+void ParseTriangles(uint3 dtid : SV_DispatchThreadID)
 {
     uint triIdx = dtid.x;
     if (triIdx >= data.numTris) return;
@@ -58,10 +58,29 @@ void ParseEmissives(uint3 dtid : SV_DispatchThreadID)
 
     Material material = materials[data.materialIndex];
 
-    float2 uv = v0.uv * 0.5 + v1.uv * 0.5;
-    float3 emissive = sampleOrDefault(material.emissiveIndex, pointSampler, uv, material.emissiveFactor);
+    static const int samples = 12;
+    float power = 0.0;
+    for (int j = 0; j < samples; j++)
+    {
+        for (int i = 0; i < samples; i++)
+        {
+            float u = (i + 0.5) / float(samples);
+            float v = (j + 0.5) / float(samples);
+            if (u + v > 1.0)
+            {
+                u = 1.0 - u;
+                v = 1.0 - v;
+            }
+            float w = 1.0 - u - v;
+            float2 uv = v0.uv * w + v1.uv * u + v2.uv * v;
+
+            float3 emissive = sampleOrDefault(material.emissiveIndex, pointSampler, uv, material.emissiveFactor);
+            power += Grayscale(emissive);
+        }
+    }
     float area = length(cross(w1 - w0, w2 - w0)) * 0.5;
-    float power = Grayscale(emissive) * area;
+    power /= samples * samples;
+    power *= area;
 
     if (power > 0.0)
     {
@@ -92,5 +111,46 @@ void ParseEmissives(uint3 dtid : SV_DispatchThreadID)
             }
             oldPower = originalPower;
         }
+    }
+}
+
+[shader("compute")]
+[numthreads(32, 1, 1)]
+void ParseLights(uint3 dtid: SV_DispatchThreadID)
+{
+    // repurposed numTris
+    if (dtid.x > data.modelRow0.x) return;
+
+    uint curElement;
+    InterlockedAdd(counters[0].numLights, 1, curElement);
+
+    // Read existing light entry instead of creating a new one
+    Light light = lights[curElement];
+    uint lightType = light.GetType();
+
+    float power = 0.0;
+    if (lightType == LIGHT_TYPE_DIRECTIONAL)
+    {
+        power = Grayscale(light.DirColor()) * 683.0;
+    }
+    else if (lightType == LIGHT_TYPE_POINT)
+    {
+        power = Grayscale(light.PointColor()) * 4.0 * 3.14159265;
+    }
+
+    powerBuffer[curElement] = power;
+
+    float oldPower = counters[0].totalPower;
+    float originalPower;
+    [allow_uav_condition]
+    while (true)
+    {
+        float newPower = oldPower + power;
+        InterlockedCompareExchangeFloatBitwise(counters[0].totalPower, oldPower, newPower, originalPower);
+        if (asuint(originalPower) == asuint(oldPower))
+        {
+            break;
+        }
+        oldPower = originalPower;
     }
 }

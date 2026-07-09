@@ -48,6 +48,7 @@ public:
     [[nodiscard]] DirectX::XMFLOAT4X4 GetTransform() const { return m_transform; }
 
     int32_t m_materialIndex = -1;
+    int32_t m_localMaterialIndex = -1;
     DirectX::XMFLOAT4X4 m_transform;
 
 private:

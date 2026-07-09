@@ -10,6 +10,7 @@
 #include <stb_image.h>
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
+#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -125,7 +126,7 @@ void Model::TraverseNode(ID3D12GraphicsCommandList4* commandList, const fastgltf
         {
 	        case fastgltf::LightType::Directional:
 	        {
-				light.directional.type = static_cast<uint32_t>(LightType::Directional);
+				light.setType(LightType::Directional);
 
 				XMVECTOR forward = XMVector3Normalize(worldTransform.r[2]);
 	            forward = XMVectorNegate(forward);
@@ -135,11 +136,11 @@ void Model::TraverseNode(ID3D12GraphicsCommandList4* commandList, const fastgltf
 				light.directional.direction = glm::normalize(light.directional.direction);
                 light.directional.angularSize = 0.053f * 0.01745329252f;
                 light.directional.color = glm::vec3{ rLight.color.x(), rLight.color.y(), rLight.color.z() } * rLight.intensity / 683.0f; // normalize brightness
-	            break;
+	        	break;
 	        }
 	        case fastgltf::LightType::Point:
 		    {
-                light.point.type = static_cast<uint32_t>(LightType::Point);
+                light.setType(LightType::Point);
 
 	            XMFLOAT3 pos;
 	            XMStoreFloat3(&pos, worldTransform.r[3]);
@@ -287,6 +288,7 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
 
 		Mesh mesh;
         mesh.m_materialIndex = static_cast<int32_t>(primitive.materialIndex.value_or(-1));
+        mesh.m_localMaterialIndex = mesh.m_materialIndex;
 
         XMStoreFloat4x4(&mesh.m_transform, transform);
 

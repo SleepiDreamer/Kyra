@@ -21,7 +21,7 @@ public:
 
 	bool LoadModel(const std::string& path);
 	void LoadHDRI(const std::string& path);
-	void AddLights(const std::vector<Light>& lights) const;
+	void AddLights(const std::vector<Light>& lights, ID3D12GraphicsCommandList4* commandList) const;
 
 	[[nodiscard]] const std::vector<Model>& GetModels() const { return m_models; }
 	[[nodiscard]] const TLAS& GetTLAS() const { return *m_tlas; }
