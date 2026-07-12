@@ -194,7 +194,8 @@ void LightManager::UploadPendingLights(ID3D12GraphicsCommandList4* commandList)
 		bindings.uavs[2] = m_powerBuffer->GetResource()->GetGPUVirtualAddress();
 		bindings.uavCount = 3;
 		bindings.rootConstants[0] = numNewLights;
-		bindings.rootConstantCount = 1;
+		bindings.rootConstants[1] = numNewLights;
+		bindings.rootConstantCount = 2;
 		bindings.threads.x = numNewLights;
 		m_parseLightsPass->Dispatch(commandList, bindings);
 

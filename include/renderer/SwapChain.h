@@ -16,8 +16,9 @@ public:
 	SwapChain(Window& window, RenderContext& context, Device& device);
 	~SwapChain();
 
+	[[nodiscard]] static float CheckRefreshRate();
 	[[nodiscard]] static bool CheckTearingSupport();
-	[[nodiscard]] bool CheckHDRSupport();
+	[[nodiscard]] bool CheckHDRSupport() const;
 
 	[[nodiscard]] UINT GetCurrentBackBufferIndex() const { return m_currentBackBufferIndex; }
 	[[nodiscard]] ID3D12Resource* GetCurrentBackBuffer() const { return m_backBuffers[m_currentBackBufferIndex].Get(); }
@@ -27,6 +28,7 @@ public:
 	[[nodiscard]] D3D12_RECT GetScissorRect() const { return m_scissorRect; }
 	[[nodiscard]] DXGI_FORMAT GetFormat() const { return m_format; }
 	[[nodiscard]] bool IsHDR() const { return m_useHdr; }
+	[[nodiscard]] float GetRefreshRate() const { return m_refreshRate; }
 
 	bool ToggleHDR();
 	void ToggleFullscreen();
@@ -50,6 +52,7 @@ private:
 	DXGI_FORMAT m_format = DXGI_FORMAT_R10G10B10A2_UNORM;
 	D3D12_RESOURCE_STATES m_currentState = D3D12_RESOURCE_STATE_COMMON;
 
+	float m_refreshRate = 0.0f;
 	bool m_useAdaptiveSync = false;
 	bool m_useVsync = false;
 	bool m_useHdr = false;

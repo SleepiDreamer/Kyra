@@ -109,7 +109,7 @@ bool Scene::LoadModel(const std::string& path)
 	m_context.commandQueue->ExecuteCommandList(commandList);
 	m_context.commandQueue->Flush();
 
-	//m_lightManager->DumpReadbacks();
+	m_lightManager->DumpReadbacks();
 	m_lightManager->UpdateAliasCounters(m_lightManager->GetNumLights(), m_lightManager->GetTotalPower());
 
 	auto time = std::chrono::steady_clock::now() - startTime;

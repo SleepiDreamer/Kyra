@@ -118,14 +118,14 @@ void ParseTriangles(uint3 dtid : SV_DispatchThreadID)
 [numthreads(32, 1, 1)]
 void ParseLights(uint3 dtid: SV_DispatchThreadID)
 {
-    // repurposed numTris
-    if (dtid.x > data.modelRow0.x) return;
+    if (dtid.x > data.modelRow0.x) return; // repurposed numTris
+    uint idx = uint(data.modelRow0.y) + dtid.x; // repurposed firstNewIdx
 
-    uint curElement;
-    InterlockedAdd(counters[0].numLights, 1, curElement);
+    uint counterAdd;
+    InterlockedAdd(counters[0].numLights, 1, counterAdd);
 
     // Read existing light entry instead of creating a new one
-    Light light = lights[curElement];
+    Light light = lights[idx];
     uint lightType = light.GetType();
 
     float power = 0.0;
@@ -138,7 +138,7 @@ void ParseLights(uint3 dtid: SV_DispatchThreadID)
         power = Grayscale(light.PointColor()) * 4.0 * 3.14159265;
     }
 
-    powerBuffer[curElement] = power;
+    powerBuffer[idx] = power;
 
     float oldPower = counters[0].totalPower;
     float originalPower;

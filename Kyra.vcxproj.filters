@@ -156,6 +156,9 @@
     <ClInclude Include="include\renderer\LightManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\renderer\FrameLimiter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\main.cpp">
@@ -293,6 +296,9 @@
     <ClCompile Include="source\renderer\LightManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="source\renderer\FrameLimiter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\raytracing.slang" />
@@ -321,7 +327,12 @@
     <None Include="shaders\copy_rt.slang" />
     <None Include="shaders\lights.slang" />
     <None Include="shaders\autofocus_pass.slang" />
-    <None Include="shaders\emissive_parse.slang" />
+    <None Include="shaders\emissive\emissive_common.slang" />
+    <None Include="shaders\emissive\emissive_parse.slang" />
+    <None Include="shaders\emissive\pack_pass.slang" />
+    <None Include="shaders\emissive\partition_pass.slang" />
+    <None Include="shaders\emissive\prefixsum_pass.slang" />
+    <None Include="shaders\emissive\split_pass.slang" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="external\glm\glm.natvis" />

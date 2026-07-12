@@ -10,6 +10,7 @@
 #include "StructuredBuffer.h"
 #include "TypedBuffer.h"
 #include "SwapChain.h"
+#include "FrameLimiter.h"
 #include "OutputTexture.h"
 #include "ShaderCompiler.h"
 #include "RootSignature.h"
@@ -58,9 +59,11 @@ Renderer::Renderer(Window& window, bool debug)
 	m_uploadContext = std::make_unique<UploadContext>(*m_allocator, device);
 	m_shaderCompiler = std::make_unique<ShaderCompiler>("shaders/");
 
-	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), m_samplerHeap.get(), m_uploadContext.get(), m_shaderCompiler.get() };
+	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), 
+				  m_samplerHeap.get(), m_uploadContext.get(), m_shaderCompiler.get() };
 
 	m_swapChain = std::make_unique<SwapChain>(window, m_context, *m_device);
+	m_frameLimiter = std::make_unique<FrameLimiter>(m_swapChain->GetRefreshRate() - 3);
 	m_imgui = std::make_unique<ImGuiWrapper>(window, m_context, m_swapChain->GetFormat(), NUM_FRAMES_IN_FLIGHT);
 
 	m_scene = std::make_unique<Scene>(m_context);
@@ -691,6 +694,7 @@ void Renderer::Render(const float deltaTime)
 
 		m_fenceValues[backBufferIndex] = m_commandQueue->ExecuteCommandList(commandList);
 		m_swapChain->Present();
+		m_frameLimiter->Wait();
 		m_commandQueue->WaitForFenceValue(m_fenceValues[m_swapChain->GetCurrentBackBufferIndex()]);
 		
 		if (camData.position != m_prevCamData.position || camData.forward != m_prevCamData.forward)
