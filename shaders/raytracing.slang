@@ -226,7 +226,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
             float2 rand = payload.rng.nextFloat2();
             float wn = renderData.totalPower / renderData.numLights;
 
-            uint i = min((uint)floor(rand.x * renderData.numLights), renderData.numLights - 1);
+            uint i = min(uint(floor(rand.x * renderData.numLights)), renderData.numLights - 1);
             lightIdx = (rand.y * wn < aliasTable[i].threshold) ? i : aliasTable[i].alias;
             pdf = powerBuffer[lightIdx] / renderData.totalPower;
         }

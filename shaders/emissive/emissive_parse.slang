@@ -121,8 +121,7 @@ void ParseLights(uint3 dtid: SV_DispatchThreadID)
     if (dtid.x > data.modelRow0.x) return; // repurposed numTris
     uint idx = uint(data.modelRow0.y) + dtid.x; // repurposed firstNewIdx
 
-    uint counterAdd;
-    InterlockedAdd(counters[0].numLights, 1, counterAdd);
+    if (dtid.x == 0) counters[0].numLights += uint(data.modelRow0.x);
 
     // Read existing light entry instead of creating a new one
     Light light = lights[idx];
