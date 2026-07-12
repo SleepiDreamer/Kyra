@@ -7,8 +7,9 @@ public:
 
     ~FrameLimiter();
 
-    void SetTargetFps(double fps);
+	[[nodiscard]] float GetTargetFps() const { return (m_frameTicks > 0.0) ? static_cast<float>(m_freq / m_frameTicks) : 0.0f; }
 
+    void SetTargetFps(double fps);
     void Wait();
 
 private:

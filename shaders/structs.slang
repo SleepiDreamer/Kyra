@@ -71,6 +71,7 @@ enum DLSSQuality
 
 public struct RenderSettings
 {
+    float frameLimit;
     public DebugMode debugMode;
     public uint bounces;
     public float compSlider;

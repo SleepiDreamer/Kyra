@@ -61,6 +61,7 @@ enum DLSSQuality
 
 struct RenderSettings
 {
+	float maxFPS = 0.0f;
 	DebugMode debugMode = None;
 	uint32_t bounces = 2;
 	float compSlider = 0.5f;
@@ -71,7 +72,7 @@ struct RenderSettings
 	BOOL denoising = true;
 	DLSSQuality dlssQuality = Balanced;
 };
-IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
+IMGUI_REFLECT(RenderSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
 
 enum class TonemapOperatorSDR
 {
