@@ -8,6 +8,8 @@
 
 #include <backends/imgui_impl_glfw.h>
 
+#include "NGXWrapper.h"
+
 Application::Application(const bool debugLayer, const std::vector<std::string>& inputPaths)
 {
 	m_window = std::make_unique<Window>(1920, 1080);
@@ -257,6 +259,14 @@ void Application::KeyCallback(GLFWwindow* window, int key, int scancode, int act
 	if (key == GLFW_KEY_U && action == GLFW_PRESS)
 	{
 		app->m_renderer->ToggleDenoising();
+	}
+	if (key == GLFW_KEY_F1 && action == GLFW_PRESS)
+	{
+		app->m_renderer->m_ngx->SetDLSSPreset(NVSDK_NGX_RayReconstruction_Hint_Render_Preset_E);
+	}
+	if (key == GLFW_KEY_F2 && action == GLFW_PRESS)
+	{
+		app->m_renderer->m_ngx->SetDLSSPreset(NVSDK_NGX_RayReconstruction_Hint_Render_Preset_F);
 	}
 }
 

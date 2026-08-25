@@ -48,6 +48,7 @@ public:
 	void ResetAccumulation() { m_resetAccumulation = true; }
 
 	RenderSettings m_renderSettings{};
+	std::unique_ptr<NGXWrapper> m_ngx = nullptr;
 
 private:
 	Window& m_window;
@@ -68,7 +69,6 @@ private:
 	std::unique_ptr<RootSignature> m_rootSignature;
 	std::unique_ptr<RTPipeline>	m_rtPipeline;
 	std::unique_ptr<ImGuiWrapper> m_imgui = nullptr;
-	std::unique_ptr<NGXWrapper> m_ngx = nullptr;
 	bool m_pendingResize = false;
 	bool m_showImgui = true;
 

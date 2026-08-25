@@ -232,6 +232,7 @@ void NGXWrapper::SetDLSSQuality(const DLSSQuality qualityMode)
 void NGXWrapper::SetDLSSPreset(const NVSDK_NGX_RayReconstruction_Hint_Render_Preset preset)
 {
     m_dlssPreset = preset;
+    Log::Info("Yup");
     CreateDLSSFeature();
 }
 
