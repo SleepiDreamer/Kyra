@@ -162,6 +162,12 @@ void Renderer::ToggleImGui()
 	m_showImgui = !m_showImgui;
 }
 
+void Renderer::ToggleDenoising()
+{
+	m_renderSettings.denoising = !m_renderSettings.denoising;
+	m_pendingResize = true;
+}
+
 void Renderer::LoadModel(const std::string& path)
 {
 	if (m_scene->LoadModel(path))

@@ -41,6 +41,7 @@ public:
 	void ToggleHDR();
 	void ToggleFullscreen();
 	void ToggleImGui();
+	void ToggleDenoising();
 	void LoadModel(const std::string& path);
 	void LoadHDRI(const std::string& path);
 	void Resize(int width, int height);

@@ -254,6 +254,10 @@ void Application::KeyCallback(GLFWwindow* window, int key, int scancode, int act
 	{
 		app->m_renderer->ToggleImGui();
 	}
+	if (key == GLFW_KEY_U && action == GLFW_PRESS)
+	{
+		app->m_renderer->ToggleDenoising();
+	}
 }
 
 void Application::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
