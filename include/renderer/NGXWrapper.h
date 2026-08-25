@@ -4,6 +4,7 @@
 #include <d3d12.h>
 #include <nvsdk_ngx.h>
 #include <nvsdk_ngx_defs.h>
+#include <nvsdk_ngx_defs_dlssd.h>
 #include <nvsdk_ngx_params.h>
 #include <glm/vec2.hpp>
 #include <string>
@@ -35,6 +36,7 @@ public:
 	glm::ivec2 Resize();
 
 	void SetDLSSQuality(DLSSQuality qualityMode);
+	void SetDLSSPreset(NVSDK_NGX_RayReconstruction_Hint_Render_Preset preset);
 
 	[[nodiscard]] bool IsDLSSSupported() const { return m_dlssSupported == 1; }
 	[[nodiscard]] DLSSQuality GetDLSSQuality() const;
@@ -55,5 +57,6 @@ private:
 	uint32_t m_renderHeight = 0;
 	int m_dlssSupported = -1;
 	NVSDK_NGX_PerfQuality_Value m_dlssQuality = NVSDK_NGX_PerfQuality_Value_Balanced;
+	NVSDK_NGX_RayReconstruction_Hint_Render_Preset m_dlssPreset = NVSDK_NGX_RayReconstruction_Hint_Render_Preset_Default;
 };
 

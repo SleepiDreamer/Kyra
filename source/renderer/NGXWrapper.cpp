@@ -113,10 +113,10 @@ void NGXWrapper::CreateDLSSFeature()
     dlssdCreateParams.InUseHWDepth = NVSDK_NGX_DLSS_Depth_Type_Linear;
     dlssdCreateParams.InDenoiseMode = NVSDK_NGX_DLSS_Denoise_Mode_DLUnified;
 
-    NVSDK_NGX_Parameter_SetUI(m_ngxParameters, NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Performance, NVSDK_NGX_RayReconstruction_Hint_Render_Preset_Default);
-    NVSDK_NGX_Parameter_SetUI(m_ngxParameters, NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Balanced, NVSDK_NGX_RayReconstruction_Hint_Render_Preset_Default);
-    NVSDK_NGX_Parameter_SetUI(m_ngxParameters, NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Quality, NVSDK_NGX_RayReconstruction_Hint_Render_Preset_Default);
-    NVSDK_NGX_Parameter_SetUI(m_ngxParameters, NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_DLAA, NVSDK_NGX_RayReconstruction_Hint_Render_Preset_Default);
+    NVSDK_NGX_Parameter_SetUI(m_ngxParameters, NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Performance, m_dlssPreset);
+    NVSDK_NGX_Parameter_SetUI(m_ngxParameters, NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Balanced, m_dlssPreset);
+    NVSDK_NGX_Parameter_SetUI(m_ngxParameters, NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_Quality, m_dlssPreset);
+    NVSDK_NGX_Parameter_SetUI(m_ngxParameters, NVSDK_NGX_Parameter_RayReconstruction_Hint_Render_Preset_DLAA, m_dlssPreset);
 
     auto commandList = m_context.commandQueue->GetCommandList();
     NVSDK_NGX_Result result = NGX_D3D12_CREATE_DLSSD_EXT(commandList.Get(), 1, 1, &m_dlssFeature, m_ngxParameters, &dlssdCreateParams);
@@ -227,6 +227,12 @@ void NGXWrapper::SetDLSSQuality(const DLSSQuality qualityMode)
 		break;
     }
     SetOptimalInputRes();
+}
+
+void NGXWrapper::SetDLSSPreset(const NVSDK_NGX_RayReconstruction_Hint_Render_Preset preset)
+{
+    m_dlssPreset = preset;
+    CreateDLSSFeature();
 }
 
 DLSSQuality NGXWrapper::GetDLSSQuality() const
