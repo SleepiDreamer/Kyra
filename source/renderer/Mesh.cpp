@@ -12,8 +12,8 @@ Mesh::~Mesh() = default;
 
 Mesh::Mesh(Mesh&& other) noexcept
 	: m_materialIndex(other.m_materialIndex), m_localMaterialIndex(other.m_localMaterialIndex), m_transform(other.m_transform),
-	  m_vertexBuffer(std::move(other.m_vertexBuffer)), m_indexBuffer(std::move(other.m_indexBuffer)), m_vertexCount(other.m_vertexCount),
-	  m_indexCount(other.m_indexCount), m_blas(std::move(other.m_blas))
+	  m_vertexBuffer(std::move(other.m_vertexBuffer)), m_indexBuffer(std::move(other.m_indexBuffer)), m_powerBuffer(std::move(other.m_powerBuffer)),
+	  m_vertexCount(other.m_vertexCount), m_indexCount(other.m_indexCount), m_blas(std::move(other.m_blas))
 {
 }
 
@@ -23,6 +23,7 @@ Mesh& Mesh::operator=(Mesh&& other) noexcept
 	{
 		m_vertexBuffer = std::move(other.m_vertexBuffer);
 		m_indexBuffer = std::move(other.m_indexBuffer);
+		m_powerBuffer = std::move(other.m_powerBuffer);
 		m_vertexCount = other.m_vertexCount;
 		m_indexCount = other.m_indexCount;
 		m_materialIndex = other.m_materialIndex;
@@ -46,6 +47,10 @@ void Mesh::Upload(RenderContext& context, const std::vector<Vertex>& vertices, c
 
 	m_indexBuffer = std::make_unique<TypedBuffer>(
 		context, m_indexCount, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, (name + "_IB").c_str());
+
+	m_powerBuffer = std::make_unique<TypedBuffer>(
+		context, m_indexCount, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, (name + " Emissive Power Buffer").c_str());
+	// This buffer is populated in LightManager::ParseEmissiveTris()
 
 	context.uploadContext->Upload(m_vertexBuffer->GetBuffer(), vertices.data(), verticesSize);
 	context.uploadContext->Upload(m_indexBuffer->GetBuffer(), indices.data(), indicesSize);
@@ -81,6 +86,11 @@ ID3D12Resource* Mesh::GetVertexBuffer() const
 ID3D12Resource* Mesh::GetIndexBuffer() const
 {
 	return m_indexBuffer->GetResource();
+}
+
+ID3D12Resource* Mesh::GetPowerBuffer() const
+{
+	return m_powerBuffer->GetResource();
 }
 
 D3D12_VERTEX_BUFFER_VIEW Mesh::GetVertexBufferView() const

@@ -91,7 +91,7 @@ bool Scene::LoadModel(const std::string& path)
 		m_lightManager->UploadPendingLights(commandList.Get());
 	}
 
-	m_lightManager->LoadEmissiveVertices(newModel, m_materialBuffer.get(), commandList.Get());
+	m_lightManager->ParseEmissiveTris(newModel, m_materialBuffer.get(), commandList.Get());
 
 	m_context.commandQueue->ExecuteCommandList(commandList);
 	m_context.commandQueue->Flush();
@@ -222,6 +222,7 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords()
 			HitGroupRecord record{};
 			record.vertexBuffer = mesh.GetVertexBuffer()->GetGPUVirtualAddress();
 			record.indexBuffer = mesh.GetIndexBuffer()->GetGPUVirtualAddress();
+			record.powerBuffer = mesh.GetPowerBuffer()->GetGPUVirtualAddress();
 			record.materialIndex = mesh.m_materialIndex >= 0 ? static_cast<uint32_t>(mesh.m_materialIndex) : 0;
 			if (mesh.m_localMaterialIndex >= 0 && mesh.m_localMaterialIndex < model.GetMaterials().size())
 			{

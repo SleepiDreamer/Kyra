@@ -16,7 +16,7 @@ public:
 	void AddLights(const std::vector<Light>& lights);
 	void CopyLightsToCPU(ID3D12GraphicsCommandList4* commandList);
 	void UploadPendingLights(ID3D12GraphicsCommandList4* commandList);
-	void LoadEmissiveVertices(Model& model, const StructuredBuffer* materialBuffer, ID3D12GraphicsCommandList4* commandList) const;
+	void ParseEmissiveTris(Model& model, const StructuredBuffer* materialBuffer, ID3D12GraphicsCommandList4* commandList) const;
 	void NumLightsCallback();
 	void BuildAliasTable(ID3D12GraphicsCommandList4* commandList);
 	void UpdateAliasCounters(uint32_t numLights, float totalPower) const;

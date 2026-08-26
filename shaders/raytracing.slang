@@ -28,6 +28,7 @@ ConstantBuffer<RenderData> renderData         : register(b1, space0);
 
 StructuredBuffer<Vertex> vertices             : register(t0, space1);
 StructuredBuffer<uint> indices                : register(t1, space1);
+StructuredBuffer<float> powers                : register(t2, space1);
 cbuffer HitGroupConstants                     : register(b0, space1)
 {
     uint materialIndex;

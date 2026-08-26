@@ -203,7 +203,7 @@ void LightManager::UploadPendingLights(ID3D12GraphicsCommandList4* commandList)
 	}
 }
 
-void LightManager::LoadEmissiveVertices(Model& model, const StructuredBuffer* materialBuffer, ID3D12GraphicsCommandList4* commandList) const
+void LightManager::ParseEmissiveTris(Model& model, const StructuredBuffer* materialBuffer, ID3D12GraphicsCommandList4* commandList) const
 {
 	PIXScopedEvent(commandList, 0x76b900, "Load Emissive Vertices");
 
@@ -229,7 +229,8 @@ void LightManager::LoadEmissiveVertices(Model& model, const StructuredBuffer* ma
 		bindings.uavs[0] = m_lightBuffer->GetResource()->GetGPUVirtualAddress();
 		bindings.uavs[1] = m_counters->GetResource()->GetGPUVirtualAddress();
 		bindings.uavs[2] = m_powerBuffer->GetResource()->GetGPUVirtualAddress();
-		bindings.uavCount = 3;
+		bindings.uavs[3] = mesh.GetPowerBuffer()->GetGPUVirtualAddress();
+		bindings.uavCount = 4;
 		bindings.rootConstants[0] = floatToUint(transform._11);
 		bindings.rootConstants[1] = floatToUint(transform._21);
 		bindings.rootConstants[2] = floatToUint(transform._31);

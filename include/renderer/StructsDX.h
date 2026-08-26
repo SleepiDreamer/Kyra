@@ -106,6 +106,7 @@ struct HitGroupRecord
 {
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBuffer;
 	D3D12_GPU_VIRTUAL_ADDRESS indexBuffer;
+	D3D12_GPU_VIRTUAL_ADDRESS powerBuffer;
 	uint32_t materialIndex;
 	uint32_t isAlphaTested;
 };

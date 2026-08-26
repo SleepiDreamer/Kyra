@@ -21,6 +21,7 @@ StructuredBuffer<Material> materials    : register(t2, space0);
 RWStructuredBuffer<Light> lights        : register(u0, space0);
 RWStructuredBuffer<Counters> counters   : register(u1, space0);
 RWStructuredBuffer<float> powerBuffer   : register(u2, space0);
+RWStructuredBuffer<float> meshPowerArray: register(u3, space0);
 
 ConstantBuffer<Data> data               : register(b0, space1);
 
@@ -81,6 +82,8 @@ void ParseTriangles(uint3 dtid : SV_DispatchThreadID)
     float area = length(cross(w1 - w0, w2 - w0)) * 0.5;
     power /= samples * samples;
     power *= area;
+
+    meshPowerArray[triIdx] = power;
 
     if (power > 0.0)
     {
