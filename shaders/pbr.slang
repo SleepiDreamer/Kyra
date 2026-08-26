@@ -160,6 +160,28 @@ public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 al
     //             = F * G(l)
 }
 
+public float PBRIndirectPdf(float3 n, float3 v, float3 l, float roughness, float metallic, float3 albedo)
+{
+    float NdotL = saturate(dot(n, l));
+    float NdotV = max(dot(n, v), 0.001);
+    if (NdotL <= 0.0) return 0.0;
+
+    float3 h = normalize(v + l);
+    float NdotH = saturate(dot(n, h));
+    float VdotH = saturate(dot(v, h));
+
+    float3 F0 = lerp(float3(0.04), albedo, metallic);
+    float3 F = Fresnel(F0, VdotH);
+    float specularChance = (F.r + F.g + F.b) / 3.0;
+
+    float D = GGXNormalDistribution(NdotH, roughness);
+    float G1_v = GGXSmithG(NdotV, roughness);
+    float p_spec = G1_v * D / (4.0 * NdotV); // GGX VNDF solid-angle PDF for l
+    float p_diff = NdotL / PI;
+
+    return specularChance * p_spec + (1.0 - specularChance) * p_diff;
+}
+
 public float3 PBRTransmission(inout RNG rng, float3 n, float3 g, float3 v, float3 albedo, float eta, float dist, out float3 l, out float3 offsetN)
 {
     float NdotV = dot(n, v);

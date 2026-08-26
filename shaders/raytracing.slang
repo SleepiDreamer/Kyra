@@ -46,6 +46,7 @@ void RayGen()
     payload.throughput = float3(1.0, 1.0, 1.0);
     payload.done = false;
     payload.depth = 0;
+    payload.bsdfPdf = -1.0;
     payload.rng = RNG.create(idx, uint(size.x), renderData.frame);
     uv += float2(renderData.camera.jitterX, renderData.camera.jitterY) / size;
     
@@ -184,8 +185,9 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float alpha = color.a;
     if (renderSettings.whiteAlbedo) albedo = float3(1);
     float3 emission = sampleOrDefault(material.emissiveIndex, sampler, uv, material.emissiveFactor);
-    float2 metallicRoughness = sampleOrDefault(material.metallicRoughnessIndex, sampler, uv, float3(1, material.roughnessFactor, material.metallicFactor)).gb;
-    float roughness = max(metallicRoughness.x * metallicRoughness.x, 0.0001);
+    float2 metallicRoughness = sampleOrDefault(material.metallicRoughnessIndex, sampler, uv, 
+                                               float3(1, material.roughnessFactor, material.metallicFactor)).gb;
+    float roughness = max(metallicRoughness.x * metallicRoughness.x, 0.00025);
     float metallic = metallicRoughness.y;
     bool isTransmission = material.flags & MAT_FLAG_TRANSMISSION;
 
@@ -204,33 +206,38 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
     }
 
-    if (left || payload.depth == 0)
-    { 
+    if (payload.depth == 0)
+    {
         payload.radiance += emission * renderSettings.lightIntensity * payload.throughput;
     }
-
-    // w_self = p_self / (p_bsdf + p_light)
-    // p_light(w) = (1/numLights) * p_area * dist^2 / abs(costheta_light)
+    else if (any(emission > 0.0))
+    {
+        bool prevNEEActive = payload.bsdfPdf >= 0.0
+                               && renderData.numLights > 0
+                               && renderData.totalPower > 0.0;
+        if (prevNEEActive)
+        {
+            float cosTheta_light = abs(dot(flatNormal, -WorldRayDirection()));
+            float t = RayTCurrent();
+            float p_light = Grayscale(emission) * t * t / (renderData.totalPower * max(cosTheta_light, 0.001));
+            float w_bsdf = payload.bsdfPdf / max(payload.bsdfPdf + p_light, 1e-7);
+            payload.radiance += emission * renderSettings.lightIntensity * payload.throughput * w_bsdf;
+        }
+        else
+        {
+            // previous bounce didn't have NEE, add emission at full weight.
+            payload.radiance += emission * renderSettings.lightIntensity * payload.throughput;
+        }
+    }
 
     // explicit lighting
     if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission)
     {
-        uint lightIdx;
-        float pdf;
-        if (left)
-        {
-            lightIdx = uint(payload.rng.nextFloat() * renderData.numLights);
-            pdf = 1.0 / renderData.numLights;
-        }
-        else
-        {
-            float2 rand = payload.rng.nextFloat2();
-            float wn = renderData.totalPower / renderData.numLights;
-
-            uint i = min(uint(floor(rand.x * renderData.numLights)), renderData.numLights - 1);
-            lightIdx = (rand.y * wn < aliasTable[i].threshold) ? i : aliasTable[i].alias;
-            pdf = powerBuffer[lightIdx] / renderData.totalPower;
-        }
+        float2 rand = payload.rng.nextFloat2();
+        float wn = renderData.totalPower / renderData.numLights;
+        uint i = min(uint(floor(rand.x * renderData.numLights)), renderData.numLights - 1);
+        uint lightIdx = (rand.y * wn < aliasTable[i].threshold) ? i : aliasTable[i].alias;
+        float pdf = powerBuffer[lightIdx] / renderData.totalPower;
 
         Light light = lights[lightIdx];
         uint lightType = light.GetType();
@@ -238,7 +245,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         float3 dirToLight;
         float dist;
 
-        if (lightType != LIGHT_TYPE_TRIANGLE || right)
+        if (lightType != LIGHT_TYPE_TRIANGLE)
         {
             if (lightType == LIGHT_TYPE_DIRECTIONAL)
             {
@@ -271,7 +278,18 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
                 if (!shadowPayload.inShadow)
                 {
                     float3 outgoing = radiance * PBRDirect(normal, dirToLight, -WorldRayDirection(), albedo, roughness, metallic);
-                    payload.radiance += outgoing * renderSettings.lightIntensity * payload.throughput / pdf;
+
+                    float w_nee = 1.0;
+                    if (lightType == LIGHT_TYPE_TRIANGLE)
+                    {
+                        float triArea          = 0.5 * length(cross(light.TriE1(), light.TriE2()));
+                        float cosTheta_light   = abs(dot(light.TriNormal(), -dirToLight));
+                        // Convert per-light selection probability to solid-angle PDF
+                        float p_light_solidangle = pdf * dist * dist / (triArea * max(cosTheta_light, 0.001));
+                        float p_bsdf = PBRIndirectPdf(normal, -WorldRayDirection(), dirToLight, roughness, metallic, albedo);
+                        w_nee = p_light_solidangle / max(p_light_solidangle + p_bsdf, 1e-7);
+                    }
+                    payload.radiance += outgoing * renderSettings.lightIntensity * payload.throughput / pdf * w_nee;
                 }
             }
         }
@@ -284,6 +302,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         payload.throughput *= PBRIndirect(payload.rng, normal, smoothNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
         payload.nextDirection = wo;
         payload.nextOrigin = OffsetRay(hitPoint, flatNormal);
+        payload.bsdfPdf = PBRIndirectPdf(normal, -WorldRayDirection(), wo, roughness, metallic, albedo);
     }
     else
     {
@@ -294,6 +313,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         payload.throughput *= PBRTransmission(payload.rng, normal, flatNormal, -WorldRayDirection(), albedo, eta, RayTCurrent(), wo, offsetN);
         payload.nextDirection = wo;
         payload.nextOrigin = OffsetRay(hitPoint, offsetN);
+        payload.bsdfPdf = -1.0;
     }
 
     if (payload.depth == 0)
