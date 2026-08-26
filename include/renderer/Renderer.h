@@ -11,6 +11,7 @@
 class Window;
 class Camera;
 class Device;
+class FrameLimiter;
 class CommandQueue;
 class SwapChain;
 class DescriptorHeap;
@@ -64,6 +65,7 @@ private:
 
 	uint64_t m_fenceValues[NUM_FRAMES_IN_FLIGHT] = {};
 	std::unique_ptr<SwapChain> m_swapChain = nullptr;
+	std::unique_ptr<FrameLimiter> m_frameLimiter = nullptr;
 	std::unique_ptr<ShaderCompiler> m_shaderCompiler;
 	std::unique_ptr<RootSignature> m_rootSignature;
 	std::unique_ptr<RTPipeline>	m_rtPipeline;

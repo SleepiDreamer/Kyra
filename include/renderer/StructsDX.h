@@ -30,6 +30,7 @@ struct RenderData
 	int32_t hdriIndex = -1;
 	uint32_t frame = 0;
 	uint32_t numLights = 0;
+	float totalPower = 0.0f;
 	float deltaTime = 0.0f;
 	bool hdrEnabled = false;
 };
@@ -60,6 +61,7 @@ enum DLSSQuality
 
 struct RenderSettings
 {
+	float maxFPS = 0.0f;
 	DebugMode debugMode = None;
 	uint32_t bounces = 2;
 	float compSlider = 0.5f;
@@ -70,7 +72,7 @@ struct RenderSettings
 	BOOL denoising = true;
 	DLSSQuality dlssQuality = Balanced;
 };
-IMGUI_REFLECT(RenderSettings, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
+IMGUI_REFLECT(RenderSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
 
 enum class TonemapOperatorSDR
 {
@@ -104,6 +106,7 @@ struct HitGroupRecord
 {
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBuffer;
 	D3D12_GPU_VIRTUAL_ADDRESS indexBuffer;
+	D3D12_GPU_VIRTUAL_ADDRESS powerBuffer;
 	uint32_t materialIndex;
 	uint32_t isAlphaTested;
 };

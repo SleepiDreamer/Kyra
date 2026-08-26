@@ -9,8 +9,8 @@
 using namespace Microsoft::WRL;
 
 ComputePass::ComputePass(RenderContext& context, const std::string& shaderPath,
-    const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler)
-    : m_context(context), m_entryPoint(entryPoint), m_customSampler(customSampler)
+    const std::string& entryPoint, std::string name, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler)
+    : m_name(std::move(name)), m_context(context), m_entryPoint(entryPoint), m_customSampler(customSampler)
 {
     m_shader = std::make_unique<Shader>(*m_context.shaderCompiler, shaderPath, std::vector<std::string>{ entryPoint }, false);
 
@@ -20,7 +20,7 @@ ComputePass::ComputePass(RenderContext& context, const std::string& shaderPath,
     }
     else
     {
-        Log::Critical("Failed to compile shader: {}", shaderPath);
+        Log::Critical("[{}] Failed to compile shader: {}", m_name, shaderPath);
     }
 
     BuildRootSignature();
@@ -90,7 +90,10 @@ void ComputePass::BuildRootSignature()
     if (FAILED(hr))
     {
         if (errorBlob)
-            std::cerr << static_cast<const char*>(errorBlob->GetBufferPointer()) << "\n";
+        {
+            const char* message = static_cast<const char*>(errorBlob->GetBufferPointer());
+            Log::Critical("{}", message);
+        }
         ThrowIfFailed(hr);
     }
 
@@ -131,6 +134,11 @@ void ComputePass::Dispatch(ID3D12GraphicsCommandList4* commandList, const Comput
         commandList->SetComputeRoot32BitConstants(CONSTANTS_OFFSET, bindings.rootConstantCount, bindings.rootConstants, 0);
     }
 
-    uint32_t groupsX = (bindings.threads + THREAD_GROUP_SIZE - 1) / THREAD_GROUP_SIZE;
-    commandList->Dispatch(groupsX, 1, 1);
+    uint32_t groupsX = (bindings.threads.x + bindings.threadGroupSize.x - 1) / bindings.threadGroupSize.x;
+	uint32_t groupsY = (bindings.threads.y + bindings.threadGroupSize.y - 1) / bindings.threadGroupSize.y;
+	uint32_t groupsZ = (bindings.threads.z + bindings.threadGroupSize.z - 1) / bindings.threadGroupSize.z;
+	if (groupsX == 0) Log::Error("[{}] Dispatch group count X is 0. Threads: {}, ThreadGroupSize: {}", m_name, bindings.threads.x, bindings.threadGroupSize.x);
+	if (groupsY == 0) Log::Error("[{}] Dispatch group count Y is 0. Threads: {}, ThreadGroupSize: {}", m_name, bindings.threads.y, bindings.threadGroupSize.y);
+	if (groupsZ == 0) Log::Error("[{}] Dispatch group count Z is 0. Threads: {}, ThreadGroupSize: {}", m_name, bindings.threads.z, bindings.threadGroupSize.z);
+    commandList->Dispatch(groupsX, groupsY, groupsZ);
 }

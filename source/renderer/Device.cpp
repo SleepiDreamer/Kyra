@@ -14,7 +14,6 @@ Device::Device(const int width, const int height, const bool debug)
     if (debug)
     {
         EnableDebugLayer();
-		Log::Info("Debug layer enabled!");
     }
 
 	CreateAdapter();
@@ -29,12 +28,18 @@ void Device::EnableDebugLayer()
     ComPtr<ID3D12Debug> debugInterface;
     ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugInterface)));
     debugInterface->EnableDebugLayer();
+    Log::Info("Debug layer enabled!");
 
 #if 0 // GPU-based validation
     ComPtr<ID3D12Debug1> debug1;
     if (SUCCEEDED(debugInterface.As(&debug1)))
     {
         debug1->SetEnableGPUBasedValidation(TRUE);
+		Log::Success("GPU-based validation enabled");
+    }
+    else
+    {
+        Log::Error("Failed to enable GPU-based validation");
     }
 #endif
 }
@@ -82,7 +87,7 @@ void Device::CreateDevice()
     ThrowIfFailed(m_device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &capabilities, sizeof(capabilities)));
 	if (capabilities.RaytracingTier < D3D12_RAYTRACING_TIER_1_0)
 	{
-        ThrowError("Raytracing not supported on this device!");
+        Log::Error("Raytracing not supported on this device");
 	}
 
 #ifdef _DEBUG // Enable debug messages, from https://www.3dgep.com/learning-directx-12-2/

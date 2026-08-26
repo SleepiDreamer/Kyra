@@ -10,6 +10,9 @@ public [raypayload] struct Payload
     public float3 nextOrigin : write(caller, closesthit) : read(caller);
     public float3 nextDirection : write(caller, closesthit) : read(caller);
     public RNG rng : write(caller, closesthit) : read(caller, closesthit);
+    // Solid-angle PDF of the BSDF sample that generated this ray.
+    // Negative sentinel (-1) means camera ray or transmission bounce — MIS not applicable.
+    public float bsdfPdf : write(caller, closesthit) : read(caller, closesthit);
 };
 
 public [raypayload] struct ShadowPayload
@@ -40,6 +43,7 @@ public struct RenderData
     public int hdriIndex;
     public uint frame;
     public uint numLights;
+    public float totalPower;
     public float deltaTime;
     public bool hdrEnabled;
 }
@@ -70,6 +74,7 @@ enum DLSSQuality
 
 public struct RenderSettings
 {
+    float frameLimit;
     public DebugMode debugMode;
     public uint bounces;
     public float compSlider;

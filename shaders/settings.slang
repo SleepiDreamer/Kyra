@@ -7,7 +7,7 @@ public static const float FAR_PLANE = 100.0;
 
 public export static const bool SER = true;
 
-public export static const bool USE_RUSSIAN_ROULETTE = false;
+public export static const bool USE_RUSSIAN_ROULETTE = true;
 public export static const uint RUSSIAN_ROULETTE_START_BOUNCE = 0;
 
 public export static const bool DEPTH_OF_FIELD = true;

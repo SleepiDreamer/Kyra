@@ -10,6 +10,7 @@
 #include "StructuredBuffer.h"
 #include "TypedBuffer.h"
 #include "SwapChain.h"
+#include "FrameLimiter.h"
 #include "OutputTexture.h"
 #include "ShaderCompiler.h"
 #include "RootSignature.h"
@@ -58,9 +59,12 @@ Renderer::Renderer(Window& window, bool debug)
 	m_uploadContext = std::make_unique<UploadContext>(*m_allocator, device);
 	m_shaderCompiler = std::make_unique<ShaderCompiler>("shaders/");
 
-	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), m_samplerHeap.get(), m_uploadContext.get(), m_shaderCompiler.get() };
+	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), 
+				  m_samplerHeap.get(), m_uploadContext.get(), m_shaderCompiler.get() };
 
 	m_swapChain = std::make_unique<SwapChain>(window, m_context, *m_device);
+	m_frameLimiter = std::make_unique<FrameLimiter>(m_swapChain->GetRefreshRate() - 3);
+	m_renderSettings.maxFPS = m_frameLimiter->GetTargetFps();
 	m_imgui = std::make_unique<ImGuiWrapper>(window, m_context, m_swapChain->GetFormat(), NUM_FRAMES_IN_FLIGHT);
 
 	m_scene = std::make_unique<Scene>(m_context);
@@ -98,6 +102,8 @@ Renderer::Renderer(Window& window, bool debug)
 	m_rootSignature->AddRootSRV(0, 0, "sceneBVH");			 // t0:0 TLAS
 	m_rootSignature->AddRootSRV(1, 0, "materials");			 // t1:0 materials
 	m_rootSignature->AddRootSRV(2, 0, "lights");			 // t2:0 lights
+	m_rootSignature->AddRootSRV(3, 0, "powerBuffer");		 // t3:0 alias table
+	m_rootSignature->AddRootSRV(4, 0, "aliasTable");		 // t4:0 alias table
 	m_rootSignature->AddRootCBV(0, 0, "renderSettings");	 // b0:0 render settings
 	m_rootSignature->AddRootCBV(1, 0, "renderData");		 // b1:0 render data
 	m_rootSignature->AddRootCBV(2, 0, "postProcessSettings");// b2:0 post processing settings
@@ -283,6 +289,7 @@ void Renderer::Render(const float deltaTime)
 	m_renderData.camera = camData;
 	m_renderData.hdriIndex = m_scene->GetHDRIDescriptorIndex();
 	m_renderData.numLights = m_scene->GetNumLights();
+	m_renderData.totalPower = m_scene->GetTotalLightPower();
 	m_renderData.deltaTime = deltaTime;
 	m_renderData.hdrEnabled = m_swapChain->IsHDR();
 	glm::vec2 jitter = m_ngx->GetJitter(static_cast<int>(m_renderData.frame));
@@ -317,7 +324,9 @@ void Renderer::Render(const float deltaTime)
 
 			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetTLASAddress(),							 "sceneBVH");
 			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(),				 "materials");
-			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightBufferAddress(), "lights");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightBufferAddress(),					 "lights");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetPowerBufferAddress(),					 "powerBuffer");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightAliasTableBufferAddress(),			 "aliasTable");
 
 			auto dispatchDesc = m_rtPipeline->GetDispatchRaysDesc();
 			dispatchDesc.Width = m_renderSettings.denoising ? renderSize.x : windowSize.x;
@@ -617,6 +626,10 @@ void Renderer::Render(const float deltaTime)
 			auto responseRender = ImReflect::Input("Render Settings", m_renderSettings, config);
 			auto responsePost = ImReflect::Input("Post Process Settings", m_postProcessSettings, config);
 			if (responseRender.get<RenderSettings>().is_changed()) { ResetAccumulation(); }
+			if (responseRender.get_member<&RenderSettings::maxFPS>().is_changed())
+			{
+				m_frameLimiter->SetTargetFps(m_renderSettings.maxFPS);
+			}
 			if (responseRender.get_member<&RenderSettings::denoising>().is_changed())
 			{
 				m_pendingResize = true;
@@ -692,6 +705,7 @@ void Renderer::Render(const float deltaTime)
 
 		m_fenceValues[backBufferIndex] = m_commandQueue->ExecuteCommandList(commandList);
 		m_swapChain->Present();
+		m_frameLimiter->Wait();
 		m_commandQueue->WaitForFenceValue(m_fenceValues[m_swapChain->GetCurrentBackBufferIndex()]);
 		
 		if (camData.position != m_prevCamData.position || camData.forward != m_prevCamData.forward)

@@ -1,4 +1,5 @@
 #include "Scene.h"
+
 #include "Model.h"
 #include "Mesh.h"
 #include "TLAS.h"
@@ -13,8 +14,6 @@
 #include "Log.h"
 
 #include <stb_image.h>
-
-#include "PostProcessPass.h"
 
 Scene::Scene(RenderContext& context)
 	: m_context(context)
@@ -63,6 +62,8 @@ bool Scene::LoadModel(const std::string& path)
 	m_context.commandQueue->Flush();
 
 	commandList = m_context.commandQueue->GetCommandList();
+	ID3D12DescriptorHeap* heap = { m_context.descriptorHeap->GetHeap() };
+	commandList->SetDescriptorHeaps(1, &heap);
 
 	auto& newModel = m_models.back();
 	for (auto& tex : newModel.GetTextures())
@@ -80,14 +81,36 @@ bool Scene::LoadModel(const std::string& path)
 		}
 	}
 	m_materialIdxOffset += static_cast<uint32_t>(newModel.GetMaterials().size());
-	AddLights(newModel.GetLights());
 
-	m_lightManager->LoadEmissiveVertices(newModel, m_materialBuffer.get(), commandList.Get());
+	uint32_t numLightsBefore = m_lightManager->GetNumLights();
+
+	if (!newModel.GetLights().empty())
+	{
+		AddLights(newModel.GetLights(), commandList.Get());
+		m_lightManager->CopyLightsToCPU(commandList.Get());
+		m_lightManager->UploadPendingLights(commandList.Get());
+	}
+
+	m_lightManager->ParseEmissiveTris(newModel, m_materialBuffer.get(), commandList.Get());
 
 	m_context.commandQueue->ExecuteCommandList(commandList);
 	m_context.commandQueue->Flush();
 
-	m_lightManager->ReadCounterCallback();
+	commandList = m_context.commandQueue->GetCommandList();
+	commandList->SetDescriptorHeaps(1, &heap);
+
+	m_lightManager->NumLightsCallback();
+
+	if (m_lightManager->GetNumLights() > numLightsBefore)
+	{
+		m_lightManager->BuildAliasTable(commandList.Get());
+	}
+
+	m_context.commandQueue->ExecuteCommandList(commandList);
+	m_context.commandQueue->Flush();
+
+	//m_lightManager->DumpReadbacks();
+	m_lightManager->UpdateAliasCounters(m_lightManager->GetNumLights(), m_lightManager->GetTotalPower());
 
 	auto time = std::chrono::steady_clock::now() - startTime;
 	Log::Success("Loaded model: {}. Took {:.2f} s.", path, std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0);
@@ -137,7 +160,7 @@ void Scene::LoadHDRI(const std::string& path)
 	Log::Success("Loaded HDRI: {}. Took {:.2f} s.", path, std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0);
 }
 
-void Scene::AddLights(const std::vector<Light>& lights) const
+void Scene::AddLights(const std::vector<Light>& lights, ID3D12GraphicsCommandList4* commandList) const
 {
 	m_lightManager->AddLights(lights);
 }
@@ -199,12 +222,11 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords()
 			HitGroupRecord record{};
 			record.vertexBuffer = mesh.GetVertexBuffer()->GetGPUVirtualAddress();
 			record.indexBuffer = mesh.GetIndexBuffer()->GetGPUVirtualAddress();
-			record.materialIndex = mesh.m_materialIndex >= 0
-				? static_cast<uint32_t>(mesh.m_materialIndex) 
-				: 0;
-			if (mesh.m_materialIndex >= 0 && mesh.m_materialIndex < model.GetMaterials().size())
+			record.powerBuffer = mesh.GetPowerBuffer()->GetGPUVirtualAddress();
+			record.materialIndex = mesh.m_materialIndex >= 0 ? static_cast<uint32_t>(mesh.m_materialIndex) : 0;
+			if (mesh.m_localMaterialIndex >= 0 && mesh.m_localMaterialIndex < model.GetMaterials().size())
 			{
-				record.isAlphaTested = model.GetMaterials()[mesh.m_materialIndex].flags & MAT_FLAG_TRANSPARENT ? 1 : 0;
+				record.isAlphaTested = model.GetMaterials()[mesh.m_localMaterialIndex].flags & MAT_FLAG_TRANSPARENT ? 1 : 0;
 			}
 			records.push_back(record);
 		}

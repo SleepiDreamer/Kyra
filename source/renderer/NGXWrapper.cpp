@@ -41,14 +41,14 @@ void NGXWrapper::Initialize()
 
     if (result != NVSDK_NGX_Result_Success)
     {
-        ThrowError("Failed to initialize DLSS!");
+        Log::Error("Failed to initialize DLSS!");
     }
 
     result = NVSDK_NGX_D3D12_GetCapabilityParameters(&m_ngxParameters);
     if (NVSDK_NGX_FAILED(result))
     {
-		ThrowError("GetCapabilityParameters failed: " + std::to_string(result));
-        ThrowError("Failed to get DLSS capability parameters!");
+        Log::Error("GetCapabilityParameters failed: {}", std::to_string(result));
+        Log::Error("Failed to get DLSS capability parameters!");
         return;
     }
 
@@ -61,11 +61,11 @@ void NGXWrapper::Initialize()
 
         if (needsUpdatedDriver)
         {
-	        ThrowError("DLSS-RR requires a newer NVIDIA driver!");
+	        Log::Error("DLSS-RR requires a newer NVIDIA driver!");
         }
         else
         {
-	        ThrowError("DLSS-RR not supported (unsupported GPU or missing nvngx_dlss.dll)");
+            Log::Error("DLSS-RR not supported (unsupported GPU or missing nvngx_dlss.dll)");
         }
 
         m_dlssSupported = false;

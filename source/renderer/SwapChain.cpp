@@ -19,6 +19,7 @@ SwapChain::SwapChain(Window& window, RenderContext& context, Device& device)
 	m_viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(window.GetWidth()), static_cast<float>(window.GetHeight()));
 	m_scissorRect = CD3DX12_RECT(0, 0, window.GetWidth(), window.GetHeight());
 
+	m_refreshRate = CheckRefreshRate();
 	m_useAdaptiveSync = CheckTearingSupport();
 	m_useVsync = !m_useAdaptiveSync;
 	m_useHdr = CheckHDRSupport();
@@ -91,6 +92,11 @@ SwapChain::SwapChain(Window& window, RenderContext& context, Device& device)
 
 SwapChain::~SwapChain() = default;
 
+float SwapChain::CheckRefreshRate()
+{
+	return static_cast<float>(glfwGetVideoMode(glfwGetPrimaryMonitor())->refreshRate);
+}
+
 bool SwapChain::CheckTearingSupport()
 {
 	BOOL tearingSupported = FALSE;
@@ -107,7 +113,7 @@ bool SwapChain::CheckTearingSupport()
 	return tearingSupported == TRUE;
 }
 
-bool SwapChain::CheckHDRSupport()
+bool SwapChain::CheckHDRSupport() const
 {
 	auto factory = m_device.GetFactory();
 	auto adapter = m_device.GetAdapter();

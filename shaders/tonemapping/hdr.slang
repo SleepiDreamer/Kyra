@@ -100,7 +100,7 @@ public float3 TonemapHDRCustom(float3 luminance, float maxNits)
     float3 nits = wcg * maxNits;
 
     float maxComponent = max(nits.x, max(nits.y, nits.z));
-    float saturation = HighlightDesaturation(maxComponent, maxNits, 1.2, 0.8, 0.01);
+    float saturation = HighlightDesaturation(maxComponent, maxNits, 1.3, 0.8, 0.01);
     nits = Saturation(nits, saturation);
 
     float contrast = 2.0;
