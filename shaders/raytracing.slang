@@ -152,8 +152,8 @@ void RayGen()
         if (payload.sharcCacheable)
         {
             SharcHitData sharcHitData;
-            sharcHitData.positionWorld = payload.nextOrigin; // the hit point, offset along the normal by ~1e-4 of a voxel
-            sharcHitData.normalWorld = payload.sharcNormal;
+            sharcHitData.positionWorld = payload.nextOrigin;        // exact hit point, same one the query looks up
+            sharcHitData.normalWorld = payload.nextOffsetNormal;    // geometric normal at that hit
 
             // returns false when the cache already holds a converged estimate for this vertex, which
             // has been propagated to the previous vertices, so there is nothing left to trace
@@ -210,7 +210,7 @@ void RayGen()
             }
         }
 
-        ray.Origin = payload.nextOrigin;
+        ray.Origin = OffsetRay(payload.nextOrigin, payload.nextOffsetNormal);
         ray.Direction = payload.nextDirection;
         payload.depth++;
     }
@@ -452,7 +452,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         bsdfWeight = PBRIndirect(payload.rng, normal, smoothNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
         payload.throughput *= bsdfWeight;
         payload.nextDirection = wo;
-        payload.nextOrigin = OffsetRay(hitPoint, flatNormal);
+        payload.nextOrigin = hitPoint;
+        payload.nextOffsetNormal = flatNormal;
         payload.bsdfPdf = PBRIndirectPdf(normal, -WorldRayDirection(), wo, roughness, metallic, albedo);
     }
     else
@@ -464,14 +465,14 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         bsdfWeight = PBRTransmission(payload.rng, normal, flatNormal, -WorldRayDirection(), albedo, eta, RayTCurrent(), wo, offsetN);
         payload.throughput *= bsdfWeight;
         payload.nextDirection = wo;
-        payload.nextOrigin = OffsetRay(hitPoint, offsetN);
+        payload.nextOrigin = hitPoint;
+        payload.nextOffsetNormal = offsetN;
         payload.bsdfPdf = -1.0;
     }
 
 #if SHARC_UPDATE
     payload.sharcRadiance = localRadiance;
     payload.sharcWeight = bsdfWeight;
-    payload.sharcNormal = flatNormal;
     payload.sharcCacheable = sharcCacheable;
 #endif
 
