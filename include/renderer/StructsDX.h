@@ -73,7 +73,7 @@ struct RenderSettings
 	DLSSQuality dlssQuality = Balanced;
 	BOOL sharc = true;
 };
-IMGUI_REFLECT(RenderSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
+IMGUI_REFLECT(RenderSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality, sharc)
 
 enum class TonemapOperatorSDR
 {

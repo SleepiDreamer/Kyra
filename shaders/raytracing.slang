@@ -38,6 +38,14 @@ cbuffer HitGroupConstants                     : register(b0, space1)
 void RayGen()
 {
     uint2 idx = DispatchRaysIndex().xy;
+
+#if SHARC_UPDATE
+    if (idx.x % 5 != 0 || idx.y % 5 != 0)
+    {
+        return;
+    }
+#endif
+
     float2 size = DispatchRaysDimensions().xy;
     float2 uv = idx / size;
     
