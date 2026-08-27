@@ -381,7 +381,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     }
 
     // explicit lighting
-    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission && false)
+    if (renderData.numLights > 0 && renderSettings.lightIntensity > 0.0 && !isTransmission)
     {
         float2 rand = payload.rng.nextFloat2();
         float wn = renderData.totalPower / renderData.numLights;
@@ -395,52 +395,49 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         float3 dirToLight;
         float dist;
 
-        if (lightType != LIGHT_TYPE_TRIANGLE)
+        if (lightType == LIGHT_TYPE_DIRECTIONAL)
         {
-            if (lightType == LIGHT_TYPE_DIRECTIONAL)
-            {
-                radiance = light.SampleDirectionalLight(payload.rng.nextFloat2(), dist, dirToLight);
-            }
-            else if (lightType == LIGHT_TYPE_POINT)
-            {
-                radiance = light.SamplePointLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight);
-            }
-            else if (lightType == LIGHT_TYPE_TRIANGLE)
-            {
-                Material triMaterial = materials[light.TriMatIdx()];
-                radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight, triMaterial);
-            }
+            radiance = light.SampleDirectionalLight(payload.rng.nextFloat2(), dist, dirToLight);
+        }
+        else if (lightType == LIGHT_TYPE_POINT)
+        {
+            radiance = light.SamplePointLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight);
+        }
+        else if (lightType == LIGHT_TYPE_TRIANGLE)
+        {
+            Material triMaterial = materials[light.TriMatIdx()];
+            radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight, triMaterial);
+        }
 
-            if (dot(dirToLight, normal) > 0.0)
+        if (dot(dirToLight, normal) > 0.0)
+        {
+            RayDesc shadowRay;
+            shadowRay.Origin = OffsetRay(hitPoint, flatNormal);
+            shadowRay.Direction = dirToLight;
+            shadowRay.TMin = 0.0;
+            shadowRay.TMax = dist - 0.001;
+
+            ShadowPayload shadowPayload;
+            shadowPayload.inShadow = true;
+
+            TraceRay(sceneBVH, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
+                     0xFF, 0, 1, 1, shadowRay, shadowPayload);
+
+            if (!shadowPayload.inShadow)
             {
-                RayDesc shadowRay;
-                shadowRay.Origin = OffsetRay(hitPoint, flatNormal);
-                shadowRay.Direction = dirToLight;
-                shadowRay.TMin = 0.0;
-                shadowRay.TMax = dist - 0.001;
+                float3 outgoing = radiance * PBRDirect(normal, dirToLight, -WorldRayDirection(), albedo, roughness, metallic);
 
-                ShadowPayload shadowPayload;
-                shadowPayload.inShadow = true;
-
-                TraceRay(sceneBVH, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
-                         0xFF, 0, 1, 1, shadowRay, shadowPayload);
-
-                if (!shadowPayload.inShadow)
+                float w_nee = 1.0;
+                if (lightType == LIGHT_TYPE_TRIANGLE)
                 {
-                    float3 outgoing = radiance * PBRDirect(normal, dirToLight, -WorldRayDirection(), albedo, roughness, metallic);
-
-                    float w_nee = 1.0;
-                    if (lightType == LIGHT_TYPE_TRIANGLE)
-                    {
-                        float triArea          = 0.5 * length(cross(light.TriE1(), light.TriE2()));
-                        float cosTheta_light   = abs(dot(light.TriNormal(), -dirToLight));
-                        // Convert light selection probability to solid-angle PDF
-                        float p_light_solidangle = pdf * dist * dist / (triArea * max(cosTheta_light, 0.001));
-                        float p_bsdf = PBRIndirectPdf(normal, -WorldRayDirection(), dirToLight, roughness, metallic, albedo);
-                        w_nee = p_light_solidangle / max(p_light_solidangle + p_bsdf, 1e-7);
-                    }
-                    localRadiance += outgoing * renderSettings.lightIntensity / pdf * w_nee;
+                    float triArea          = 0.5 * length(cross(light.TriE1(), light.TriE2()));
+                    float cosTheta_light   = abs(dot(light.TriNormal(), -dirToLight));
+                    // Convert light selection probability to solid-angle PDF
+                    float p_light_solidangle = pdf * dist * dist / (triArea * max(cosTheta_light, 0.001));
+                    float p_bsdf = PBRIndirectPdf(normal, -WorldRayDirection(), dirToLight, roughness, metallic, albedo);
+                    w_nee = p_light_solidangle / max(p_light_solidangle + p_bsdf, 1e-7);
                 }
+                localRadiance += outgoing * renderSettings.lightIntensity / pdf * w_nee;
             }
         }
     }
