@@ -71,6 +71,7 @@ struct RenderSettings
 	BOOL whiteLighting = false;
 	BOOL denoising = true;
 	DLSSQuality dlssQuality = Balanced;
+	BOOL sharc = true;
 };
 IMGUI_REFLECT(RenderSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
 

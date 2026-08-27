@@ -55,12 +55,13 @@ Renderer::Renderer(Window& window, bool debug)
 	m_commandQueue = std::make_unique<CommandQueue>(m_device->GetDevice(), "Main", D3D12_COMMAND_LIST_TYPE_DIRECT);
 	auto commandList = m_commandQueue->GetCommandList();
 	m_descriptorHeap = std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 524288, true, L"CBV SRV UAV Descriptor Heap");
+	m_cpuDescriptorHeap = std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 64, false, L"CPU SRV UAV Descriptor Heap (CPU)");
 	m_samplerHeap = std::make_unique<DescriptorHeap>(device, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, 256, true, L"Sampler Descriptor Heap");
 	m_allocator = std::make_unique<GPUAllocator>(device, m_device->GetAdapter());
 	m_uploadContext = std::make_unique<UploadContext>(*m_allocator, device);
 	m_shaderCompiler = std::make_unique<ShaderCompiler>("shaders/");
 
-	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), 
+	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), m_cpuDescriptorHeap.get(), 
 				  m_samplerHeap.get(), m_uploadContext.get(), m_shaderCompiler.get() };
 
 	m_swapChain = std::make_unique<SwapChain>(window, m_context, *m_device);
@@ -122,12 +123,12 @@ Renderer::Renderer(Window& window, bool debug)
 	m_sharcUpdatePipeline = std::make_unique<RTPipeline>(
 		m_context, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang", definesUpdate);
 
-	m_sharcRootSignature = std::make_unique<RootSignature>();
-	m_sharcRootSignature->AddRootCBV(0, 0, "renderData");
-	m_sharcRootSignature->AddRootUAV(0, 0, "hashEntries");
-	m_sharcRootSignature->AddRootUAV(1, 0, "accumulation");
-	m_sharcRootSignature->AddRootUAV(2, 0, "resolved");
-	m_sharcRootSignature->Build(device, L"SHaRC Root Signature");
+	//m_sharcRootSignature = std::make_unique<RootSignature>();
+	//m_sharcRootSignature->AddRootCBV(0, 0, "renderData");
+	//m_sharcRootSignature->AddRootUAV(0, 0, "hashEntries");
+	//m_sharcRootSignature->AddRootUAV(1, 0, "accumulation");
+	//m_sharcRootSignature->AddRootUAV(2, 0, "resolved");
+	//m_sharcRootSignature->Build(device, L"SHaRC Root Signature");
 
 	m_sharcResolvePass = std::make_unique<ComputePass>(m_context, "shaders/sharc/sharc_resolve.slang", "SharcResolve", "SHaRC Resolve Pass");
 
@@ -248,7 +249,7 @@ void Renderer::Resize(const int width, const int height)
 	}
 }
 
-void Renderer::ClearSharcBuffers(ID3D12GraphicsCommandList* commandList)
+void Renderer::ClearSharcBuffers(ID3D12GraphicsCommandList* commandList) const
 {
 	ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap() };
 	commandList->SetDescriptorHeaps(_countof(heaps), heaps);
@@ -348,6 +349,72 @@ void Renderer::Render(const float deltaTime)
 
 	// Record commands
 	{
+		// SHaRC update pass
+		{
+			PIXScopedEvent(commandList.Get(), 0x1f77b4, "SHaRC Update");
+
+			if (m_renderSettings.sharc)
+			{
+				commandList->SetPipelineState1(m_sharcUpdatePipeline->GetPSO());
+
+				m_rootSignature->SetDescriptorTable(commandList.Get(), m_rtOutputBuffer->GetUAV().gpuHandle, "rtOutputBuffer");
+				m_rootSignature->SetDescriptorTable(commandList.Get(), m_albedoBuffer->GetUAV().gpuHandle, "albedoBuffer");
+				m_rootSignature->SetDescriptorTable(commandList.Get(), m_specularAlbedoBuffer->GetUAV().gpuHandle, "specularAlbedoBuffer");
+				m_rootSignature->SetDescriptorTable(commandList.Get(), m_normalRoughnessBuffer->GetUAV().gpuHandle, "normalRoughnessBuffer");
+				m_rootSignature->SetDescriptorTable(commandList.Get(), m_motionVectorsBuffer->GetUAV().gpuHandle, "motionVectorsBuffer");
+				m_rootSignature->SetDescriptorTable(commandList.Get(), m_depthBuffer->GetUAV().gpuHandle, "depthBuffer");
+
+				m_rootSignature->SetRootCBV(commandList.Get(), m_renderSettingsCB->GetGPUAddress(backBufferIndex), "renderSettings");
+				m_rootSignature->SetRootCBV(commandList.Get(), m_renderDataCB->GetGPUAddress(backBufferIndex), "renderData");
+				m_rootSignature->SetRootCBV(commandList.Get(), m_postProcessSettingsCB->GetGPUAddress(backBufferIndex), "postProcessSettings");
+
+				m_rootSignature->SetRootUAV(commandList.Get(), m_sharcHashEntriesBuffer->GetResource()->GetGPUVirtualAddress(), "sharcHashEntries");
+				m_rootSignature->SetRootUAV(commandList.Get(), m_sharcAccumulationBuffer->GetResource()->GetGPUVirtualAddress(), "sharcAccumulation");
+				m_rootSignature->SetRootUAV(commandList.Get(), m_sharcResolvedBuffer->GetResource()->GetGPUVirtualAddress(), "sharcResolved");
+
+				m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetTLASAddress(), "sceneBVH");
+				m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(), "materials");
+
+				auto updateDesc = m_sharcUpdatePipeline->GetDispatchRaysDesc();
+				updateDesc.Width = windowSize.x;
+				updateDesc.Height = windowSize.y;
+				commandList->DispatchRays(&updateDesc);
+
+				D3D12_RESOURCE_BARRIER sharcBarriers[] = {
+					CD3DX12_RESOURCE_BARRIER::UAV(m_sharcHashEntriesBuffer->GetResource()),
+					CD3DX12_RESOURCE_BARRIER::UAV(m_sharcAccumulationBuffer->GetResource()),
+					CD3DX12_RESOURCE_BARRIER::UAV(m_sharcResolvedBuffer->GetResource()) };
+				commandList->ResourceBarrier(_countof(sharcBarriers), sharcBarriers);
+			}
+		}
+
+		// SHaRC resolve pass
+		{
+			PIXScopedEvent(commandList.Get(), 0x1f77b4, "SHaRC Resolve");
+
+			if (m_renderSettings.sharc)
+			{
+				ComputePass::ComputeBindings bindings;
+				bindings.uavs[0] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+				bindings.uavs[1] = m_sharcHashEntriesBuffer->GetResource()->GetGPUVirtualAddress();
+				bindings.uavs[2] = m_sharcAccumulationBuffer->GetResource()->GetGPUVirtualAddress();
+				bindings.uavs[3] = m_sharcResolvedBuffer->GetResource()->GetGPUVirtualAddress();
+				bindings.uavCount = 4;
+				bindings.cbvs[0] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+				bindings.cbvCount = 1;
+				bindings.threads = glm::uvec3(1 << 22, 1, 1);
+				bindings.threadGroupSize = glm::uvec3(256, 1, 1);
+				m_sharcResolvePass->Dispatch(commandList.Get(), bindings);
+				commandList->SetComputeRootSignature(m_rootSignature->Get());
+
+				D3D12_RESOURCE_BARRIER sharcBarriers[] = {
+					CD3DX12_RESOURCE_BARRIER::UAV(m_sharcHashEntriesBuffer->GetResource()),
+					CD3DX12_RESOURCE_BARRIER::UAV(m_sharcAccumulationBuffer->GetResource()),
+					CD3DX12_RESOURCE_BARRIER::UAV(m_sharcResolvedBuffer->GetResource()) };
+				commandList->ResourceBarrier(_countof(sharcBarriers), sharcBarriers);
+			}
+		}
+
 		// Raytracing pass
 		{
 			PIXScopedEvent(commandList.Get(), 0xeb4034, "Raytracing");

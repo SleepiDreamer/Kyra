@@ -52,7 +52,7 @@ public:
 	RenderSettings m_renderSettings{};
 
 private:
-	void ClearSharcBuffers(ID3D12GraphicsCommandList* commandList);
+	void ClearSharcBuffers(ID3D12GraphicsCommandList* commandList) const;
 	
 	Window& m_window;
 	std::unique_ptr<Device> m_device = nullptr;
@@ -63,6 +63,7 @@ private:
 	std::unique_ptr<GPUAllocator> m_allocator = nullptr;
 	std::unique_ptr<CommandQueue> m_commandQueue = nullptr;
 	std::unique_ptr<DescriptorHeap> m_descriptorHeap = nullptr;
+	std::unique_ptr<DescriptorHeap> m_cpuDescriptorHeap = nullptr;
 	std::unique_ptr<DescriptorHeap> m_samplerHeap = nullptr;
 	std::unique_ptr<UploadContext> m_uploadContext = nullptr;
 
@@ -71,7 +72,7 @@ private:
 	std::unique_ptr<FrameLimiter> m_frameLimiter = nullptr;
 	std::unique_ptr<ShaderCompiler> m_shaderCompiler;
 	std::unique_ptr<RootSignature> m_rootSignature;
-	std::unique_ptr<RootSignature> m_sharcRootSignature;
+	//std::unique_ptr<RootSignature> m_sharcRootSignature;
 	std::unique_ptr<RTPipeline>	m_rtPipeline;
 	std::unique_ptr<RTPipeline>	m_sharcUpdatePipeline;
 	std::unique_ptr<ImGuiWrapper> m_imgui = nullptr;

@@ -84,6 +84,7 @@ public struct RenderSettings
     public bool whiteLighting;
     public bool denoising;
     DLSSQuality dlssQuality;
+    public bool sharc;
 };
 
 public enum class TonemapOperatorSDR

@@ -49,10 +49,13 @@ void StructuredBuffer::Init(const uint32_t elementCount)
 
     if (m_srv.cpuHandle.ptr == 0) m_srv = m_context.descriptorHeap->Allocate();
     if (m_uav.cpuHandle.ptr == 0) m_uav = m_context.descriptorHeap->Allocate();
-    if (m_supportClear) m_clearUav = m_context.cpuDescriptorHeap->Allocate();
-    if (m_supportClear) m_clearUavGpu = m_context.descriptorHeap->Allocate();
-    m_context.device->CreateShaderResourceView(m_buffer.resource, &srvDesc, m_srv.cpuHandle);
+    if (m_supportClear && m_clearUav.cpuHandle.ptr == 0) m_clearUav = m_context.cpuDescriptorHeap->Allocate();
+    if (m_supportClear && m_clearUavGpu.cpuHandle.ptr == 0) m_clearUavGpu = m_context.descriptorHeap->Allocate();
+    
+	m_context.device->CreateShaderResourceView(m_buffer.resource, &srvDesc, m_srv.cpuHandle);
     m_context.device->CreateUnorderedAccessView(m_buffer.resource, nullptr, &uavDesc, m_uav.cpuHandle);
+    if (m_supportClear) m_context.device->CreateUnorderedAccessView(m_buffer.resource, nullptr, &clearUavDesc, m_clearUav.cpuHandle);
+    if (m_supportClear) m_context.device->CreateUnorderedAccessView(m_buffer.resource, nullptr, &clearUavDesc, m_clearUavGpu.cpuHandle);
 }
 
 void StructuredBuffer::Update(const void* data, uint32_t elementCount)
