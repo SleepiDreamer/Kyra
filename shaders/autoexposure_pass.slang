@@ -23,7 +23,7 @@ void AutoExposure(uint3 dtid : SV_DispatchThreadID)
         for (int i = 0; i < AE_SAMPLES; i++) {
             float2 uv = float2((i + 0.5) / AE_SAMPLES, (j + 0.5) / AE_SAMPLES);
             float3 c = sanitize(inputTexture.SampleLevel(linearSampler, uv, 0).rgb);
-            totalLogLum += log(max(Grayscale(c), 0.001));
+            totalLogLum += log(max(Grayscale(c), 0.0005));
         }
     }
     

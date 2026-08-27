@@ -28,7 +28,7 @@ Shader::~Shader() = default;
 
 ShaderCompiler::CompilationResult Shader::Load()
 {
-    auto result = m_compiler.Compile(m_filePath, m_entryPoints, m_isRaytracing);
+    auto result = m_compiler.Compile(m_filePath, m_entryPoints, m_isRaytracing, m_defines);
 
 	m_lastCompileTime = std::filesystem::file_time_type::clock::now();
 

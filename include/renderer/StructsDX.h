@@ -48,6 +48,9 @@ enum DebugMode
 	Tangent,
 	Bitangent,
 	TangentW,
+	SharcRadiance,
+	SharcOccupancy,
+	SharcGrid,
 };
 
 enum DLSSQuality

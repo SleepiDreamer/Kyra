@@ -139,6 +139,11 @@ Renderer::Renderer(Window& window, bool debug)
 			m_context.commandQueue->Flush();
 			m_rtPipeline->Rebuild(m_context.device, m_scene->GetHitGroupRecords());
 		}
+		if (shader == m_sharcUpdatePipeline->GetShader())
+		{
+			m_context.commandQueue->Flush();
+			m_sharcUpdatePipeline->Rebuild(m_context.device, m_scene->GetHitGroupRecords());
+		}
 	});
 
 	// Post-process passes
@@ -209,8 +214,17 @@ void Renderer::LoadModel(const std::string& path)
 {
 	if (m_scene->LoadModel(path))
 	{
+		// Both pipelines trace against the same geometry, so both shader tables have to follow the scene.
+		// Leaving the SHaRC one behind makes every hit in the update pass fall through to the miss shader.
 		m_rtPipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
+		m_sharcUpdatePipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
 		ResetAccumulation();
+
+		// the new geometry invalidates whatever radiance the cache holds for those voxels
+		auto commandList = m_commandQueue->GetCommandList();
+		ClearSharcBuffers(commandList.Get());
+		m_commandQueue->ExecuteCommandList(commandList);
+		m_commandQueue->Flush();
 	}
 }
 
@@ -264,6 +278,9 @@ void Renderer::ClearSharcBuffers(ID3D12GraphicsCommandList* commandList) const
 		m_sharcResolvedBuffer->GetClearUAVGPU().gpuHandle, m_sharcResolvedBuffer->GetClearUAV().cpuHandle,
 		m_sharcResolvedBuffer->GetResource(), clearValue, 0, nullptr);
 }
+
+
+
 
 void Renderer::Render(const float deltaTime)
 {
@@ -379,6 +396,9 @@ void Renderer::Render(const float deltaTime)
 
 				m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetTLASAddress(), "sceneBVH");
 				m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(), "materials");
+				m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightBufferAddress(), "lights");
+				m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetPowerBufferAddress(), "powerBuffer");
+				m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightAliasTableBufferAddress(), "aliasTable");
 
 				auto updateDesc = m_sharcUpdatePipeline->GetDispatchRaysDesc();
 				updateDesc.Width = windowSize.x;
@@ -444,6 +464,10 @@ void Renderer::Render(const float deltaTime)
 			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightBufferAddress(),					"lights");
 			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetPowerBufferAddress(),					"powerBuffer");
 			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightAliasTableBufferAddress(),			"aliasTable");
+
+			m_rootSignature->SetRootUAV(commandList.Get(), m_sharcHashEntriesBuffer->GetResource()->GetGPUVirtualAddress(),	"sharcHashEntries");
+			m_rootSignature->SetRootUAV(commandList.Get(), m_sharcAccumulationBuffer->GetResource()->GetGPUVirtualAddress(), "sharcAccumulation");
+			m_rootSignature->SetRootUAV(commandList.Get(), m_sharcResolvedBuffer->GetResource()->GetGPUVirtualAddress(),		"sharcResolved");
 
 			auto dispatchDesc = m_rtPipeline->GetDispatchRaysDesc();
 			dispatchDesc.Width = m_renderSettings.denoising ? renderSize.x : windowSize.x;

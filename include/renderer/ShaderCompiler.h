@@ -21,7 +21,8 @@ public:
         std::string errorLog;
     };
 
-    CompilationResult Compile(const std::string& filePath, const std::vector<std::string>& entryPoints = {}, bool isRaytracing = true) const;
+    CompilationResult Compile(const std::string& filePath, const std::vector<std::string>& entryPoints = {}, bool isRaytracing = true,
+                              const std::vector<std::pair<std::string, std::string>>& defines = {}) const;
     ShaderCompiler(const ShaderCompiler&) = delete;
     ShaderCompiler& operator=(const ShaderCompiler&) = delete;
 

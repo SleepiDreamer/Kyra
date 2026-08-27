@@ -11,6 +11,18 @@ public [raypayload] struct Payload
     public float3 nextDirection : write(caller, closesthit) : read(caller);
     public RNG rng : write(caller, closesthit) : read(caller, closesthit);
     public float bsdfPdf : write(caller, closesthit) : read(caller, closesthit);
+    // SHaRC, only meaningful in the SHARC_UPDATE variant of raytracing.slang. The cache state itself lives in
+    // RayGen (a SharcState is far too large for a payload), so the hit shaders only report what an update needs.
+    // The hit position is not passed along: nextOrigin is the same point, moved by a tiny fraction of a voxel.
+    //
+    // Keep this struct 112 bytes (28 floats). At exactly 124 bytes (31 floats) the driver tested here
+    // (NVIDIA 32.0.16.1088, RTX 4070 SUPER) hangs the device inside CreateStateObject; 120 and 128 bytes are
+    // fine, so it is a size-specific driver bug, not a payload budget. MaxPayloadSizeInBytes in RTPipeline.cpp
+    // has to match whatever this adds up to.
+    public float3 sharcRadiance : write(caller, closesthit, miss) : read(caller);   // radiance emitted at this vertex, without the path throughput
+    public float3 sharcWeight : write(caller, closesthit) : read(caller);           // BSDF weight of the bounce leaving this vertex
+    public float3 sharcNormal : write(closesthit) : read(caller);                   // geometric normal, for the hash grid key
+    public bool sharcCacheable : write(caller, closesthit) : read(caller);          // false for a miss or a vertex that must stay out of the cache
 };
 
 public [raypayload] struct ShadowPayload
@@ -59,6 +71,9 @@ public enum DebugMode
     Tangent,
     Bitangent,
     TangentW,
+    SharcRadiance,      // radiance the cache holds at the first hit
+    SharcOccupancy,     // green where a query would hit the cache, red where it would miss
+    SharcGrid,          // hash grid voxel/level visualisation
 };
 
 enum DLSSQuality
