@@ -6,7 +6,7 @@ class StructuredBuffer
 {
 public:
 	StructuredBuffer(RenderContext& context, uint32_t elementCount, uint32_t stride, 
-		D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heapType, std::string name);
+		D3D12_RESOURCE_FLAGS flags, D3D12_HEAP_TYPE heapType, std::string name, bool supportClear = false);
 	~StructuredBuffer();
 	StructuredBuffer(const StructuredBuffer&) = delete;
 	StructuredBuffer& operator=(const StructuredBuffer&) = delete;
@@ -33,7 +33,9 @@ private:
 	Descriptor m_srv;
 	Descriptor m_uav;
 	Descriptor m_clearUav;
+	Descriptor m_clearUavGpu;
 
+	bool m_supportClear;
 	uint32_t m_elementCount = 0;
 	uint32_t m_stride = 0;
 	D3D12_RESOURCE_FLAGS m_flags;

@@ -5,8 +5,8 @@
 #include "Log.h"
 
 StructuredBuffer::StructuredBuffer(RenderContext& context, const uint32_t elementCount, const uint32_t stride,
-                                   const D3D12_RESOURCE_FLAGS flags, const D3D12_HEAP_TYPE heapType, std::string name)
-	: m_context(context), m_elementCount(elementCount), m_stride(stride), m_flags(flags), m_heapType(heapType), m_name(std::move(name))
+                                   const D3D12_RESOURCE_FLAGS flags, const D3D12_HEAP_TYPE heapType, std::string name, const bool supportClear)
+	: m_context(context), m_supportClear(supportClear), m_elementCount(elementCount), m_stride(stride), m_flags(flags), m_heapType(heapType), m_name(std::move(name))
 {
 	Init(m_elementCount);
 }
@@ -40,8 +40,17 @@ void StructuredBuffer::Init(const uint32_t elementCount)
     uavDesc.Buffer.NumElements = m_elementCount;
     uavDesc.Buffer.StructureByteStride = m_stride;
 
+    D3D12_UNORDERED_ACCESS_VIEW_DESC clearUavDesc{};
+    clearUavDesc.Format = DXGI_FORMAT_R32_UINT;
+    clearUavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    clearUavDesc.Buffer.FirstElement = 0;
+    clearUavDesc.Buffer.NumElements = m_elementCount * m_stride / sizeof(uint32_t);
+    clearUavDesc.Buffer.StructureByteStride = 0;
+
     if (m_srv.cpuHandle.ptr == 0) m_srv = m_context.descriptorHeap->Allocate();
     if (m_uav.cpuHandle.ptr == 0) m_uav = m_context.descriptorHeap->Allocate();
+    if (m_supportClear) m_clearUav = m_context.cpuDescriptorHeap->Allocate();
+    if (m_supportClear) m_clearUavGpu = m_context.descriptorHeap->Allocate();
     m_context.device->CreateShaderResourceView(m_buffer.resource, &srvDesc, m_srv.cpuHandle);
     m_context.device->CreateUnorderedAccessView(m_buffer.resource, nullptr, &uavDesc, m_uav.cpuHandle);
 }
