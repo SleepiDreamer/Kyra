@@ -86,21 +86,19 @@ public float3 BeersLaw(float3 absorption, float distance)
     return exp(-absorption * distance * BEER_ABSORPTION);
 }
 
+public float SpecularSelectionProb(float3 n, float3 v, float3 albedo, float metallic)
+{
+    float NdotV = saturate(dot(n, v));
+    float3 F = Fresnel(lerp(0.04, albedo, metallic), NdotV);
+    float3 kd = (1.0 - F) * (1.0 - metallic) * albedo;
+    float spec = Grayscale(F);
+    float diff = Grayscale(kd);
+    return clamp(spec / max(spec + diff, 1e-4), 0.05, 0.95);
+}
+
 public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 albedo, float roughness, float metallic, out float3 l)
 {
-    float3 F0 = lerp(0.04, albedo, metallic);
-    float3 diffuseColor = (1.0 - metallic) * albedo;
-
-    float3 h = GetGGXMicrofacet(rng, roughness, n, v);
-    float VdotH = dot(v, h);
-    if (VdotH < 0.0)
-    {
-        l = float3(0);
-        return 0.0;
-    }
-
-    float3 F = Fresnel(F0, VdotH);
-    float specularChance = (F.r + F.g + F.b) / 3.0;
+    float specularChance = SpecularSelectionProb(n, v, albedo, metallic);
 
     if (rng.nextFloat() < specularChance)
     {
@@ -123,41 +121,24 @@ public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 al
 
         return F2 * G1_l / specularChance;
 #else
+        // Specular
+        float3 h = GetGGXMicrofacet(rng, roughness, n, v);
+        if (dot(v, h) <= 0.0) { l = float3(0); return 0.0; }
         l = reflect(-v, h);
-
-        if (dot(n, l) <= 0.0 || dot(g, l) <= 0.0)
-        {
-            l = float3(0);
-            return 0.0;
-        }
-
-        float NdotL = saturate(dot(n, l));
-        float G1_l = GGXSmithG(NdotL, roughness);
-
-        return F * G1_l / specularChance;
 #endif
     }
     else
     {
         // Diffuse
         l = tangentToWorld(sampleCosineHemisphere(rng.nextFloat2()), n);
-
-        if (dot(l, g) < 0.0)
-            l = reflect(l, g);
-
-        if (dot(g, n) * dot(g, l) < 0.0)
-            return 0.0;
-
-        float3 transmitted = (1.0 - F) * diffuseColor;
-        return transmitted / (1.0 - specularChance);
     }
 
-    // BRDF: D * G * F / (4 * NdotL * NdotV)
-    // PDF:  G(v) * D * VdotH / (NdtoV * 4 * VdotH)
-    //     = G(v) * D / (4 * NdotV)
-    //
-    // Contribution: BRDF * NdotL / PDF
-    //             = F * G(l)
+    if (dot(n, l) <= 0.0 || dot(g, l) <= 0.0) { l = float3(0); return 0.0; }
+
+    float pdf = PBRIndirectPdf(n, v, l, roughness, metallic, albedo);
+    if (pdf <= 1e-9) { l = float3(0); return 0.0; }
+
+    return PBRDirect(n, l, v, albedo, roughness, metallic) / pdf;
 }
 
 public float PBRIndirectPdf(float3 n, float3 v, float3 l, float roughness, float metallic, float3 albedo)
@@ -168,11 +149,8 @@ public float PBRIndirectPdf(float3 n, float3 v, float3 l, float roughness, float
 
     float3 h = normalize(v + l);
     float NdotH = saturate(dot(n, h));
-    float VdotH = saturate(dot(v, h));
 
-    float3 F0 = lerp(float3(0.04), albedo, metallic);
-    float3 F = Fresnel(F0, VdotH);
-    float specularChance = (F.r + F.g + F.b) / 3.0;
+    float specularChance = SpecularSelectionProb(n, v, albedo, metallic);
 
     float D = GGXNormalDistribution(NdotH, roughness);
     float G1_v = GGXSmithG(NdotV, roughness);
@@ -224,7 +202,15 @@ public float3 PBRDirect(float3 n, float3 l, float3 v, float3 albedo, float rough
 
     float3 F = Fresnel(F0, LdotH);
 
-    float3 diffuse = (1.0 - F) * diffuseColor / PI;
+    // The diffuse lobe may only carry the energy the specular lobe did not reflect.
+    // Using (1 - F(LdotH)) here is wrong: it is a per-light-direction Fresnel that stays
+    // near (1 - F0) over most of the hemisphere, so at grazing angles the specular lobe
+    // reflects ~70% of the incoming energy while diffuse still passes ~95% of the albedo
+    // through - a directional albedo of up to 1.44 on smooth dielectrics. Weight by the
+    // specular lobe's actual directional albedo instead so the two lobes share one budget.
+    float3 kd = 1.0 - EnvBRDFApprox2(F0, roughness, NdotV);
+
+    float3 diffuse = kd * diffuseColor / PI;
 
     float D = GGXNormalDistribution(NdotH, roughness);
     float G = GGXSmithG(NdotL, roughness) * GGXSmithG(NdotV, roughness);
