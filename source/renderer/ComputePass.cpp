@@ -9,10 +9,11 @@
 using namespace Microsoft::WRL;
 
 ComputePass::ComputePass(RenderContext& context, const std::string& shaderPath,
-    const std::string& entryPoint, std::string name, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler)
+    const std::string& entryPoint, std::string name, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler, 
+    const std::vector<std::pair<std::string, std::string>>& defines)
     : m_name(std::move(name)), m_context(context), m_entryPoint(entryPoint), m_customSampler(customSampler)
 {
-    m_shader = std::make_unique<Shader>(*m_context.shaderCompiler, shaderPath, std::vector<std::string>{ entryPoint }, false);
+    m_shader = std::make_unique<Shader>(*m_context.shaderCompiler, shaderPath, std::vector<std::string>{ entryPoint }, defines, false);
 
     if (m_shader->IsValid())
     {

@@ -12,7 +12,8 @@ PostProcessPass::PostProcessPass(RenderContext& context, const std::string& shad
 								 const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler)
     : m_context(context), m_entryPoint(entryPoint), m_customSampler(customSampler)
 {
-    m_shader = std::make_unique<Shader>(*m_context.shaderCompiler, shaderPath, std::vector<std::string>{ entryPoint }, false);
+    std::vector<std::pair<std::string, std::string>> defines {};
+    m_shader = std::make_unique<Shader>(*m_context.shaderCompiler, shaderPath, std::vector<std::string>{ entryPoint }, defines, false);
 
     if (m_shader->IsValid())
     {

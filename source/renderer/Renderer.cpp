@@ -165,11 +165,11 @@ Renderer::Renderer(Window& window, bool debug)
 
 	constexpr uint32_t SHARC_CAPACITY = 1 << 22;
 	m_sharcHashEntriesBuffer = std::make_unique<StructuredBuffer>(
-		m_context, SHARC_CAPACITY, sizeof(uint64_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Hash Entries");
+		m_context, SHARC_CAPACITY, sizeof(uint64_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Hash Entries", true);
 	m_sharcAccumulationBuffer = std::make_unique<StructuredBuffer>(
-		m_context, SHARC_CAPACITY, sizeof(uint32_t) * 4, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Accumulation");
+		m_context, SHARC_CAPACITY, sizeof(uint32_t) * 4, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Accumulation", true);
 	m_sharcResolvedBuffer = std::make_unique<StructuredBuffer>(
-		m_context, SHARC_CAPACITY, sizeof(uint32_t) * 4, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Resolved");
+		m_context, SHARC_CAPACITY, sizeof(uint32_t) * 4, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Resolved", true);
 
 	ClearSharcBuffers(commandList.Get());
 
@@ -353,6 +353,11 @@ void Renderer::Render(const float deltaTime)
 		{
 			PIXScopedEvent(commandList.Get(), 0x1f77b4, "SHaRC Update");
 
+			ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap(), m_samplerHeap->GetHeap() };
+			commandList->SetDescriptorHeaps(_countof(heaps), heaps);
+			commandList->SetComputeRootSignature(m_rootSignature->Get());
+			commandList->SetPipelineState1(m_rtPipeline->GetPSO());
+
 			if (m_renderSettings.sharc)
 			{
 				commandList->SetPipelineState1(m_sharcUpdatePipeline->GetPSO());
@@ -395,11 +400,10 @@ void Renderer::Render(const float deltaTime)
 			if (m_renderSettings.sharc)
 			{
 				ComputePass::ComputeBindings bindings;
-				bindings.uavs[0] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-				bindings.uavs[1] = m_sharcHashEntriesBuffer->GetResource()->GetGPUVirtualAddress();
-				bindings.uavs[2] = m_sharcAccumulationBuffer->GetResource()->GetGPUVirtualAddress();
-				bindings.uavs[3] = m_sharcResolvedBuffer->GetResource()->GetGPUVirtualAddress();
-				bindings.uavCount = 4;
+				bindings.uavs[0] = m_sharcHashEntriesBuffer->GetResource()->GetGPUVirtualAddress();
+				bindings.uavs[1] = m_sharcAccumulationBuffer->GetResource()->GetGPUVirtualAddress();
+				bindings.uavs[2] = m_sharcResolvedBuffer->GetResource()->GetGPUVirtualAddress();
+				bindings.uavCount = 3;
 				bindings.cbvs[0] = m_renderDataCB->GetGPUAddress(backBufferIndex);
 				bindings.cbvCount = 1;
 				bindings.threads = glm::uvec3(1 << 22, 1, 1);

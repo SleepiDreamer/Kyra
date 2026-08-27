@@ -13,7 +13,8 @@ class ComputePass
 public:
     ComputePass(RenderContext& context, const std::string& shaderPath, 
         const std::string& entryPoint, std::string name, 
-        const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler = std::nullopt);
+        const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler = std::nullopt,
+        const std::vector<std::pair<std::string, std::string>>& defines = {});
     ~ComputePass();
     ComputePass(const ComputePass&) = delete;
     ComputePass& operator=(const ComputePass&) = delete;
