@@ -11,11 +11,12 @@
 
 using namespace Microsoft::WRL;
 
-RTPipeline::RTPipeline(RenderContext& context, ID3D12RootSignature* rootSignature, ShaderCompiler& compiler, const std::vector<HitGroupRecord>& records, const std::string& shaderPath)
+RTPipeline::RTPipeline(RenderContext& context, ID3D12RootSignature* rootSignature, ShaderCompiler& compiler, 
+					   const std::vector<HitGroupRecord>& records, const std::string& shaderPath, const std::vector<std::pair<std::string, std::string>>& defines)
 	: m_context(context), m_rootSignature(rootSignature)
 {
 	std::vector<std::string> entryPoints = {};
-    m_shader = std::make_unique<Shader>(compiler, shaderPath, entryPoints, true);
+    m_shader = std::make_unique<Shader>(compiler, shaderPath, entryPoints, defines, true);
     if (m_shader->IsValid())
     {
         Log::Info("Compiled shader: {}", shaderPath);

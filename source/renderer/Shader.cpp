@@ -5,8 +5,9 @@
 
 #include <iostream>
 
-Shader::Shader(ShaderCompiler& compiler, std::string filePath, const std::vector<std::string>& entryPoints, const bool isRaytracing)
-	: m_compiler(compiler), m_filePath(std::move(filePath)), m_entryPoints(entryPoints), m_isRaytracing(isRaytracing)
+Shader::Shader(ShaderCompiler& compiler, std::string filePath, const std::vector<std::string>& entryPoints, 
+			   const std::vector<std::pair<std::string, std::string>>& defines, const bool isRaytracing)
+	: m_compiler(compiler), m_filePath(std::move(filePath)), m_entryPoints(entryPoints), m_defines(defines), m_isRaytracing(isRaytracing)
 {
     if (!std::filesystem::exists(m_filePath))
     {

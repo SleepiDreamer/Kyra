@@ -9,7 +9,8 @@ struct HitGroupRecord;
 class RTPipeline
 {
 public:
-    RTPipeline(RenderContext& context, ID3D12RootSignature* rootSignature, ShaderCompiler& compiler, const std::vector<HitGroupRecord>& records, const std::string& shaderPath);
+    RTPipeline(RenderContext& context, ID3D12RootSignature* rootSignature, ShaderCompiler& compiler, 
+			   const std::vector<HitGroupRecord>& records, const std::string& shaderPath, const std::vector<std::pair<std::string, std::string>>& defines);
     ~RTPipeline();
 
     void Rebuild(ID3D12Device10* device, const std::vector<HitGroupRecord>& records);

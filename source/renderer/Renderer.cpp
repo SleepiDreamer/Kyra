@@ -15,6 +15,7 @@
 #include "ShaderCompiler.h"
 #include "RootSignature.h"
 #include "RTPipeline.h"
+#include "ComputePass.h"
 #include "PostProcessPass.h"
 #include "ImGuiWrapper.h"
 #include "NGXWrapper.h"
@@ -69,7 +70,6 @@ Renderer::Renderer(Window& window, bool debug)
 
 	m_scene = std::make_unique<Scene>(m_context);
 
-
 	m_ngx = std::make_unique<NGXWrapper>(m_context, window);
 	m_ngx->Initialize();
 
@@ -107,10 +107,30 @@ Renderer::Renderer(Window& window, bool debug)
 	m_rootSignature->AddRootCBV(0, 0, "renderSettings");	 // b0:0 render settings
 	m_rootSignature->AddRootCBV(1, 0, "renderData");		 // b1:0 render data
 	m_rootSignature->AddRootCBV(2, 0, "postProcessSettings");// b2:0 post processing settings
+	m_rootSignature->AddRootUAV(0, 6, "sharcHashEntries");	 // u0:6 SHaRC hash entries
+	m_rootSignature->AddRootUAV(1, 6, "sharcAccumulation");	 // u1:6 SHaRC accumulation buffer
+	m_rootSignature->AddRootUAV(2, 6, "sharcResolved");		 // u2:6 SHaRC resolved buffer
 	m_rootSignature->AddStaticSampler(0);					 // s0:0 linear sampler
 	m_rootSignature->Build(device, L"RT Root Signature");
 
-	m_rtPipeline = std::make_unique<RTPipeline>(m_context, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang");
+	std::vector<std::pair<std::string, std::string>> defines =
+	{ {"SHARC_UPDATE", "0"}, {"SHARC_QUERY", "1"}, { "SHARC_ENABLE_64_BIT_ATOMICS", "1" }, { "SHARC_ENABLE_GLSL", "0" } };
+	std::vector<std::pair<std::string, std::string>> definesUpdate =
+	{ {"SHARC_UPDATE", "1"}, {"SHARC_QUERY", "0"}, { "SHARC_ENABLE_64_BIT_ATOMICS", "1" }, { "SHARC_ENABLE_GLSL", "0" } };
+	m_rtPipeline = std::make_unique<RTPipeline>(
+		m_context, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang", defines);
+	m_sharcUpdatePipeline = std::make_unique<RTPipeline>(
+		m_context, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang", definesUpdate);
+
+	m_sharcRootSignature = std::make_unique<RootSignature>();
+	m_sharcRootSignature->AddRootCBV(0, 0, "renderData");
+	m_sharcRootSignature->AddRootUAV(0, 0, "hashEntries");
+	m_sharcRootSignature->AddRootUAV(1, 0, "accumulation");
+	m_sharcRootSignature->AddRootUAV(2, 0, "resolved");
+	m_sharcRootSignature->Build(device, L"SHaRC Root Signature");
+
+	m_sharcResolvePass = std::make_unique<ComputePass>(m_context, "shaders/sharc/sharc_resolve.slang", "SharcResolve", "SHaRC Resolve Pass");
+
 	m_shaderCompiler->ShaderRecompileCallback([this](const Shader* shader)
 	{
 		if (shader == m_rtPipeline->GetShader())
@@ -141,6 +161,16 @@ Renderer::Renderer(Window& window, bool debug)
 	m_renderSettingsCB = std::make_unique<CBVBuffer<RenderSettings>>(*m_allocator, "Render Settings CB");
 	m_renderDataCB = std::make_unique<CBVBuffer<RenderData>>(*m_allocator, "Render Data CB");
 	m_postProcessSettingsCB = std::make_unique<CBVBuffer<PostProcessSettings>>(*m_allocator, "Post Process Settings CB");
+
+	constexpr uint32_t SHARC_CAPACITY = 1 << 22;
+	m_sharcHashEntriesBuffer = std::make_unique<StructuredBuffer>(
+		m_context, SHARC_CAPACITY, sizeof(uint64_t), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Hash Entries");
+	m_sharcAccumulationBuffer = std::make_unique<StructuredBuffer>(
+		m_context, SHARC_CAPACITY, sizeof(uint32_t) * 4, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Accumulation");
+	m_sharcResolvedBuffer = std::make_unique<StructuredBuffer>(
+		m_context, SHARC_CAPACITY, sizeof(uint32_t) * 4, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "SHaRC Resolved");
+
+	ClearSharcBuffers(commandList.Get());
 
 	m_commandQueue->ExecuteCommandList(commandList);
 	m_commandQueue->Flush();
@@ -216,6 +246,22 @@ void Renderer::Resize(const int width, const int height)
 	{
 		m_bloomBuffers[i]->Resize(device, width >> (i + 1), height >> (i + 1));
 	}
+}
+
+void Renderer::ClearSharcBuffers(ID3D12GraphicsCommandList* commandList)
+{
+	ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap() };
+	commandList->SetDescriptorHeaps(_countof(heaps), heaps);
+	constexpr UINT clearValue[4] = { 0, 0, 0, 0 };
+	commandList->ClearUnorderedAccessViewUint(
+		m_sharcHashEntriesBuffer->GetClearUAVGPU().gpuHandle, m_sharcHashEntriesBuffer->GetClearUAV().cpuHandle,
+		m_sharcHashEntriesBuffer->GetResource(), clearValue, 0, nullptr);
+	commandList->ClearUnorderedAccessViewUint(
+		m_sharcAccumulationBuffer->GetClearUAVGPU().gpuHandle, m_sharcAccumulationBuffer->GetClearUAV().cpuHandle,
+		m_sharcAccumulationBuffer->GetResource(), clearValue, 0, nullptr);
+	commandList->ClearUnorderedAccessViewUint(
+		m_sharcResolvedBuffer->GetClearUAVGPU().gpuHandle, m_sharcResolvedBuffer->GetClearUAV().cpuHandle,
+		m_sharcResolvedBuffer->GetResource(), clearValue, 0, nullptr);
 }
 
 void Renderer::Render(const float deltaTime)

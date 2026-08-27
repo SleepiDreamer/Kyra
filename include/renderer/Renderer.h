@@ -25,6 +25,7 @@ class ShaderCompiler;
 class RootSignature;
 class RTPipeline;
 class PostProcessPass;
+class ComputePass;
 class ImGuiWrapper;
 class NGXWrapper;
 class Scene;
@@ -51,6 +52,8 @@ public:
 	RenderSettings m_renderSettings{};
 
 private:
+	void ClearSharcBuffers(ID3D12GraphicsCommandList* commandList);
+	
 	Window& m_window;
 	std::unique_ptr<Device> m_device = nullptr;
 	std::shared_ptr<Camera> m_camera = nullptr;
@@ -68,7 +71,9 @@ private:
 	std::unique_ptr<FrameLimiter> m_frameLimiter = nullptr;
 	std::unique_ptr<ShaderCompiler> m_shaderCompiler;
 	std::unique_ptr<RootSignature> m_rootSignature;
+	std::unique_ptr<RootSignature> m_sharcRootSignature;
 	std::unique_ptr<RTPipeline>	m_rtPipeline;
+	std::unique_ptr<RTPipeline>	m_sharcUpdatePipeline;
 	std::unique_ptr<ImGuiWrapper> m_imgui = nullptr;
 	std::unique_ptr<NGXWrapper> m_ngx = nullptr;
 	bool m_pendingResize = false;
@@ -82,6 +87,11 @@ private:
 	std::unique_ptr<CBVBuffer<RenderData>> m_renderDataCB;
 	std::unique_ptr<CBVBuffer<PostProcessSettings>> m_postProcessSettingsCB;
 	float m_reloadTimer = 0.0f;
+
+	std::unique_ptr<ComputePass> m_sharcResolvePass;
+	std::unique_ptr<StructuredBuffer> m_sharcHashEntriesBuffer;
+	std::unique_ptr<StructuredBuffer> m_sharcAccumulationBuffer;
+	std::unique_ptr<StructuredBuffer> m_sharcResolvedBuffer;
 
 	std::unique_ptr<OutputBuffer> m_rtOutputBuffer;
 	std::unique_ptr<OutputBuffer> m_albedoBuffer;

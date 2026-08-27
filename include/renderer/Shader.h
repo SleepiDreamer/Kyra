@@ -12,7 +12,9 @@ class Shader
 {
 public:
     Shader(ShaderCompiler& compiler, std::string filePath, 
-		   const std::vector<std::string>& entryPoints, bool isRaytracing);
+		   const std::vector<std::string>& entryPoints, 
+		   const std::vector<std::pair<std::string, std::string>>& defines, 
+           bool isRaytracing);
     ~Shader();
 
     ShaderCompiler::CompilationResult Load();
@@ -30,6 +32,7 @@ private:
     ShaderCompiler& m_compiler;
     std::string m_filePath;
     std::vector<std::string> m_entryPoints;
+    std::vector<std::pair<std::string, std::string>> m_defines;
     std::vector<uint8_t> m_blob;
     bool m_isRaytracing;
 
