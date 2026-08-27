@@ -206,17 +206,12 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
     }
 
-    if (payload.depth == 0)
+    if (any(emission > 0.0))
     {
-        payload.radiance += emission * renderSettings.lightIntensity * payload.throughput;
-    }
-    else if (any(emission > 0.0))
-    {
-        bool prevNEEActive = payload.bsdfPdf >= 0.0
-                               && renderData.numLights > 0
-                               && renderData.totalPower > 0.0;
+        bool prevNEEActive = payload.bsdfPdf >= 0.0 && renderData.numLights > 0 && renderData.totalPower > 0.0;
         if (prevNEEActive)
         {
+            // add emission with MIS weight
             float cosTheta_light = abs(dot(flatNormal, -WorldRayDirection()));
             float t = RayTCurrent();
             float p_light = Grayscale(emission) * t * t / (renderData.totalPower * max(cosTheta_light, 0.001));
@@ -225,7 +220,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         }
         else
         {
-            // previous bounce didn't have NEE, add emission at full weight.
+            // previous bounce didn't have NEE, add emission at full weight
             payload.radiance += emission * renderSettings.lightIntensity * payload.throughput;
         }
     }
@@ -284,7 +279,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
                     {
                         float triArea          = 0.5 * length(cross(light.TriE1(), light.TriE2()));
                         float cosTheta_light   = abs(dot(light.TriNormal(), -dirToLight));
-                        // Convert per-light selection probability to solid-angle PDF
+                        // Convert light selection probability to solid-angle PDF
                         float p_light_solidangle = pdf * dist * dist / (triArea * max(cosTheta_light, 0.001));
                         float p_bsdf = PBRIndirectPdf(normal, -WorldRayDirection(), dirToLight, roughness, metallic, albedo);
                         w_nee = p_light_solidangle / max(p_light_solidangle + p_bsdf, 1e-7);
