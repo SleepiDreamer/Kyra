@@ -435,11 +435,11 @@ void Renderer::Render(const float deltaTime)
 			m_rootSignature->SetRootCBV(commandList.Get(), m_renderDataCB->GetGPUAddress(backBufferIndex),			"renderData");
 			m_rootSignature->SetRootCBV(commandList.Get(), m_postProcessSettingsCB->GetGPUAddress(backBufferIndex), "postProcessSettings");
 
-			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetTLASAddress(),							 "sceneBVH");
-			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(),				 "materials");
-			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightBufferAddress(),					 "lights");
-			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetPowerBufferAddress(),					 "powerBuffer");
-			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightAliasTableBufferAddress(),			 "aliasTable");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetTLASAddress(),							"sceneBVH");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetMaterialsBufferAddress(),				"materials");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightBufferAddress(),					"lights");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetPowerBufferAddress(),					"powerBuffer");
+			m_rootSignature->SetRootSRV(commandList.Get(), m_scene->GetLightAliasTableBufferAddress(),			"aliasTable");
 
 			auto dispatchDesc = m_rtPipeline->GetDispatchRaysDesc();
 			dispatchDesc.Width = m_renderSettings.denoising ? renderSize.x : windowSize.x;
