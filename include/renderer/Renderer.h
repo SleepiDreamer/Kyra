@@ -72,7 +72,6 @@ private:
 	std::unique_ptr<FrameLimiter> m_frameLimiter = nullptr;
 	std::unique_ptr<ShaderCompiler> m_shaderCompiler;
 	std::unique_ptr<RootSignature> m_rootSignature;
-	//std::unique_ptr<RootSignature> m_sharcRootSignature;
 	std::unique_ptr<RTPipeline>	m_rtPipeline;
 	std::unique_ptr<RTPipeline>	m_sharcUpdatePipeline;
 	std::unique_ptr<ImGuiWrapper> m_imgui = nullptr;

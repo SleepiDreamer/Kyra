@@ -29,21 +29,13 @@
 #include <iostream>
 #include <chrono>
 
-
 using namespace Microsoft::WRL;
 
 // TODO
 // Rendering:
-//   auto focus
-//   explicit lights
-//   Importance sampling
-//   Spherical caps VNDF
 //   DLSS specular MVs 
-//   SHaRC
 // Materials:
 //   Clearcoat
-// Tonemapping:
-//   HDR tonemapping
 // Performance:
 //   Normal packing
 
@@ -122,13 +114,6 @@ Renderer::Renderer(Window& window, bool debug)
 		m_context, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang", defines);
 	m_sharcUpdatePipeline = std::make_unique<RTPipeline>(
 		m_context, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang", definesUpdate);
-
-	//m_sharcRootSignature = std::make_unique<RootSignature>();
-	//m_sharcRootSignature->AddRootCBV(0, 0, "renderData");
-	//m_sharcRootSignature->AddRootUAV(0, 0, "hashEntries");
-	//m_sharcRootSignature->AddRootUAV(1, 0, "accumulation");
-	//m_sharcRootSignature->AddRootUAV(2, 0, "resolved");
-	//m_sharcRootSignature->Build(device, L"SHaRC Root Signature");
 
 	m_sharcResolvePass = std::make_unique<ComputePass>(m_context, "shaders/sharc/sharc_resolve.slang", "SharcResolve", "SHaRC Resolve Pass");
 
@@ -214,13 +199,10 @@ void Renderer::LoadModel(const std::string& path)
 {
 	if (m_scene->LoadModel(path))
 	{
-		// Both pipelines trace against the same geometry, so both shader tables have to follow the scene.
-		// Leaving the SHaRC one behind makes every hit in the update pass fall through to the miss shader.
 		m_rtPipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
 		m_sharcUpdatePipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
 		ResetAccumulation();
 
-		// the new geometry invalidates whatever radiance the cache holds for those voxels
 		auto commandList = m_commandQueue->GetCommandList();
 		ClearSharcBuffers(commandList.Get());
 		m_commandQueue->ExecuteCommandList(commandList);
@@ -278,9 +260,6 @@ void Renderer::ClearSharcBuffers(ID3D12GraphicsCommandList* commandList) const
 		m_sharcResolvedBuffer->GetClearUAVGPU().gpuHandle, m_sharcResolvedBuffer->GetClearUAV().cpuHandle,
 		m_sharcResolvedBuffer->GetResource(), clearValue, 0, nullptr);
 }
-
-
-
 
 void Renderer::Render(const float deltaTime)
 {
