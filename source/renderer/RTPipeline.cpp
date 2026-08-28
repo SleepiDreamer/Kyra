@@ -75,7 +75,7 @@ void RTPipeline::CreatePSO(ID3D12Device10* device)
 
     auto shaderConfig = psoDesc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
     shaderConfig->Config(
-        sizeof(float) * 28, // max payload size, must match Payload in structs.slang
+        sizeof(float) * 28, // max payload size
         sizeof(float) * 2   // max attribute size
     );
 

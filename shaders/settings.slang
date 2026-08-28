@@ -15,15 +15,15 @@ public export static const bool DEPTH_OF_FIELD = true;
 public export static const float BEER_ABSORPTION = 0.5;
 
 // SHaRC
-public export static const uint SHARC_CAPACITY = 1 << 22;        // has to match SHARC_CAPACITY in Renderer.cpp
-public export static const float SHARC_SCENE_SCALE = 64.0;       // voxel size is roughly distance-to-camera / sceneScale, so this is scene dependent
-public export static const float SHARC_RADIANCE_SCALE = 1e3;     // quantization factor for the atomic radiance accumulation
-public export static const uint SHARC_ACCUMULATION_FRAMES = 32;  // temporal accumulation window of a cache entry
-public export static const uint SHARC_STALE_FRAMES = 64;         // frames without new samples before an entry is evicted
-public export static const uint SHARC_UPDATE_STRIDE = 5;         // one update ray per NxN pixel tile
-public export static const uint SHARC_UPDATE_RNG_OFFSET = 0x9E3779B9; // keeps update rays off the render pass' sample sequence
-public export static const uint SHARC_QUERY_MIN_DEPTH = 1;       // first bounce that is allowed to read from the cache
-public export static const float SHARC_MIN_ROUGHNESS = 0.0005;   // squared roughness, so this only excludes near-perfect mirrors
+public export static const uint SHARC_CAPACITY = 1 << 22;
+public export static const float SHARC_SCENE_SCALE = 64.0;
+public export static const float SHARC_RADIANCE_SCALE = 1e3;
+public export static const uint SHARC_ACCUMULATION_FRAMES = 32;
+public export static const uint SHARC_STALE_FRAMES = 64;
+public export static const uint SHARC_UPDATE_STRIDE = 5;
+public export static const uint SHARC_UPDATE_RNG_OFFSET = 0x9E3779B9;
+public export static const uint SHARC_QUERY_MIN_DEPTH = 1;
+public export static const float SHARC_MIN_ROUGHNESS = 0.0005;
 
 // Auto Exposure
 public export static const int AE_SAMPLES = 32;
