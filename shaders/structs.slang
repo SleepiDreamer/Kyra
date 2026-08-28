@@ -11,21 +11,10 @@ public [raypayload] struct Payload
     public float3 nextDirection : write(caller, closesthit) : read(caller);
     public RNG rng : write(caller, closesthit) : read(caller, closesthit);
     public float bsdfPdf : write(caller, closesthit) : read(caller, closesthit);
-    // SHaRC, only meaningful in the SHARC_UPDATE variant of raytracing.slang. The cache state itself lives in
-    // RayGen (a SharcState is far too large for a payload), so the hit shaders only report what an update needs.
-    // nextOrigin is the exact hit point and RayGen offsets it along nextOffsetNormal when it builds the next
-    // ray. The offset must not be baked in here: OffsetRay moves the point by 256 ULPs of the coordinate, which
-    // is unrelated to voxel size, and at fine grid levels that lands the update in a different voxel than the
-    // query reads - which is worse with axis aligned geometry, where faces sit exactly on voxel boundaries.
-    //
-    // Keep this struct 112 bytes (28 floats). At exactly 124 bytes (31 floats) the driver tested here
-    // (NVIDIA 32.0.16.1088, RTX 4070 SUPER) hangs the device inside CreateStateObject; 120 and 128 bytes are
-    // fine, so it is a size-specific driver bug, not a payload budget. MaxPayloadSizeInBytes in RTPipeline.cpp
-    // has to match whatever this adds up to.
-    public float3 sharcRadiance : write(caller, closesthit, miss) : read(caller);   // radiance emitted at this vertex, without the path throughput
-    public float3 sharcWeight : write(caller, closesthit) : read(caller);           // BSDF weight of the bounce leaving this vertex
-    public float3 nextOffsetNormal : write(closesthit) : read(caller);              // normal to push nextOrigin along; doubles as the hash grid normal
-    public bool sharcCacheable : write(caller, closesthit) : read(caller);          // false for a miss or a vertex that must stay out of the cache
+    public float3 sharcRadiance : write(caller, closesthit, miss) : read(caller);
+    public float3 sharcWeight : write(caller, closesthit) : read(caller);
+    public float3 nextOffsetNormal : write(closesthit) : read(caller); // doubles as hash grid normal
+    public bool sharcCacheable : write(caller, closesthit) : read(caller);
 };
 
 public [raypayload] struct ShadowPayload
@@ -74,9 +63,9 @@ public enum DebugMode
     Tangent,
     Bitangent,
     TangentW,
-    SharcRadiance,      // radiance the cache holds at the first hit
-    SharcOccupancy,     // green where a query would hit the cache, red where it would miss
-    SharcGrid,          // hash grid voxel/level visualisation
+    SharcRadiance,
+    SharcOccupancy,
+    SharcGrid,
 };
 
 enum DLSSQuality

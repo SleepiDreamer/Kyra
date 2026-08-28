@@ -40,8 +40,6 @@ cbuffer HitGroupConstants                     : register(b0, space1)
     uint materialIndex;
 };
 
-// Grid and buffer setup has to be identical here and in sharc_resolve.slang, otherwise the resolve pass
-// reads and writes different voxels than the update pass wrote
 SharcParameters GetSharcParameters()
 {
     SharcParameters sharcParameters;
@@ -68,7 +66,6 @@ void RayGen()
     uint2 idx = DispatchRaysIndex().xy;
 
 #if SHARC_UPDATE
-    // One update ray per SHARC_UPDATE_STRIDE^2 tile, anchored on the top left pixel of the tile
     if (idx.x % SHARC_UPDATE_STRIDE != 0 || idx.y % SHARC_UPDATE_STRIDE != 0)
     {
         return;
@@ -76,16 +73,13 @@ void RayGen()
 #endif
 
     float2 size = DispatchRaysDimensions().xy;
-
 #if SHARC_UPDATE
-    // Move the ray to a uniformly random pixel inside its own tile every frame, so the cache ends up
-    // fed by every pixel instead of the same 1/25th of them. The sample index is offset so an update
-    // ray and the primary ray that later lands on the same pixel don't draw the same numbers.
-    RNG updateRng = RNG.create(idx, uint(size.x), renderData.frame + SHARC_UPDATE_RNG_OFFSET);
-    uint2 tileJitter = min(uint2(updateRng.nextFloat2() * float(SHARC_UPDATE_STRIDE)), uint2(SHARC_UPDATE_STRIDE - 1));
+    RNG rng = RNG.create(idx, uint(size.x), renderData.frame + SHARC_UPDATE_RNG_OFFSET);
+    uint2 tileJitter = min(uint2(rng.nextFloat2() * float(SHARC_UPDATE_STRIDE)), uint2(SHARC_UPDATE_STRIDE - 1));
     idx = min(idx + tileJitter, uint2(size) - 1);
+#else
+    RNG rng = RNG.create(idx, uint(size.x), renderData.frame);
 #endif
-
     float2 uv = idx / size;
     
     Payload payload;
@@ -94,12 +88,7 @@ void RayGen()
     payload.done = false;
     payload.depth = 0;
     payload.bsdfPdf = -1.0;
-#if SHARC_UPDATE
-    payload.rng = updateRng; // carries on from the tile jitter draw, so no sample is reused
-#else
-    payload.rng = RNG.create(idx, uint(size.x), renderData.frame);
-#endif
-    // sub pixel jitter comes from the camera, the tile jitter above only picks whole pixels
+    payload.rng = rng;
     uv += float2(renderData.camera.jitterX, renderData.camera.jitterY) / size;
 
 #if SHARC_UPDATE
@@ -108,9 +97,9 @@ void RayGen()
     SharcInit(sharcState);
 #endif
 
-    Camera cam;
-    
     RayDesc ray;
+    Camera cam;
+
     if (DEPTH_OF_FIELD)
     {
         float3 origin;
@@ -134,7 +123,7 @@ void RayGen()
         payload.sharcCacheable = false;
 #endif
 
-        if (SER)
+        if (SER && SHARC_UPDATE)
         {
             HitObject hitObj = HitObject.TraceRay<Payload>(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
 
@@ -152,11 +141,9 @@ void RayGen()
         if (payload.sharcCacheable)
         {
             SharcHitData sharcHitData;
-            sharcHitData.positionWorld = payload.nextOrigin;        // exact hit point, same one the query looks up
-            sharcHitData.normalWorld = payload.nextOffsetNormal;    // geometric normal at that hit
+            sharcHitData.positionWorld = payload.nextOrigin;
+            sharcHitData.normalWorld = payload.nextOffsetNormal;
 
-            // returns false when the cache already holds a converged estimate for this vertex, which
-            // has been propagated to the previous vertices, so there is nothing left to trace
             if (!SharcUpdateHit(sharcParameters, sharcState, sharcHitData, payload.sharcRadiance, payload.rng.nextFloat()))
             {
                 payload.done = true;
@@ -164,7 +151,6 @@ void RayGen()
         }
         else
         {
-            // a miss, or a vertex that stays out of the cache: only propagate to the previous vertices
             SharcUpdateMiss(sharcParameters, sharcState, payload.sharcRadiance);
         }
 
@@ -174,7 +160,10 @@ void RayGen()
         }
 #endif
 
-        if (all(payload.throughput == 0.0)) payload.done = true;
+        if (all(payload.throughput == 0.0)) 
+        { 
+            payload.done = true;
+        }
 
         if (payload.done)
         {
@@ -182,7 +171,7 @@ void RayGen()
         }
 
         // from Nvidia's Zorah talk: https://www.youtube.com/watch?v=8AnVpcIczyk&t=1107s
-        if (USE_RUSSIAN_ROULETTE)
+        if (USE_RUSSIAN_ROULETTE && !renderSettings.sharc)
         {
             if (payload.depth >= RUSSIAN_ROULETTE_START_BOUNCE)
             {
@@ -203,7 +192,6 @@ void RayGen()
                 {
                     payload.throughput /= groupContinuationProb;
 #if SHARC_UPDATE
-                    // keep the cache sample weights in sync with the path throughput
                     SharcSetThroughput(sharcState, float3(1.0 / groupContinuationProb));
 #endif
                 }
@@ -287,11 +275,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float metallic = metallicRoughness.y;
     bool isTransmission = material.flags & MAT_FLAG_TRANSMISSION;
 
-    // A voxel stores a single outgoing radiance, so near specular and transmissive vertices would be
-    // cached (and read back) from the wrong direction and are kept out of the cache entirely
     bool sharcCacheable = !isTransmission && roughness > SHARC_MIN_ROUGHNESS;
 
-    // The update pass has to keep filling the cache while a debug mode is being viewed, so it ignores debugMode
 #if !SHARC_UPDATE
     switch (renderSettings.debugMode)
     {
@@ -313,7 +298,6 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
             sharcHitData.positionWorld = hitPoint;
             sharcHitData.normalWorld = flatNormal;
             float3 cachedRadiance = float3(0.0, 0.0, 0.0);
-            // debug = true ignores the sample count threshold, so a sparsely sampled voxel still shows up
             SharcGetCachedRadiance(GetSharcParameters(), sharcHitData, cachedRadiance, true);
             payload.radiance = cachedRadiance;
             return;
@@ -326,7 +310,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
             sharcHitData.normalWorld = flatNormal;
             float3 cachedRadiance = float3(0.0, 0.0, 0.0);
             bool cacheHit = SharcGetCachedRadiance(GetSharcParameters(), sharcHitData, cachedRadiance, false);
-            // green: query hits the cache, red: eligible but no entry yet,
+            // green: query hits the cache, red: eligible but no entry yet
             // blue: excluded as transmissive, yellow: excluded as too smooth
             if (isTransmission)            payload.radiance = float3(0.0, 0.0, 1.0);
             else if (!sharcCacheable)      payload.radiance = float3(1.0, 1.0, 0.0);
@@ -341,8 +325,6 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 #endif
 
 #if SHARC_QUERY
-    // The cached radiance already contains the emission, direct lighting and every further bounce at this
-    // vertex, so a hit ends the path here
     if (renderSettings.sharc && sharcCacheable && payload.depth >= SHARC_QUERY_MIN_DEPTH)
     {
         SharcHitData sharcHitData;
