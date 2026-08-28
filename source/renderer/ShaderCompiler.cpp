@@ -216,7 +216,8 @@ void ShaderCompiler::CheckDiagnostics(slang::IBlob* diagnosticsBlob, Compilation
     }
 }
 
-ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& filePath, const std::vector<std::string>& entryPoints, bool isRaytracing) const
+ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& filePath, const std::vector<std::string>& entryPoints, bool isRaytracing,
+                                                          const std::vector<std::pair<std::string, std::string>>& defines) const
 {
     CompilationResult result;
 
@@ -241,6 +242,15 @@ ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& fil
     sessionDesc.compilerOptionEntryCount = static_cast<uint32_t>(options.size());
     sessionDesc.targets = &targetDesc;
     sessionDesc.targetCount = 1;
+
+    std::vector<slang::PreprocessorMacroDesc> macros;
+    macros.reserve(defines.size());
+    for (const auto& [name, value] : defines)
+    {
+        macros.push_back({ name.c_str(), value.c_str() });
+    }
+    sessionDesc.preprocessorMacros = macros.data();
+    sessionDesc.preprocessorMacroCount = static_cast<SlangInt>(macros.size());
 
     std::string directory = std::filesystem::path(filePath).parent_path().string();
     const char* searchPaths[] = { directory.c_str(), m_includeDirectory.c_str() };

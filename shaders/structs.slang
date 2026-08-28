@@ -10,9 +10,11 @@ public [raypayload] struct Payload
     public float3 nextOrigin : write(caller, closesthit) : read(caller);
     public float3 nextDirection : write(caller, closesthit) : read(caller);
     public RNG rng : write(caller, closesthit) : read(caller, closesthit);
-    // Solid-angle PDF of the BSDF sample that generated this ray.
-    // Negative sentinel (-1) means camera ray or transmission bounce — MIS not applicable.
     public float bsdfPdf : write(caller, closesthit) : read(caller, closesthit);
+    public float3 sharcRadiance : write(caller, closesthit, miss) : read(caller);
+    public float3 sharcWeight : write(caller, closesthit) : read(caller);
+    public float3 nextOffsetNormal : write(closesthit) : read(caller); // doubles as hash grid normal
+    public bool sharcCacheable : write(caller, closesthit) : read(caller);
 };
 
 public [raypayload] struct ShadowPayload
@@ -61,6 +63,9 @@ public enum DebugMode
     Tangent,
     Bitangent,
     TangentW,
+    SharcRadiance,
+    SharcOccupancy,
+    SharcGrid,
 };
 
 enum DLSSQuality
@@ -84,6 +89,7 @@ public struct RenderSettings
     public bool whiteLighting;
     public bool denoising;
     DLSSQuality dlssQuality;
+    public bool sharc;
 };
 
 public enum class TonemapOperatorSDR

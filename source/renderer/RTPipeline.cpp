@@ -11,11 +11,12 @@
 
 using namespace Microsoft::WRL;
 
-RTPipeline::RTPipeline(RenderContext& context, ID3D12RootSignature* rootSignature, ShaderCompiler& compiler, const std::vector<HitGroupRecord>& records, const std::string& shaderPath)
+RTPipeline::RTPipeline(RenderContext& context, ID3D12RootSignature* rootSignature, ShaderCompiler& compiler, 
+					   const std::vector<HitGroupRecord>& records, const std::string& shaderPath, const std::vector<std::pair<std::string, std::string>>& defines)
 	: m_context(context), m_rootSignature(rootSignature)
 {
 	std::vector<std::string> entryPoints = {};
-    m_shader = std::make_unique<Shader>(compiler, shaderPath, entryPoints, true);
+    m_shader = std::make_unique<Shader>(compiler, shaderPath, entryPoints, defines, true);
     if (m_shader->IsValid())
     {
         Log::Info("Compiled shader: {}", shaderPath);
@@ -74,7 +75,7 @@ void RTPipeline::CreatePSO(ID3D12Device10* device)
 
     auto shaderConfig = psoDesc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
     shaderConfig->Config(
-        sizeof(float) * 19, // max payload size
+        sizeof(float) * 28, // max payload size
         sizeof(float) * 2   // max attribute size
     );
 

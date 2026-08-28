@@ -8,6 +8,8 @@ import emissive.emissive_common;
 import pbr;
 import camera;
 
+#include "sharc/SharcCommon.h"
+
 RWTexture2D<float4> rtOutputBuffer            : register(u0, space0);
 RWTexture2D<float4> albedoBuffer              : register(u1, space0);
 RWTexture2D<float4> specularAlbedoBuffer      : register(u2, space0);
@@ -26,6 +28,10 @@ SamplerState linearSampler                    : register(s0, space0);
 ConstantBuffer<RenderSettings> renderSettings : register(b0, space0);
 ConstantBuffer<RenderData> renderData         : register(b1, space0);
 
+RWStructuredBuffer<uint64_t> sharcHashEntries               : register(u0, space6);
+RWStructuredBuffer<SharcAccumulationData> sharcAccumulation  : register(u1, space6);
+RWStructuredBuffer<SharcPackedData> sharcResolved            : register(u2, space6);
+
 StructuredBuffer<Vertex> vertices             : register(t0, space1);
 StructuredBuffer<uint> indices                : register(t1, space1);
 StructuredBuffer<float> powers                : register(t2, space1);
@@ -34,11 +40,46 @@ cbuffer HitGroupConstants                     : register(b0, space1)
     uint materialIndex;
 };
 
+SharcParameters GetSharcParameters()
+{
+    SharcParameters sharcParameters;
+
+    sharcParameters.gridParameters.cameraPosition = renderData.camera.position;
+    sharcParameters.gridParameters.sceneScale = SHARC_SCENE_SCALE;
+    sharcParameters.gridParameters.logarithmBase = SHARC_GRID_LOGARITHM_BASE;
+    sharcParameters.gridParameters.levelBias = SHARC_GRID_LEVEL_BIAS;
+
+    sharcParameters.hashMapData.capacity = SHARC_CAPACITY;
+    sharcParameters.hashMapData.hashEntriesBuffer = sharcHashEntries;
+
+    sharcParameters.accumulationBuffer = sharcAccumulation;
+    sharcParameters.resolvedBuffer = sharcResolved;
+    sharcParameters.radianceScale = SHARC_RADIANCE_SCALE;
+    sharcParameters.enableAntiFireflyFilter = true;
+
+    return sharcParameters;
+}
+
 [shader("raygeneration")]
 void RayGen()
 {
     uint2 idx = DispatchRaysIndex().xy;
+
+#if SHARC_UPDATE
+    if (idx.x % SHARC_UPDATE_STRIDE != 0 || idx.y % SHARC_UPDATE_STRIDE != 0)
+    {
+        return;
+    }
+#endif
+
     float2 size = DispatchRaysDimensions().xy;
+#if SHARC_UPDATE
+    RNG rng = RNG.create(idx, uint(size.x), renderData.frame + SHARC_UPDATE_RNG_OFFSET);
+    uint2 tileJitter = min(uint2(rng.nextFloat2() * float(SHARC_UPDATE_STRIDE)), uint2(SHARC_UPDATE_STRIDE - 1));
+    idx = min(idx + tileJitter, uint2(size) - 1);
+#else
+    RNG rng = RNG.create(idx, uint(size.x), renderData.frame);
+#endif
     float2 uv = idx / size;
     
     Payload payload;
@@ -47,12 +88,18 @@ void RayGen()
     payload.done = false;
     payload.depth = 0;
     payload.bsdfPdf = -1.0;
-    payload.rng = RNG.create(idx, uint(size.x), renderData.frame);
+    payload.rng = rng;
     uv += float2(renderData.camera.jitterX, renderData.camera.jitterY) / size;
-    
-    Camera cam;
-    
+
+#if SHARC_UPDATE
+    SharcParameters sharcParameters = GetSharcParameters();
+    SharcState sharcState;
+    SharcInit(sharcState);
+#endif
+
     RayDesc ray;
+    Camera cam;
+
     if (DEPTH_OF_FIELD)
     {
         float3 origin;
@@ -70,7 +117,13 @@ void RayGen()
 
     while (!payload.done && payload.depth < renderSettings.bounces + 1)
     {
-        if (SER)
+#if SHARC_UPDATE
+        payload.sharcRadiance = float3(0.0, 0.0, 0.0);
+        payload.sharcWeight = float3(0.0, 0.0, 0.0);
+        payload.sharcCacheable = false;
+#endif
+
+        if (SER && SHARC_UPDATE)
         {
             HitObject hitObj = HitObject.TraceRay<Payload>(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
 
@@ -84,7 +137,33 @@ void RayGen()
             TraceRay(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
         }
 
-        if (all(payload.throughput == 0.0)) payload.done = true;
+#if SHARC_UPDATE
+        if (payload.sharcCacheable)
+        {
+            SharcHitData sharcHitData;
+            sharcHitData.positionWorld = payload.nextOrigin;
+            sharcHitData.normalWorld = payload.nextOffsetNormal;
+
+            if (!SharcUpdateHit(sharcParameters, sharcState, sharcHitData, payload.sharcRadiance, payload.rng.nextFloat()))
+            {
+                payload.done = true;
+            }
+        }
+        else
+        {
+            SharcUpdateMiss(sharcParameters, sharcState, payload.sharcRadiance);
+        }
+
+        if (!payload.done)
+        {
+            SharcSetThroughput(sharcState, payload.sharcWeight);
+        }
+#endif
+
+        if (all(payload.throughput == 0.0)) 
+        { 
+            payload.done = true;
+        }
 
         if (payload.done)
         {
@@ -92,7 +171,7 @@ void RayGen()
         }
 
         // from Nvidia's Zorah talk: https://www.youtube.com/watch?v=8AnVpcIczyk&t=1107s
-        if (USE_RUSSIAN_ROULETTE)
+        if (USE_RUSSIAN_ROULETTE && !renderSettings.sharc)
         {
             if (payload.depth >= RUSSIAN_ROULETTE_START_BOUNCE)
             {
@@ -112,25 +191,30 @@ void RayGen()
                 else
                 {
                     payload.throughput /= groupContinuationProb;
+#if SHARC_UPDATE
+                    SharcSetThroughput(sharcState, float3(1.0 / groupContinuationProb));
+#endif
                 }
             }
         }
 
-        ray.Origin = payload.nextOrigin;
+        ray.Origin = OffsetRay(payload.nextOrigin, payload.nextOffsetNormal);
         ray.Direction = payload.nextDirection;
         payload.depth++;
     }
 
+#if !SHARC_UPDATE
     float3 radiance = max(sanitize(payload.radiance), 0.0);
-    
+
     if (renderData.frame == 0 || renderSettings.denoising)
-    { 
+    {
         rtOutputBuffer[idx].rgb = radiance;
     }
     else
     {
         rtOutputBuffer[idx].rgb += radiance;
     }
+#endif
 }
 
 [shader("closesthit")]
@@ -191,6 +275,9 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float metallic = metallicRoughness.y;
     bool isTransmission = material.flags & MAT_FLAG_TRANSMISSION;
 
+    bool sharcCacheable = !isTransmission && roughness > SHARC_MIN_ROUGHNESS;
+
+#if !SHARC_UPDATE
     switch (renderSettings.debugMode)
     {
         case DebugMode::None: break;
@@ -204,7 +291,57 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         case DebugMode::Tangent:    payload.done = true; payload.radiance = (tangent + 1) / 2; return;
         case DebugMode::Bitangent:  payload.done = true; payload.radiance = (bitangent + 1) / 2; return;
         case DebugMode::TangentW:   payload.done = true; payload.radiance = tangentW; return;
+        case DebugMode::SharcRadiance:
+        {
+            payload.done = true;
+            SharcHitData sharcHitData;
+            sharcHitData.positionWorld = hitPoint;
+            sharcHitData.normalWorld = flatNormal;
+            float3 cachedRadiance = float3(0.0, 0.0, 0.0);
+            SharcGetCachedRadiance(GetSharcParameters(), sharcHitData, cachedRadiance, true);
+            payload.radiance = cachedRadiance;
+            return;
+        }
+        case DebugMode::SharcOccupancy:
+        {
+            payload.done = true;
+            SharcHitData sharcHitData;
+            sharcHitData.positionWorld = hitPoint;
+            sharcHitData.normalWorld = flatNormal;
+            float3 cachedRadiance = float3(0.0, 0.0, 0.0);
+            bool cacheHit = SharcGetCachedRadiance(GetSharcParameters(), sharcHitData, cachedRadiance, false);
+            // green: query hits the cache, red: eligible but no entry yet
+            // blue: excluded as transmissive, yellow: excluded as too smooth
+            if (isTransmission)            payload.radiance = float3(0.0, 0.0, 1.0);
+            else if (!sharcCacheable)      payload.radiance = float3(1.0, 1.0, 0.0);
+            else                           payload.radiance = cacheHit ? float3(0.0, 1.0, 0.0) : float3(1.0, 0.0, 0.0);
+            return;
+        }
+        case DebugMode::SharcGrid:
+            payload.done = true;
+            payload.radiance = HashGridDebugColoredHash(hitPoint, flatNormal, GetSharcParameters().gridParameters);
+            return;
     }
+#endif
+
+#if SHARC_QUERY
+    if (renderSettings.sharc && sharcCacheable && payload.depth >= SHARC_QUERY_MIN_DEPTH)
+    {
+        SharcHitData sharcHitData;
+        sharcHitData.positionWorld = hitPoint;
+        sharcHitData.normalWorld = flatNormal;
+
+        float3 cachedRadiance;
+        if (SharcGetCachedRadiance(GetSharcParameters(), sharcHitData, cachedRadiance, false))
+        {
+            payload.radiance += cachedRadiance * payload.throughput;
+            payload.done = true;
+            return;
+        }
+    }
+#endif
+
+    float3 localRadiance = float3(0.0, 0.0, 0.0);
 
     if (any(emission > 0.0))
     {
@@ -216,12 +353,12 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
             float t = RayTCurrent();
             float p_light = Grayscale(emission) * t * t / (renderData.totalPower * max(cosTheta_light, 0.001));
             float w_bsdf = payload.bsdfPdf / max(payload.bsdfPdf + p_light, 1e-7);
-            payload.radiance += emission * renderSettings.lightIntensity * payload.throughput * w_bsdf;
+            localRadiance += emission * renderSettings.lightIntensity * w_bsdf;
         }
         else
         {
             // previous bounce didn't have NEE, add emission at full weight
-            payload.radiance += emission * renderSettings.lightIntensity * payload.throughput;
+            localRadiance += emission * renderSettings.lightIntensity;
         }
     }
 
@@ -240,63 +377,65 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         float3 dirToLight;
         float dist;
 
-        if (lightType != LIGHT_TYPE_TRIANGLE)
+        if (lightType == LIGHT_TYPE_DIRECTIONAL)
         {
-            if (lightType == LIGHT_TYPE_DIRECTIONAL)
-            {
-                radiance = light.SampleDirectionalLight(payload.rng.nextFloat2(), dist, dirToLight);
-            }
-            else if (lightType == LIGHT_TYPE_POINT)
-            {
-                radiance = light.SamplePointLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight);
-            }
-            else if (lightType == LIGHT_TYPE_TRIANGLE)
-            {
-                Material triMaterial = materials[light.TriMatIdx()];
-                radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight, triMaterial);
-            }
+            radiance = light.SampleDirectionalLight(payload.rng.nextFloat2(), dist, dirToLight);
+        }
+        else if (lightType == LIGHT_TYPE_POINT)
+        {
+            radiance = light.SamplePointLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight);
+        }
+        else if (lightType == LIGHT_TYPE_TRIANGLE)
+        {
+            Material triMaterial = materials[light.TriMatIdx()];
+            radiance = light.SampleTriangleLight(payload.rng.nextFloat2(), hitPoint, dist, dirToLight, triMaterial);
+        }
 
-            if (dot(dirToLight, normal) > 0.0)
+        if (dot(dirToLight, normal) > 0.0)
+        {
+            RayDesc shadowRay;
+            shadowRay.Origin = OffsetRay(hitPoint, flatNormal);
+            shadowRay.Direction = dirToLight;
+            shadowRay.TMin = 0.0;
+            shadowRay.TMax = dist - 0.001;
+
+            ShadowPayload shadowPayload;
+            shadowPayload.inShadow = true;
+
+            TraceRay(sceneBVH, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
+                     0xFF, 0, 1, 1, shadowRay, shadowPayload);
+
+            if (!shadowPayload.inShadow)
             {
-                RayDesc shadowRay;
-                shadowRay.Origin = OffsetRay(hitPoint, flatNormal);
-                shadowRay.Direction = dirToLight;
-                shadowRay.TMin = 0.0;
-                shadowRay.TMax = dist - 0.001;
+                float3 outgoing = radiance * PBRDirect(normal, dirToLight, -WorldRayDirection(), albedo, roughness, metallic);
 
-                ShadowPayload shadowPayload;
-                shadowPayload.inShadow = true;
-
-                TraceRay(sceneBVH, RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
-                         0xFF, 0, 1, 1, shadowRay, shadowPayload);
-
-                if (!shadowPayload.inShadow)
+                float w_nee = 1.0;
+                if (lightType == LIGHT_TYPE_TRIANGLE)
                 {
-                    float3 outgoing = radiance * PBRDirect(normal, dirToLight, -WorldRayDirection(), albedo, roughness, metallic);
-
-                    float w_nee = 1.0;
-                    if (lightType == LIGHT_TYPE_TRIANGLE)
-                    {
-                        float triArea          = 0.5 * length(cross(light.TriE1(), light.TriE2()));
-                        float cosTheta_light   = abs(dot(light.TriNormal(), -dirToLight));
-                        // Convert light selection probability to solid-angle PDF
-                        float p_light_solidangle = pdf * dist * dist / (triArea * max(cosTheta_light, 0.001));
-                        float p_bsdf = PBRIndirectPdf(normal, -WorldRayDirection(), dirToLight, roughness, metallic, albedo);
-                        w_nee = p_light_solidangle / max(p_light_solidangle + p_bsdf, 1e-7);
-                    }
-                    payload.radiance += outgoing * renderSettings.lightIntensity * payload.throughput / pdf * w_nee;
+                    float triArea          = 0.5 * length(cross(light.TriE1(), light.TriE2()));
+                    float cosTheta_light   = abs(dot(light.TriNormal(), -dirToLight));
+                    // Convert light selection probability to solid-angle PDF
+                    float p_light_solidangle = pdf * dist * dist / (triArea * max(cosTheta_light, 0.001));
+                    float p_bsdf = PBRIndirectPdf(normal, -WorldRayDirection(), dirToLight, roughness, metallic, albedo);
+                    w_nee = p_light_solidangle / max(p_light_solidangle + p_bsdf, 1e-7);
                 }
+                localRadiance += outgoing * renderSettings.lightIntensity / pdf * w_nee;
             }
         }
     }
 
+    payload.radiance += localRadiance * payload.throughput;
+
+    float3 bsdfWeight;
     if (!isTransmission)
     {
         // Opaque
         float3 wo;
-        payload.throughput *= PBRIndirect(payload.rng, normal, smoothNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
+        bsdfWeight = PBRIndirect(payload.rng, normal, smoothNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
+        payload.throughput *= bsdfWeight;
         payload.nextDirection = wo;
-        payload.nextOrigin = OffsetRay(hitPoint, flatNormal);
+        payload.nextOrigin = hitPoint;
+        payload.nextOffsetNormal = flatNormal;
         payload.bsdfPdf = PBRIndirectPdf(normal, -WorldRayDirection(), wo, roughness, metallic, albedo);
     }
     else
@@ -305,12 +444,21 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         float3 wo;
         float3 offsetN;
         float eta = backfacing ? material.ior / 1.0 : 1.0 / material.ior;
-        payload.throughput *= PBRTransmission(payload.rng, normal, flatNormal, -WorldRayDirection(), albedo, eta, RayTCurrent(), wo, offsetN);
+        bsdfWeight = PBRTransmission(payload.rng, normal, flatNormal, -WorldRayDirection(), albedo, eta, RayTCurrent(), wo, offsetN);
+        payload.throughput *= bsdfWeight;
         payload.nextDirection = wo;
-        payload.nextOrigin = OffsetRay(hitPoint, offsetN);
+        payload.nextOrigin = hitPoint;
+        payload.nextOffsetNormal = offsetN;
         payload.bsdfPdf = -1.0;
     }
 
+#if SHARC_UPDATE
+    payload.sharcRadiance = localRadiance;
+    payload.sharcWeight = bsdfWeight;
+    payload.sharcCacheable = sharcCacheable;
+#endif
+
+#if !SHARC_UPDATE
     if (payload.depth == 0)
     {
         uint2 idx = DispatchRaysIndex().xy;
@@ -329,6 +477,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         depthBuffer[idx] = RayTCurrent();
         specularAlbedoBuffer[idx].xyz = EnvBRDFApprox2(lerp(0.04, albedo, metallic), roughness, saturate(dot(normal, -WorldRayDirection())));
     }
+#endif
 }
 
 [shader("miss")]
@@ -336,17 +485,23 @@ void Miss(inout Payload payload)
 {
     payload.done = true;
 
+#if !SHARC_UPDATE
     if (renderSettings.debugMode != 0)
     {
         return;
     }
+#endif
 
     if (renderSettings.whiteLighting == 1)
     {
         payload.radiance += float3(1) * payload.throughput;
+#if SHARC_UPDATE
+        payload.sharcRadiance = float3(1);
+#endif
         return;
     }
 
+#if !SHARC_UPDATE
     if (payload.depth == 0)
     {
         uint2 idx = DispatchRaysIndex().xy;
@@ -363,24 +518,31 @@ void Miss(inout Payload payload)
         float2 prevUV = WorldToUV(unjitteredPos, renderData.prevCamera);
         motionVectorsBuffer[idx] = (prevUV - currentUV) * size;
     }
+#endif
 
     if (renderSettings.skyIntensity == 0.0)
     {
         return;
     }
 
+    float3 skyRadiance;
     if (renderData.hdriIndex != -1)
     {
         Texture2D hdri = DescriptorHandle<Texture2D>(uint2(renderData.hdriIndex, 0));
         float2 uv = DirectionToEquirectangular(WorldRayDirection());
         float3 env = min(hdri.SampleLevel(linearSampler, uv, 0).rgb, 30.0);
-        payload.radiance += env * renderSettings.skyIntensity * payload.throughput;
+        skyRadiance = env * renderSettings.skyIntensity;
     }
     else
     {
-        payload.radiance += float3(0.6, 0.8, 1.0) * renderSettings.skyIntensity * payload.throughput * (WorldRayDirection().y + 1.1) / 2.1;
+        skyRadiance = float3(0.6, 0.8, 1.0) * renderSettings.skyIntensity * (WorldRayDirection().y + 1.1) / 2.1;
     }
 
+    payload.radiance += skyRadiance * payload.throughput;
+
+#if SHARC_UPDATE
+    payload.sharcRadiance = skyRadiance;
+#endif
 }
 
 [shader("anyhit")]

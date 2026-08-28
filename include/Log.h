@@ -47,7 +47,7 @@ private:
     {
         static HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
         SetConsoleTextAttribute(console, color);
-        std::cout << message << "\n";
+        std::cout << message << std::endl;
         SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
     }
 };

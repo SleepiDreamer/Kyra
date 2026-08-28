@@ -48,6 +48,9 @@ enum DebugMode
 	Tangent,
 	Bitangent,
 	TangentW,
+	SharcRadiance,
+	SharcOccupancy,
+	SharcGrid,
 };
 
 enum DLSSQuality
@@ -71,8 +74,9 @@ struct RenderSettings
 	BOOL whiteLighting = false;
 	BOOL denoising = true;
 	DLSSQuality dlssQuality = Balanced;
+	BOOL sharc = true;
 };
-IMGUI_REFLECT(RenderSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality)
+IMGUI_REFLECT(RenderSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality, sharc)
 
 enum class TonemapOperatorSDR
 {
