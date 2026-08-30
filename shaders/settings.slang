@@ -17,7 +17,7 @@ public export static const float BEER_ABSORPTION = 0.5;
 // SHaRC
 public export static const uint SHARC_CAPACITY = 1 << 22;
 public export static const float SHARC_SCENE_SCALE = 64.0;
-public export static const float SHARC_RADIANCE_SCALE = 1e3;
+public export static const float SHARC_RADIANCE_SCALE = 1e4;
 public export static const uint SHARC_ACCUMULATION_FRAMES = 32;
 public export static const uint SHARC_STALE_FRAMES = 64;
 public export static const uint SHARC_UPDATE_STRIDE = 5;

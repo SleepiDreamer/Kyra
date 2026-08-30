@@ -102,7 +102,7 @@ struct PostProcessSettings
 	BOOL autoExposure = true;
 	float targetExposure = 1.0f;
 	float exposure = 10.0f;
-	float bloomStrength = 0.05f;
+	float bloomStrength = 0.015f;
 };
 IMGUI_REFLECT(PostProcessSettings, autoExposure, exposure, targetExposure, bloomStrength)
 
