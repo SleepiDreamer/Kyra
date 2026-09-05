@@ -47,7 +47,7 @@ public struct Light
     {
         dist = MAX_RAY_DEPTH;
         dirToLight = sampleSun(rand, -DirDirection(), DirAngularSize() * 4.0);
-        return DirColor();
+        return Rec709ToACEScg(DirColor());
     }
 
     public float3 SamplePointLight(float2 rand, float3 hitPoint, out float dist, out float3 dirToLight)
@@ -55,7 +55,7 @@ public struct Light
         float3 p = PointPos() + sampleUniformSphere(rand) * PointSize();
         dist = length(p - hitPoint);
         dirToLight = normalize(p - hitPoint);
-        return max(PointColor() * LightAttenuation(dist), 0);
+        return max(Rec709ToACEScg(PointColor()) * LightAttenuation(dist), 0);
     }
 
     public float3 SampleTriangleLight(float2 rand, float3 hitPoint, out float dist, out float3 dirToLight, Material material)
@@ -75,7 +75,7 @@ public struct Light
 
         SamplerState sampler = DescriptorHandle<SamplerState>(uint2(material.samplerIndex, 0));
         float2 uv = TriUV0() * b0 + TriUV1() * b1 + TriUV2() * b2;
-        float3 radiance = sampleOrDefault(material.emissiveIndex, sampler, uv, material.emissiveFactor);
+        float3 radiance = Rec709ToACEScg(sampleOrDefault(material.emissiveIndex, sampler, uv, material.emissiveFactor));
 
         return radiance * float3(abs(dot(n, -dirToLight)) * a / d2);
     }

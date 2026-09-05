@@ -86,8 +86,7 @@ public float3 TonemapHDRLinear(float3 luminance, float maxNits)
 {
     luminance *= 0.05;
 
-    float3 wcg = Rec709ToRec2020(luminance);
-    float3 nits = wcg * maxNits;
+    float3 nits = luminance * maxNits;
     
     return nits;
 }
@@ -96,8 +95,7 @@ public float3 TonemapHDRCustom(float3 luminance, float maxNits)
 {
     luminance *= 0.05;
 
-    float3 wcg = Rec709ToRec2020(luminance);
-    float3 nits = wcg * maxNits;
+    float3 nits = luminance * maxNits;
 
     float maxComponent = max(nits.x, max(nits.y, nits.z));
     float saturation = HighlightDesaturation(maxComponent, maxNits, 1.2, 0.85, 0.01);

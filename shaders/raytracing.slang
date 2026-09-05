@@ -265,10 +265,10 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float3 hitPoint = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
 
     float4 color = sampleOrDefault(material.albedoIndex, sampler, uv, material.albedoFactor);
-    float3 albedo = color.rgb;
+    float3 albedo = Rec709ToACEScg(color.rgb);
     float alpha = color.a;
     if (renderSettings.whiteAlbedo) albedo = float3(1);
-    float3 emission = sampleOrDefault(material.emissiveIndex, sampler, uv, material.emissiveFactor);
+    float3 emission = Rec709ToACEScg(sampleOrDefault(material.emissiveIndex, sampler, uv, material.emissiveFactor));
     float2 metallicRoughness = sampleOrDefault(material.metallicRoughnessIndex, sampler, uv, 
                                                float3(1, material.roughnessFactor, material.metallicFactor)).gb;
     float roughness = max(metallicRoughness.x * metallicRoughness.x, 0.00025);
@@ -530,7 +530,7 @@ void Miss(inout Payload payload)
     {
         Texture2D hdri = DescriptorHandle<Texture2D>(uint2(renderData.hdriIndex, 0));
         float2 uv = DirectionToEquirectangular(WorldRayDirection());
-        float3 env = min(hdri.SampleLevel(linearSampler, uv, 0).rgb, 30.0);
+        float3 env = Rec709ToACEScg(min(hdri.SampleLevel(linearSampler, uv, 0).rgb, 30.0));
         skyRadiance = env * renderSettings.skyIntensity;
     }
     else

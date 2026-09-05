@@ -50,6 +50,26 @@ public float SrgbToLinear(float srgb)
     }
 }
 
+public float3 SrgbToLinear(float3 srgb)
+{
+    return float3(SrgbToLinear(srgb.r), SrgbToLinear(srgb.g), SrgbToLinear(srgb.b));
+}
+
+public float3 Rec709ToACEScg(float3 c) { return mul(
+    float3x3(0.6130974024, 0.3395231462, 0.0473794514,
+             0.0701937225, 0.9163538791, 0.0134523985,
+             0.0206155929, 0.1095697729, 0.8698146342), c); }
+
+public float3 ACEScgToRec709(float3 c) { return mul(
+    float3x3( 1.7050509927, -0.6217921207, -0.0832588720,
+             -0.1302564175,  1.1408047366, -0.0105483191,
+             -0.0240033568, -0.1289689761,  1.1529723329), c); }
+
+public float3 ACEScgToRec2020(float3 c) { return mul(
+    float3x3(1.0258247477,  -0.0200531908, -0.0057715568,
+             -0.0022343695,  1.0045865019, -0.0023521324,
+             -0.0050133515, -0.0252900718,  1.0303034233), c); }
+
 public float2 sampleTriangle(float2 x0, float2 x1, float2 x2, float2 bary)
 {
     float w = 1 - bary.x - bary.y;
@@ -66,11 +86,6 @@ public float4 sampleTriangle(float4 x0, float4 x1, float4 x2, float2 bary)
 {
     float w = 1 - bary.x - bary.y;
     return (x0 * w) + (x1 * bary.x) + (x2 * bary.y);
-}
-
-public float3 SrgbToLinear(float3 srgb)
-{
-    return float3(SrgbToLinear(srgb.r), SrgbToLinear(srgb.g), SrgbToLinear(srgb.b));
 }
 
 [ForceInline]
