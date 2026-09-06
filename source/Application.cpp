@@ -101,10 +101,6 @@ void Application::Update(const float deltaTime)
 
 	float cameraSpeed = m_movementSpeed;
 
-	// While the physics owns the camera position, the free-camera movement keys
-	// have to stay out of the way - shift and control mean sneak and sprint
-	// then, not speed modifiers. Looking around is unaffected: the renderer
-	// keeps owning the orientation in both modes.
 	const bool physicsDriving = m_physics && m_physics->IsEnabled();
 
 	// Keyboard and mouse
@@ -227,8 +223,6 @@ void Application::Update(const float deltaTime)
 		}
 	}
 
-	// Last, so the movement heading comes from the orientation this frame
-	// rather than the previous one. Does nothing unless walk mode is on.
 	if (m_physics)
 	{
 		m_physics->Update(deltaTime, window, *m_camera, ImGui::GetIO().WantCaptureKeyboard);
@@ -288,8 +282,6 @@ void Application::KeyCallback(GLFWwindow* window, int key, int scancode, int act
 		app->m_physics->Toggle(*app->m_camera);
 	}
 
-	// Forward every press to the physics so a tap that starts and ends inside
-	// one frame is not lost. Repeats are not presses.
 	if (action == GLFW_PRESS && app->m_physics)
 	{
 		app->m_physics->NotifyKeyPress(key);

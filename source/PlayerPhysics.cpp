@@ -14,10 +14,6 @@
 
 namespace
 {
-	// The physics DLL indexes a 256-bit bitmap of Win32 virtual key codes, so
-	// GLFW's codes have to be translated. Letters and space happen to share
-	// values with their VK equivalents, but the modifiers do not: GLFW puts
-	// them at 340+, well outside a byte.
 	struct KeyMapping
 	{
 		int glfwKey;
@@ -43,9 +39,6 @@ namespace
 		bitmap[virtualKey >> 3] |= static_cast<unsigned char>(1u << (virtualKey & 7u));
 	}
 
-	// Walks up from the executable and the working directory looking for the
-	// worlds folder, so it is found whether Kyra is launched from Visual Studio
-	// or straight out of its output directory.
 	std::filesystem::path FindWorldsRoot()
 	{
 		std::vector<std::filesystem::path> startPoints;
@@ -106,9 +99,6 @@ void PlayerPhysics::Initialise(const std::string& worldsRootOverride)
 	m_module = LoadLibraryA("mcphysics.dll");
 	if (m_module == nullptr)
 	{
-		// Entirely expected without the physics project: say so once, quietly,
-		// and carry on with the free camera.
-		Log::Info("mcphysics.dll not found next to the executable; walk mode disabled");
 		return;
 	}
 
@@ -174,9 +164,6 @@ void PlayerPhysics::OnModelLoaded(const std::string& modelPath)
 	const std::string name = std::filesystem::path(modelPath).stem().string();
 	const std::filesystem::path folder = m_worldsRoot / name;
 
-	// A save is only usable if it actually has chunk data. Models load
-	// cumulatively in Kyra, so a model with no matching save leaves whichever
-	// world is already open alone rather than tearing it down.
 	std::error_code error;
 	if (!std::filesystem::is_directory(folder / "region", error))
 	{
@@ -223,8 +210,6 @@ bool PlayerPhysics::Toggle(Camera& camera)
 		const glm::vec3 position = camera.GetPosition();
 		const double eye[3] = { position.x, position.y, position.z };
 
-		// Take over exactly where the camera is: not flying, and not snapped to
-		// the ground either, so the player simply falls from here.
 		m_api->set_flying(m_world, 0);
 		m_api->set_eye_position(m_world, eye, /*renderer_space=*/1, /*snap_to_ground=*/0);
 
@@ -235,8 +220,6 @@ bool PlayerPhysics::Toggle(Camera& camera)
 	}
 	else
 	{
-		// Hand back the position without the view-bob offset, and undo the
-		// sprint field-of-view effect, so the free camera starts clean.
 		camera.SetPosition(m_unbobbedPosition);
 		camera.m_fovMultiplier = 1.0f;
 		Log::Info("Walk mode off, free camera restored");
@@ -281,9 +264,6 @@ void PlayerPhysics::Update(float deltaTime, GLFWwindow* window, Camera& camera,
 		}
 	}
 
-	// Presses collected since the last frame, so a tap shorter than a frame
-	// still registers. Always cleared, even when the keyboard is captured, so
-	// typing in the UI cannot queue up a jump for later.
 	std::memcpy(input.keys_pressed, m_pendingPresses, sizeof(input.keys_pressed));
 	std::memset(m_pendingPresses, 0, sizeof(m_pendingPresses));
 
@@ -319,10 +299,6 @@ void PlayerPhysics::Update(float deltaTime, GLFWwindow* window, Camera& camera,
 		static_cast<float>(state.eye_position[1]),
 		static_cast<float>(state.eye_position[2]));
 
-	// View bob is a display-only offset laid on top of the position the physics
-	// reports, recomputed from scratch every frame rather than accumulated, so
-	// it can never drift the player. Lateral goes along the camera's right and
-	// vertical along its up, which is the view space the game applies it in.
 	const glm::vec3 bobbed = m_unbobbedPosition +
 		right * static_cast<float>(state.bob_lateral) +
 		up * static_cast<float>(state.bob_vertical);

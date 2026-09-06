@@ -314,10 +314,6 @@ void Renderer::Render(const float deltaTime)
 	camData.right = m_camera->GetRight();
 	camData.up = m_camera->GetUp();
 	camData.position = m_camera->GetPosition();
-	// Walk mode's sprint effect widens the field of view by a multiplier. It is
-	// folded in here so that everything downstream - the shader, and the
-	// previous frame's camera used for motion vectors - sees the same value.
-	// The camera UI below is given the unwidened value to edit instead.
 	camData.fov = m_camera->m_fov * m_camera->m_fovMultiplier;
 	camData.aperture = m_camera->m_aperture;
 	camData.focusDistance = m_camera->m_focusDistance;
@@ -782,9 +778,6 @@ void Renderer::Render(const float deltaTime)
 		}
 		if (ImGui::BeginTabItem("Camera"))
 		{
-			// Edit a copy showing the base field of view, so the sprint
-			// multiplier is neither displayed as the user's setting nor baked
-			// into it when anything on this tab is changed.
 			CameraData uiCamData = camData;
 			uiCamData.fov = m_camera->m_fov;
 
