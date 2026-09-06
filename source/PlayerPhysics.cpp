@@ -228,12 +228,17 @@ bool PlayerPhysics::Toggle(Camera& camera)
 		m_api->set_flying(m_world, 0);
 		m_api->set_eye_position(m_world, eye, /*renderer_space=*/1, /*snap_to_ground=*/0);
 
+		m_unbobbedPosition = position;
 		std::memset(m_pendingPresses, 0, sizeof(m_pendingPresses));
 		Log::Info("Walk mode on ({}). WASD to move, space to jump, shift to sneak, "
 			"ctrl to sprint, double-tap space to fly.", m_worldName);
 	}
 	else
 	{
+		// Hand back the position without the view-bob offset, and undo the
+		// sprint field-of-view effect, so the free camera starts clean.
+		camera.SetPosition(m_unbobbedPosition);
+		camera.m_fovMultiplier = 1.0f;
 		Log::Info("Walk mode off, free camera restored");
 	}
 
@@ -310,7 +315,18 @@ void PlayerPhysics::Update(float deltaTime, GLFWwindow* window, Camera& camera,
 		return;
 	}
 
-	camera.SetPosition(glm::vec3(static_cast<float>(state.eye_position[0]),
+	m_unbobbedPosition = glm::vec3(static_cast<float>(state.eye_position[0]),
 		static_cast<float>(state.eye_position[1]),
-		static_cast<float>(state.eye_position[2])));
+		static_cast<float>(state.eye_position[2]));
+
+	// View bob is a display-only offset laid on top of the position the physics
+	// reports, recomputed from scratch every frame rather than accumulated, so
+	// it can never drift the player. Lateral goes along the camera's right and
+	// vertical along its up, which is the view space the game applies it in.
+	const glm::vec3 bobbed = m_unbobbedPosition +
+		right * static_cast<float>(state.bob_lateral) +
+		up * static_cast<float>(state.bob_vertical);
+
+	camera.SetPosition(bobbed);
+	camera.m_fovMultiplier = static_cast<float>(state.fov_multiplier);
 }

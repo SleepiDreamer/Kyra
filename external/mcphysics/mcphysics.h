@@ -46,7 +46,7 @@
 extern "C" {
 #endif
 
-#define MCP_ABI_VERSION 1u
+#define MCP_ABI_VERSION 2u
 
 /* The DLL defines MCP_BUILD_DLL. Callers do not need dllimport, because the
  * entry point is meant to be reached through GetProcAddress rather than by
@@ -130,7 +130,23 @@ typedef struct MCP_State {
     /* Blocks per tick, in renderer space (a direction, so the offset's
      * translation does not apply - only its Z mirror). */
     double velocity[3];
-    double eye_height;  /* 1.62 standing, 1.27 sneaking */
+
+    /* Eased between 1.62 standing and 1.27 sneaking rather than switched, so
+     * crouching does not drop the camera 0.35 blocks in a single frame. The
+     * collision box still changes instantly - only the camera is eased. */
+    double eye_height;
+
+    /* Multiply the camera's field of view by this. It is a multiplier, not a
+     * number of degrees, matching the game: sprinting gives 1.15 and flying
+     * multiplies in a further 1.1. Eased over the same half second. */
+    double fov_multiplier;
+
+    /* View bob, in blocks. Add bob_lateral along the camera's right vector and
+     * bob_vertical along its up vector. Display only: the simulation never
+     * sees these, so they cannot drift the player's actual position. */
+    double bob_lateral;
+    double bob_vertical;
+
     uint32_t state_flags;
 } MCP_State;
 

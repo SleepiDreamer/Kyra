@@ -20,6 +20,12 @@ public:
 	[[nodiscard]] glm::mat4 GetViewMatrix() const;
 
 	float m_fov = 60.0f;
+
+	// Transient multiplier on m_fov, driven by walk mode's sprint effect. Kept
+	// separate from m_fov so that the value the user sets, and what the camera
+	// UI shows and writes back, is never the widened one.
+	float m_fovMultiplier = 1.0f;
+
 	float m_aperture = 0.0f;
 	float m_focusDistance = 3.0f;
 	bool m_autoFocus = false;

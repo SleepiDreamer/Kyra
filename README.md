@@ -24,6 +24,20 @@ Looking around is unchanged in both modes: the renderer keeps owning the camera
 orientation and only the position comes from the physics, so mouse look stays at frame
 rate rather than being quantised to Minecraft's 20 Hz tick.
 
+Walking also brings the camera effects the game has:
+
+- **View bobbing.** A sway of up to 0.05 blocks sideways and a rise of up to 0.1 blocks,
+  phased off the distance walked so it keeps step with the feet rather than running on a
+  timer. It collapses to nothing the moment you leave the ground, and it is applied purely
+  as a camera offset, so it can never drift where the player actually is.
+- **Sprint field of view.** Sprinting widens the view by a factor of 1.15, and flying by a
+  further 1.1, matching the game - which scales the field of view by a multiplier rather
+  than adding a fixed number of degrees. Your own FOV setting is left alone: the effect is
+  a separate multiplier, so the camera panel still shows and edits the value you set.
+- Both the FOV change and the crouch camera height (1.62 down to 1.27 blocks) are eased
+  over half a second instead of snapping. The collision box still changes instantly, so
+  crouching under a slab is as responsive as ever - only the camera is eased.
+
 ### Setting it up
 
 Walk mode needs two things, both optional at runtime. Without either, Kyra logs one line

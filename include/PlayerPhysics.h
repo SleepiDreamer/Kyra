@@ -1,4 +1,6 @@
 #pragma once
+#include <glm/glm.hpp>
+
 #include <filesystem>
 #include <string>
 
@@ -62,4 +64,9 @@ private:
 
 	// Virtual-key bitmap of presses seen since the last update.
 	unsigned char m_pendingPresses[32] = {};
+
+	// The camera position as the physics reported it, before the view bob is
+	// added. Handed back when walk mode is switched off so the free camera does
+	// not inherit a bob offset.
+	glm::vec3 m_unbobbedPosition{ 0.0f, 0.0f, 0.0f };
 };
