@@ -147,6 +147,12 @@
     <ClInclude Include="include\Log.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\PlayerPhysics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="external\mcphysics\mcphysics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -162,6 +168,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\PlayerPhysics.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="source\Application.cpp">

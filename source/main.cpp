@@ -13,6 +13,7 @@ int main(int argc, char* argv[])
 {
     bool enableDebug = false;
     std::vector<std::string> inputPaths;
+    std::string worldsRoot;
 
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--debuglayer") == 0) 
@@ -28,13 +29,25 @@ int main(int argc, char* argv[])
             }
             inputPaths.emplace_back(argv[++i]);
         }
+        else if (strcmp(argv[i], "--worlds") == 0)
+        {
+            // Folder holding one Minecraft save per model, each named after the
+            // model file. Optional: without it the folder is searched for next
+            // to the executable and the project.
+            if (i + 1 >= argc)
+            {
+				Log::Error("--worlds requires a path argument");
+                return 1;
+            }
+            worldsRoot = argv[++i];
+        }
         else
         {
 			Log::Warning("Unknown argument: {}", std::string(argv[i]));
             return 1;
         }
     }
-    Application app{ enableDebug, inputPaths };
+    Application app{ enableDebug, inputPaths, worldsRoot };
 
 	app.Run();
 }

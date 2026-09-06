@@ -20,6 +20,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Log.h" />
+    <ClInclude Include="include\PlayerPhysics.h" />
+    <ClInclude Include="external\mcphysics\mcphysics.h" />
     <ClInclude Include="include\renderer\ComputePass.h" />
     <ClInclude Include="include\renderer\FrameLimiter.h" />
     <ClInclude Include="include\renderer\ImGuiWrapper.h" />
@@ -106,6 +108,7 @@
     <ClCompile Include="source\renderer\DescriptorHeap.cpp" />
     <ClCompile Include="source\renderer\CommandQueue.cpp" />
     <ClCompile Include="source\Application.cpp" />
+    <ClCompile Include="source\PlayerPhysics.cpp" />
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\renderer\Device.cpp" />
     <ClCompile Include="source\renderer\Renderer.cpp" />
@@ -249,7 +252,7 @@
       <PreprocessorDefinitions>FASTGLTF_ENABLE_DEPRECATED_EXT=1;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mikkt;$(ProjectDir)external\ngx;$(ProjectDir)external\SHaRC;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mcphysics;$(ProjectDir)external\mikkt;$(ProjectDir)external\ngx;$(ProjectDir)external\SHaRC;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/DNOMINMAX /DGLFW_INCLUDE_NONE %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -278,7 +281,7 @@ xcopy /D /Y "$(SolutionDir)external\AgilitySDK\d3d12SDKLayers.dll" "$(OutDir)D3D
       <PreprocessorDefinitions>FASTGLTF_ENABLE_DEPRECATED_EXT=1;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mikkt;$(ProjectDir)external\ngx;$(ProjectDir)external\SHaRC;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)external;$(ProjectDir)external\GLFW;$(ProjectDir)external\D3D12;$(ProjectDir)external\D3D12MA;$(ProjectDir)external\slang;$(ProjectDir)external\simdjson;$(ProjectDir)external\stb;$(ProjectDir)external\imgui;$(ProjectDir)external\imgui\misc\cpp;$(ProjectDir)external\imreflect;$(ProjectDir)external\mcphysics;$(ProjectDir)external\mikkt;$(ProjectDir)external\ngx;$(ProjectDir)external\SHaRC;$(ProjectDir)include;$(ProjectDir)include\renderer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/DNOMINMAX /DGLFW_INCLUDE_NONE %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
