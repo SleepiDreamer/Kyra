@@ -27,7 +27,7 @@ namespace
 		{ GLFW_KEY_D, 'D' },
 		{ GLFW_KEY_SPACE, VK_SPACE },
 		{ GLFW_KEY_LEFT_SHIFT, VK_SHIFT },
-		{ GLFW_KEY_LEFT_CONTROL, VK_CONTROL },
+		{ GLFW_KEY_Q, VK_CONTROL },
 	};
 
 	void SetKeyBit(unsigned char* bitmap, unsigned virtualKey)
