@@ -66,7 +66,7 @@ struct RenderSettings
 {
 	float maxFPS = 0.0f;
 	DebugMode debugMode = None;
-	uint32_t bounces = 2;
+	uint32_t bounces = 5;
 	float compSlider = 0.5f;
 	float skyIntensity = 1.0f;
 	float lightIntensity = 1.0f;
