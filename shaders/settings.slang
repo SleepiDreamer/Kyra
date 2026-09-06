@@ -24,6 +24,8 @@ public export static const uint SHARC_UPDATE_STRIDE = 5;
 public export static const uint SHARC_UPDATE_RNG_OFFSET = 0x9E3779B9;
 public export static const uint SHARC_QUERY_MIN_DEPTH = 1;
 public export static const float SHARC_MIN_ROUGHNESS = 0.0005;
+public export static const float SHARC_MIN_SPREAD_VOXELS = 1.5;
+public export static const float SHARC_DIFFUSE_SPREAD_ANGLE = 1.0;
 
 // Auto Exposure
 public export static const int AE_SAMPLES = 32;

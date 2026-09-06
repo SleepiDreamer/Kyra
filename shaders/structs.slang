@@ -15,6 +15,8 @@ public [raypayload] struct Payload
     public float3 sharcWeight : write(caller, closesthit) : read(caller);
     public float3 nextOffsetNormal : write(closesthit) : read(caller); // doubles as hash grid normal
     public bool sharcCacheable : write(caller, closesthit) : read(caller);
+    public float coneWidth : write(caller, closesthit) : read(caller, closesthit);
+    public float coneSpreadAngle : write(caller, closesthit) : read(caller, closesthit);
 };
 
 public [raypayload] struct ShadowPayload

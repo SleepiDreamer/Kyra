@@ -96,12 +96,15 @@ public float SpecularSelectionProb(float3 n, float3 v, float3 albedo, float meta
     return clamp(spec / max(spec + diff, 1e-4), 0.05, 0.95);
 }
 
-public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 albedo, float roughness, float metallic, out float3 l)
+public float3 PBRIndirect(inout RNG rng, float3 n, float3 g, float3 v, float3 albedo, float roughness, float metallic, out float3 l, out bool isSpecularLobe)
 {
     float specularChance = SpecularSelectionProb(n, v, albedo, metallic);
 
+    isSpecularLobe = false;
+
     if (rng.nextFloat() < specularChance)
     {
+        isSpecularLobe = true;
 #if 0 // preserve normal map brightness, but lose energy
         l = reflect(-v, h);
         if (dot(g, l) < 0.0)

@@ -60,6 +60,12 @@ SharcParameters GetSharcParameters()
     return sharcParameters;
 }
 
+float GetSharcVoxelSize(float3 positionWorld)
+{
+    HashGridParameters gridParameters = GetSharcParameters().gridParameters;
+    return HashGridGetVoxelSize(HashGridGetLevel(positionWorld, gridParameters), gridParameters);
+}
+
 [shader("raygeneration")]
 void RayGen()
 {
@@ -89,6 +95,8 @@ void RayGen()
     payload.depth = 0;
     payload.bsdfPdf = -1.0;
     payload.rng = rng;
+    payload.coneWidth = 0.0;
+    payload.coneSpreadAngle = 2.0 * tan(radians(renderData.camera.fov) * 0.5) / size.y;
     uv += float2(renderData.camera.jitterX, renderData.camera.jitterY) / size;
 
 #if SHARC_UPDATE
@@ -277,6 +285,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
     bool sharcCacheable = !isTransmission && roughness > SHARC_MIN_ROUGHNESS;
 
+    float coneWidth = payload.coneWidth + payload.coneSpreadAngle * RayTCurrent();
+
 #if !SHARC_UPDATE
     switch (renderSettings.debugMode)
     {
@@ -325,7 +335,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 #endif
 
 #if SHARC_QUERY
-    if (renderSettings.sharc && sharcCacheable && payload.depth >= SHARC_QUERY_MIN_DEPTH)
+    if (renderSettings.sharc && sharcCacheable && payload.depth >= SHARC_QUERY_MIN_DEPTH &&
+        coneWidth > GetSharcVoxelSize(hitPoint) * SHARC_MIN_SPREAD_VOXELS)
     {
         SharcHitData sharcHitData;
         sharcHitData.positionWorld = hitPoint;
@@ -426,17 +437,21 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
 
     payload.radiance += localRadiance * payload.throughput;
 
+    payload.coneWidth = coneWidth;
+
     float3 bsdfWeight;
     if (!isTransmission)
     {
         // Opaque
         float3 wo;
-        bsdfWeight = PBRIndirect(payload.rng, normal, smoothNormal, -WorldRayDirection(), albedo, roughness, metallic, wo);
+        bool isSpecularLobe;
+        bsdfWeight = PBRIndirect(payload.rng, normal, smoothNormal, -WorldRayDirection(), albedo, roughness, metallic, wo, isSpecularLobe);
         payload.throughput *= bsdfWeight;
         payload.nextDirection = wo;
         payload.nextOrigin = hitPoint;
         payload.nextOffsetNormal = flatNormal;
         payload.bsdfPdf = PBRIndirectPdf(normal, -WorldRayDirection(), wo, roughness, metallic, albedo);
+        payload.coneSpreadAngle += isSpecularLobe ? 2.0 * atan(roughness) : SHARC_DIFFUSE_SPREAD_ANGLE;
     }
     else
     {
