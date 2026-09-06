@@ -7,11 +7,13 @@
 class Window;
 class Camera;
 class Renderer;
+class PlayerPhysics;
 
 class Application
 {
 public:
-	Application(bool debugLayer, const std::vector<std::string>& inputPaths);
+	Application(bool debugLayer, const std::vector<std::string>& inputPaths,
+		const std::string& worldsRootOverride = {});
 	~Application();
 
 	void Run();
@@ -26,6 +28,7 @@ private:
 	std::unique_ptr<Window> m_window = nullptr;
 	std::shared_ptr<Camera> m_camera = nullptr;
 	std::unique_ptr<Renderer> m_renderer = nullptr;
+	std::unique_ptr<PlayerPhysics> m_physics = nullptr;
 
 	double m_mouseXPrev = 0.0f;
 	double m_mouseYPrev = 0.0f;

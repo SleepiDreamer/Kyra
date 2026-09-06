@@ -20,6 +20,9 @@ public:
 	[[nodiscard]] glm::mat4 GetViewMatrix() const;
 
 	float m_fov = 60.0f;
+
+	float m_fovMultiplier = 1.0f;
+
 	float m_aperture = 0.0f;
 	float m_focusDistance = 3.0f;
 	bool m_autoFocus = false;

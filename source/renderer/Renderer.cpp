@@ -314,7 +314,7 @@ void Renderer::Render(const float deltaTime)
 	camData.right = m_camera->GetRight();
 	camData.up = m_camera->GetUp();
 	camData.position = m_camera->GetPosition();
-	camData.fov = m_camera->m_fov;
+	camData.fov = m_camera->m_fov * m_camera->m_fovMultiplier;
 	camData.aperture = m_camera->m_aperture;
 	camData.focusDistance = m_camera->m_focusDistance;
 	camData.autoFocus = m_camera->m_autoFocus;
@@ -778,18 +778,21 @@ void Renderer::Render(const float deltaTime)
 		}
 		if (ImGui::BeginTabItem("Camera"))
 		{
-			auto responseCamera = ImReflect::Input("Camera", camData, config2);
+			CameraData uiCamData = camData;
+			uiCamData.fov = m_camera->m_fov;
+
+			auto responseCamera = ImReflect::Input("Camera", uiCamData, config2);
 			if (responseCamera.get<CameraData>().is_changed())
 			{
 				ResetAccumulation();
-				m_camera->SetPosition(camData.position);
-				m_camera->SetDirection(camData.forward);
-				m_camera->m_fov = camData.fov;
-				m_camera->m_aperture = camData.aperture;
-				m_camera->m_focusDistance = camData.focusDistance;
-				m_camera->m_autoFocus = camData.autoFocus;
-				m_camera->m_squeezeFactor = camData.squeezeFactor;
-				m_camera->m_swirliness = camData.swirliness;
+				m_camera->SetPosition(uiCamData.position);
+				m_camera->SetDirection(uiCamData.forward);
+				m_camera->m_fov = uiCamData.fov;
+				m_camera->m_aperture = uiCamData.aperture;
+				m_camera->m_focusDistance = uiCamData.focusDistance;
+				m_camera->m_autoFocus = uiCamData.autoFocus;
+				m_camera->m_squeezeFactor = uiCamData.squeezeFactor;
+				m_camera->m_swirliness = uiCamData.swirliness;
 			}
 			ImGui::EndTabItem();
 		}

@@ -5,10 +5,12 @@
 #include "Window.h"
 #include "Renderer.h"
 #include "Camera.h"
+#include "PlayerPhysics.h"
 
 #include <backends/imgui_impl_glfw.h>
 
-Application::Application(const bool debugLayer, const std::vector<std::string>& inputPaths)
+Application::Application(const bool debugLayer, const std::vector<std::string>& inputPaths,
+	const std::string& worldsRootOverride)
 {
 	m_window = std::make_unique<Window>(1920, 1080);
 	m_renderer = std::make_unique<Renderer>(*m_window, debugLayer);
@@ -17,6 +19,9 @@ Application::Application(const bool debugLayer, const std::vector<std::string>& 
 	m_camera->SetDirection(glm::vec3(0.0f, 0.0f, -1.0f));
 	m_camera->m_fov = 60.0f;
 	m_renderer->SetCamera(m_camera);
+
+	m_physics = std::make_unique<PlayerPhysics>();
+	m_physics->Initialise(worldsRootOverride);
 
 	bool hdriLoaded = false;
 	for (const auto& path : inputPaths)
@@ -30,6 +35,7 @@ Application::Application(const bool debugLayer, const std::vector<std::string>& 
 		if (extension == ".gltf" || extension == ".glb")
 		{
 			m_renderer->LoadModel(path);
+			m_physics->OnModelLoaded(path);
 		}
 	}
 	if (!hdriLoaded)
@@ -95,40 +101,45 @@ void Application::Update(const float deltaTime)
 
 	float cameraSpeed = m_movementSpeed;
 
+	const bool physicsDriving = m_physics && m_physics->IsEnabled();
+
 	// Keyboard and mouse
 	{
-		if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+		if (!physicsDriving)
 		{
-			cameraSpeed *= 4.0f;
-		}
-		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-		{
-			cameraSpeed *= 0.25f;
-		}
+			if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+			{
+				cameraSpeed *= 4.0f;
+			}
+			if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+			{
+				cameraSpeed *= 0.25f;
+			}
 
-		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) // W
-		{
-			m_camera->Move(deltaTime * m_camera->GetForward() * cameraSpeed);
-		}
-		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) // S
-		{
-			m_camera->Move(-deltaTime * m_camera->GetForward() * cameraSpeed);
-		}
-		if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) // A
-		{
-			m_camera->Move(-deltaTime * m_camera->GetRight() * cameraSpeed);
-		}
-		if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) // D
-		{
-			m_camera->Move(deltaTime * m_camera->GetRight() * cameraSpeed);
-		}
-		if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) // Q
-		{
-			m_camera->Move(glm::vec3(0, -deltaTime, 0) * cameraSpeed);
-		}
-		if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) // R
-		{
-			m_camera->Move(glm::vec3(0, deltaTime, 0) * cameraSpeed);
+			if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) // W
+			{
+				m_camera->Move(deltaTime * m_camera->GetForward() * cameraSpeed);
+			}
+			if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) // S
+			{
+				m_camera->Move(-deltaTime * m_camera->GetForward() * cameraSpeed);
+			}
+			if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) // A
+			{
+				m_camera->Move(-deltaTime * m_camera->GetRight() * cameraSpeed);
+			}
+			if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) // D
+			{
+				m_camera->Move(deltaTime * m_camera->GetRight() * cameraSpeed);
+			}
+			if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) // Q
+			{
+				m_camera->Move(glm::vec3(0, -deltaTime, 0) * cameraSpeed);
+			}
+			if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) // R
+			{
+				m_camera->Move(glm::vec3(0, deltaTime, 0) * cameraSpeed);
+			}
 		}
 
 		double x, y;
@@ -165,26 +176,29 @@ void Application::Update(const float deltaTime)
 			cameraSpeed *= 0.25f;
 		}
 
-		// Left stick - movement
-		float lx = gamepadState.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
-		float ly = gamepadState.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
-		if (fabs(lx) < deadzone) lx = 0.0f;
-		if (fabs(ly) < deadzone) ly = 0.0f;
-		if (lx != 0.0f || ly != 0.0f)
+		if (!physicsDriving)
 		{
-			m_camera->Move(deltaTime * cameraSpeed * (m_camera->GetRight() * lx - m_camera->GetForward() * ly));
-		}
+			// Left stick - movement
+			float lx = gamepadState.axes[GLFW_GAMEPAD_AXIS_LEFT_X];
+			float ly = gamepadState.axes[GLFW_GAMEPAD_AXIS_LEFT_Y];
+			if (fabs(lx) < deadzone) lx = 0.0f;
+			if (fabs(ly) < deadzone) ly = 0.0f;
+			if (lx != 0.0f || ly != 0.0f)
+			{
+				m_camera->Move(deltaTime * cameraSpeed * (m_camera->GetRight() * lx - m_camera->GetForward() * ly));
+			}
 
-		// Triggers - vertical movement
-		float lt = gamepadState.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
-		float rt = gamepadState.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
-		if (lt > 0.0f)
-		{
-			m_camera->Move(glm::vec3(0, -deltaTime * lt, 0) * cameraSpeed);
-		}
-		if (rt > 0.0f)
-		{
-			m_camera->Move(glm::vec3(0, deltaTime * rt, 0) * cameraSpeed);
+			// Triggers - vertical movement
+			float lt = gamepadState.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER];
+			float rt = gamepadState.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER];
+			if (lt > 0.0f)
+			{
+				m_camera->Move(glm::vec3(0, -deltaTime * lt, 0) * cameraSpeed);
+			}
+			if (rt > 0.0f)
+			{
+				m_camera->Move(glm::vec3(0, deltaTime * rt, 0) * cameraSpeed);
+			}
 		}
 
 		// Right stick - rotation
@@ -207,6 +221,11 @@ void Application::Update(const float deltaTime)
 		{
 			m_movementSpeed = m_movementSpeed * powf(4.0f, deltaTime);
 		}
+	}
+
+	if (m_physics)
+	{
+		m_physics->Update(deltaTime, window, *m_camera, ImGui::GetIO().WantCaptureKeyboard);
 	}
 }
 
@@ -258,6 +277,15 @@ void Application::KeyCallback(GLFWwindow* window, int key, int scancode, int act
 	{
 		app->m_renderer->ToggleDenoising();
 	}
+	if (key == GLFW_KEY_G && action == GLFW_PRESS && app->m_physics)
+	{
+		app->m_physics->Toggle(*app->m_camera);
+	}
+
+	if (action == GLFW_PRESS && app->m_physics)
+	{
+		app->m_physics->NotifyKeyPress(key);
+	}
 }
 
 void Application::ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
@@ -295,6 +323,10 @@ void Application::DropCallback(GLFWwindow* window, const int count, const char**
 			if (extension == ".gltf" || extension == ".glb")
 			{
 				app->m_renderer->LoadModel(paths[i]);
+				if (app->m_physics)
+				{
+					app->m_physics->OnModelLoaded(paths[i]);
+				}
 			}
 		}
 	}
