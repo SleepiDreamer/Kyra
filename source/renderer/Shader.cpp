@@ -38,6 +38,8 @@ ShaderCompiler::CompilationResult Shader::Load()
     }
 
     m_blob = std::move(result.blob);
+    m_payloadSizeInBytes = result.payloadSizeInBytes;
+    m_attributeSizeInBytes = result.attributeSizeInBytes;
     return result;
 }
 

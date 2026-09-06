@@ -24,6 +24,8 @@ public:
 	[[nodiscard]] std::string GetPath() const { return m_filePath; }
 	[[nodiscard]] std::vector<std::string> GetEntryPoints() const { return m_entryPoints; }
 	[[nodiscard]] bool IsRaytracing() const { return m_isRaytracing; }
+	[[nodiscard]] uint32_t GetPayloadSize() const { return m_payloadSizeInBytes; }
+	[[nodiscard]] uint32_t GetAttributeSize() const { return m_attributeSizeInBytes; }
     [[nodiscard]] bool IsValid() const { return !m_blob.empty(); }
 
 private:
@@ -35,6 +37,8 @@ private:
     std::vector<std::pair<std::string, std::string>> m_defines;
     std::vector<uint8_t> m_blob;
     bool m_isRaytracing;
+    uint32_t m_payloadSizeInBytes = 0;
+    uint32_t m_attributeSizeInBytes = 0;
 
     std::filesystem::file_time_type m_lastCompileTime;
 };

@@ -73,11 +73,16 @@ void RTPipeline::CreatePSO(ID3D12Device10* device)
     hitGroupAlpha->SetHitGroupExport(L"HitGroupAlpha");
     hitGroupAlpha->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
+    const UINT payloadSize = m_shader->GetPayloadSize();
+    const UINT attributeSize = m_shader->GetAttributeSize();
+    if (payloadSize == 0 || attributeSize == 0)
+    {
+        Log::Critical("Shader reflection reported no ray payload/attribute size for {} (payload {}, attributes {})",
+                      m_shader->GetPath(), payloadSize, attributeSize);
+    }
+
     auto shaderConfig = psoDesc.CreateSubobject<CD3DX12_RAYTRACING_SHADER_CONFIG_SUBOBJECT>();
-    shaderConfig->Config(
-        sizeof(float) * 30, // max payload size
-        sizeof(float) * 2   // max attribute size
-    );
+    shaderConfig->Config(payloadSize, attributeSize);
 
     auto globalRootSig = psoDesc.CreateSubobject<CD3DX12_GLOBAL_ROOT_SIGNATURE_SUBOBJECT>();
     globalRootSig->SetRootSignature(m_rootSignature);

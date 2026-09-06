@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <array>
+#include <algorithm>
 
 ShaderCompiler::ShaderCompiler(std::string directory)
 	: m_includeDirectory(std::move(directory))
@@ -208,6 +209,76 @@ bool ShaderCompiler::CheckHotReload()
     return reloaded;
 }
 
+static uint32_t CountScalars(slang::TypeReflection* type)
+{
+    if (type == nullptr) return 0;
+
+    switch (type->getKind())
+    {
+    case slang::TypeReflection::Kind::Scalar:
+        return 1;
+    case slang::TypeReflection::Kind::Vector:
+        return static_cast<uint32_t>(type->getElementCount()) * CountScalars(type->getElementType());
+    case slang::TypeReflection::Kind::Matrix:
+        return type->getRowCount() * type->getColumnCount();
+    case slang::TypeReflection::Kind::Array:
+        return static_cast<uint32_t>(type->getElementCount()) * CountScalars(type->getElementType());
+    case slang::TypeReflection::Kind::Struct:
+    {
+        uint32_t scalars = 0;
+        for (unsigned int field = 0; field < type->getFieldCount(); field++)
+        {
+            scalars += CountScalars(type->getFieldByIndex(field)->getType());
+        }
+        return scalars;
+    }
+    default:
+        return 0;
+    }
+}
+
+static bool HasCategory(slang::VariableLayoutReflection* parameter, slang::ParameterCategory category)
+{
+    for (unsigned int i = 0; i < parameter->getCategoryCount(); i++)
+    {
+        if (parameter->getCategoryByIndex(i) == category) return true;
+    }
+    return parameter->getCategory() == category;
+}
+
+void ShaderCompiler::ReflectRaytracingSizes(slang::IComponentType* linked, CompilationResult& result)
+{
+    if (linked == nullptr) return;
+
+    Slang::ComPtr<slang::IBlob> diagnostics;
+    slang::ProgramLayout* layout = linked->getLayout(0, diagnostics.writeRef());
+    CheckDiagnostics(diagnostics.get(), result);
+    if (layout == nullptr) return;
+
+    for (SlangUInt i = 0; i < layout->getEntryPointCount(); i++)
+    {
+        slang::EntryPointReflection* entryPoint = layout->getEntryPointByIndex(i);
+        if (entryPoint == nullptr) continue;
+
+        for (unsigned int p = 0; p < entryPoint->getParameterCount(); p++)
+        {
+            slang::VariableLayoutReflection* parameter = entryPoint->getParameterByIndex(p);
+            if (parameter == nullptr) continue;
+
+            const uint32_t sizeInBytes = CountScalars(parameter->getType()) * 4;
+
+            if (HasCategory(parameter, slang::ParameterCategory::RayPayload))
+            {
+                result.payloadSizeInBytes = std::max(result.payloadSizeInBytes, sizeInBytes);
+            }
+            else if (HasCategory(parameter, slang::ParameterCategory::HitAttributes))
+            {
+                result.attributeSizeInBytes = std::max(result.attributeSizeInBytes, sizeInBytes);
+            }
+        }
+    }
+}
+
 void ShaderCompiler::CheckDiagnostics(slang::IBlob* diagnosticsBlob, CompilationResult& result)
 {
     if (diagnosticsBlob != nullptr)
@@ -292,6 +363,11 @@ ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& fil
     Slang::ComPtr<slang::IComponentType> linked;
     composed->link(linked.writeRef(), diagnostics.writeRef());
     CheckDiagnostics(diagnostics.get(), result);
+
+    if (isRaytracing)
+    {
+        ReflectRaytracingSizes(linked.get(), result);
+    }
 
     Slang::ComPtr<slang::IBlob> code;
     if (wholeProgram)

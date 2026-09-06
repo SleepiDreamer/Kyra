@@ -19,6 +19,8 @@ public:
         std::vector<uint8_t> blob;
         bool success = false;
         std::string errorLog;
+        uint32_t payloadSizeInBytes = 0;
+        uint32_t attributeSizeInBytes = 0;
     };
 
     CompilationResult Compile(const std::string& filePath, const std::vector<std::string>& entryPoints = {}, bool isRaytracing = true,
@@ -37,6 +39,7 @@ public:
 
 private:
     static void CheckDiagnostics(slang::IBlob* diagnosticsBlob, CompilationResult& result);
+    static void ReflectRaytracingSizes(slang::IComponentType* linked, CompilationResult& result);
 
     Slang::ComPtr<slang::IGlobalSession> m_globalSession;
     HANDLE m_directoryWatch = INVALID_HANDLE_VALUE;
