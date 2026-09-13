@@ -325,7 +325,10 @@ void Application::DropCallback(GLFWwindow* window, const int count, const char**
 				app->m_renderer->LoadModel(paths[i]);
 				if (app->m_physics)
 				{
-					app->m_physics->OnModelLoaded(paths[i]);
+					if (app->m_physics->OnModelLoaded(paths[i]))
+					{
+						app->m_renderer->LoadHDRI("assets/environments/minecraft_2k.hdr");
+					}
 				}
 			}
 		}

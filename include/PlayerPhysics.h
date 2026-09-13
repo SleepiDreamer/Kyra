@@ -19,7 +19,7 @@ public:
 	PlayerPhysics& operator=(const PlayerPhysics&) = delete;
 
 	void Initialise(const std::string& worldsRootOverride);
-	void OnModelLoaded(const std::string& modelPath);
+	bool OnModelLoaded(const std::string& modelPath);
 	bool Toggle(Camera& camera);
 	void Update(float deltaTime, GLFWwindow* window, Camera& camera, bool keyboardCaptured);
 	void NotifyKeyPress(int glfwKey);

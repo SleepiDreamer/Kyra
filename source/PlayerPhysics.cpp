@@ -154,11 +154,11 @@ void PlayerPhysics::CloseWorld()
 	m_enabled = false;
 }
 
-void PlayerPhysics::OnModelLoaded(const std::string& modelPath)
+bool PlayerPhysics::OnModelLoaded(const std::string& modelPath)
 {
 	if (m_api == nullptr || m_worldsRoot.empty())
 	{
-		return;
+		return false;
 	}
 
 	const std::string name = std::filesystem::path(modelPath).stem().string();
@@ -168,7 +168,7 @@ void PlayerPhysics::OnModelLoaded(const std::string& modelPath)
 	if (!std::filesystem::is_directory(folder / "region", error))
 	{
 		Log::Info("No Minecraft save for '{}' in {}", name, m_worldsRoot.string());
-		return;
+		return false;
 	}
 
 	CloseWorld();
@@ -178,7 +178,7 @@ void PlayerPhysics::OnModelLoaded(const std::string& modelPath)
 	if (m_world == nullptr)
 	{
 		Log::Error("Could not open the save for '{}': {}", name, std::string(message));
-		return;
+		return false;
 	}
 
 	m_worldName = name;
@@ -186,8 +186,9 @@ void PlayerPhysics::OnModelLoaded(const std::string& modelPath)
 	double offset[3] = {};
 	int flipZ = 0;
 	m_api->get_offset(m_world, offset, &flipZ);
-	Log::Success("Physics world '{}' ready (offset {:+.1f} {:+.1f} {:+.1f}, flip_z {}). Press G to walk.",
+	Log::Success("Physics world '{}' loaded (offset {:+.1f} {:+.1f} {:+.1f}, flip_z {})",
 		name, offset[0], offset[1], offset[2], flipZ);
+	return true;
 }
 
 bool PlayerPhysics::Toggle(Camera& camera)
