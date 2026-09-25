@@ -33,11 +33,18 @@ using namespace Microsoft::WRL;
 
 // TODO
 // Rendering:
-//   DLSS specular MVs 
+//   more DLSS guide buffers
+//   RIS
+//   ReSTIR (PT)
+//   Path Guiding
 // Materials:
 //   Clearcoat
 // Performance:
 //   Normal packing
+//   Shader caching
+// QoL:
+//   Sun controls
+//   Clearing models
 
 Renderer::Renderer(Window& window, bool debug)
 	: m_window(window), m_prevCamData()
