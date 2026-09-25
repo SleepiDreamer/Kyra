@@ -334,7 +334,7 @@ void Renderer::Render(const float deltaTime)
 	m_renderData.numLights = m_scene->GetNumLights();
 	m_renderData.totalPower = m_scene->GetTotalLightPower();
 	m_renderData.deltaTime = deltaTime;
-	m_renderData.hdrEnabled = m_swapChain->IsHDR();
+	m_renderData.hdrEnabled = m_swapChain->IsHDR() ? 1u : 0u;
 	glm::vec2 jitter = m_ngx->GetJitter(static_cast<int>(m_renderData.frame));
 	m_renderData.camera.jitterX = jitter.x;
 	m_renderData.camera.jitterY = jitter.y;
