@@ -380,3 +380,5 @@ FodyWeavers.xsd
 /external/ngx/lib/dev/nvsdk_ngx_d_dbg.lib
 /assets/environments/qwantani_dusk_2_puresky_4k.hdr
 /assets/environments/sunflowers_puresky_4k.hdr
+
+/build/
