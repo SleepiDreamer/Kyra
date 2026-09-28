@@ -20,8 +20,8 @@
 2. Build with CMake by running `build.bat`
 3. Open the solution in `build/`
 
-## Requirements
-- Nvidia RTX GPU
+**Requirements**
+- Nvidia RTX 20 series or higher
 - Windows 10 or higher
 
 ## Controls
@@ -31,9 +31,9 @@
 | Move | Down/Up | Look | Toggle Look | Speed up/down | Change speed |
 
 **Other**
-| U | H | N | Alt+Enter |
+| Alt+Enter | U | H | N |
 | -- | -- | -- | -- |
-| Toggle UI | Toggle HDR | Toggle Denoising | Toggle Fullscreen |
+| Toggle Fullscreen | Toggle UI | Toggle HDR | Toggle Denoising |
 
 ## Showcase
 
