@@ -13,6 +13,7 @@
 #include <numbers>
 #include <stdexcept>
 #include <vector>
+#include <unordered_set>
 
 using namespace DirectX;
 

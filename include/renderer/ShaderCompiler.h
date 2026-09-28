@@ -5,6 +5,7 @@
 #include <slang-com-ptr.h>
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 class Shader;
 

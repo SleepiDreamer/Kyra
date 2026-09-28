@@ -32,7 +32,7 @@ struct RenderData
 	uint32_t numLights = 0;
 	float totalPower = 0.0f;
 	float deltaTime = 0.0f;
-	bool hdrEnabled = false;
+	uint32_t hdrEnabled = 0;
 };
 
 enum DebugMode

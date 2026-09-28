@@ -1,24 +1,28 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <windows.h>
-#include <glfw3.h>
-#include <glfw3native.h>
+#include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
+#include <stb_image.h>
 
+#include "Log.h"
 #include "Window.h"
-
-#include <assert.h>
-#include <iostream>
 
 Window::Window(const int width, const int height, const char* title)
 {
 	if (!glfwInit())
 	{
-		std::cerr << "Failed to initialize GLFW" << std::endl;
+		Log::Error("Failed to initialize GLFW");
 	}
 
 	m_monitor = glfwGetPrimaryMonitor();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
 	m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
+
+	GLFWimage images[1];
+	images[0].pixels = stbi_load("assets/icons/Kyra.png", &images[0].width, &images[0].height, nullptr, 4);
+	glfwSetWindowIcon(m_window, 1, images);
+	stbi_image_free(images[0].pixels);
 
 	m_hwnd = glfwGetWin32Window(m_window);
 }

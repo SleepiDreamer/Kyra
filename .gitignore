@@ -362,11 +362,11 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-
-
-concatenated.txt
 !external\
+/concatenated.txt
 /imgui.ini
+/Kyra.aps
+/Kyra.sln.DotSettings.user
 /assets/models/Bistro.glb
 /assets/models/LL94Small.glb
 /enc_temp_folder
@@ -380,3 +380,5 @@ concatenated.txt
 /external/ngx/lib/dev/nvsdk_ngx_d_dbg.lib
 /assets/environments/qwantani_dusk_2_puresky_4k.hdr
 /assets/environments/sunflowers_puresky_4k.hdr
+
+/build/

@@ -6,7 +6,7 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_dx12.h>
-#include <glfw3.h>
+#include <GLFW/glfw3.h>
 
 ImGuiWrapper::ImGuiWrapper(const Window& window, RenderContext& context, const DXGI_FORMAT rtvFormat, const uint32_t framesInFlight)
     : m_context(context)
