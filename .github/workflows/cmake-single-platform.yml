@@ -1,5 +1,3 @@
-# This starter workflow is for a CMake project running on a single platform. There is a different starter workflow if you need cross-platform coverage.
-# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-multi-platform.yml
 name: CMake on Windows
 
 on:
@@ -9,14 +7,17 @@ on:
     branches: [ "main" ]
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     runs-on: windows-latest
 
     steps:
@@ -27,3 +28,37 @@ jobs:
 
     - name: Build
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Package
+      shell: pwsh
+      run: |
+        $out   = "build/${{env.BUILD_TYPE}}"
+        $stage = "package/Kyra"
+        New-Item -ItemType Directory -Force -Path $stage | Out-Null
+
+        Copy-Item "$out/*" $stage -Recurse -Exclude *.pdb,*.ilk,*.exp,*.lib
+
+        Copy-Item shaders  "$stage/shaders" -Recurse
+        Copy-Item assets   "$stage/assets"  -Recurse
+        Copy-Item THIRD_PARTY_NOTICES.md $stage
+
+        Compress-Archive -Path $stage -DestinationPath Kyra-windows-x64.zip
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: Kyra-windows-x64
+        path: Kyra-windows-x64.zip
+
+    - name: Publish rolling release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release delete latest --cleanup-tag --yes || true
+
+        gh release create latest Kyra-windows-x64.zip \
+          --target "${{ github.sha }}" \
+          --title "Latest build (${GITHUB_SHA::7})" \
+          --notes "Automatic build of commit ${{ github.sha }} from main." \
+          --latest
