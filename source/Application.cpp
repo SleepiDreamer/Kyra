@@ -265,15 +265,15 @@ void Application::KeyCallback(GLFWwindow* window, int key, int scancode, int act
 		glfwGetCursorPos(window, &app->m_mouseXPrev, &app->m_mouseYPrev);
 	}
 
-	if (key == GLFW_KEY_P && action == GLFW_PRESS)
+	if (key == GLFW_KEY_H && action == GLFW_PRESS)
 	{
 		app->m_renderer->ToggleHDR();
 	}
-	if (key == GLFW_KEY_H && action == GLFW_PRESS)
+	if (key == GLFW_KEY_U && action == GLFW_PRESS)
 	{
 		app->m_renderer->ToggleImGui();
 	}
-	if (key == GLFW_KEY_U && action == GLFW_PRESS)
+	if (key == GLFW_KEY_N && action == GLFW_PRESS)
 	{
 		app->m_renderer->ToggleDenoising();
 	}

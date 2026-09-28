@@ -45,6 +45,8 @@ using namespace Microsoft::WRL;
 // QoL:
 //   Sun controls
 //   Clearing models
+// Support:
+//   Disable DLSS if not supported
 
 Renderer::Renderer(Window& window, bool debug)
 	: m_window(window), m_prevCamData()
