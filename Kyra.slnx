@@ -1,7 +1,0 @@
-<Solution>
-  <Configurations>
-    <Platform Name="x64" />
-    <Platform Name="x86" />
-  </Configurations>
-  <Project Path="Kyra.vcxproj" Id="d5fcfafa-9a9f-4d26-addf-c24d8e359377" />
-</Solution>
