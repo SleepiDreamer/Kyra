@@ -7,11 +7,12 @@
 ## Features
 - Fully path traced PBR rendering
 - glTF & HDRI loading
-- DLSS Ray Reconstruction
 - SHaRC radiance caching
-- Alias Table power sampling
+- Shader Execution Reordering
+- - DLSS Ray Reconstruction
+- Alias Table power sampling (NEE)
 - HDR Output
-- Autoexposure & Autofocus
+- Bloom, DoF, AE, AF
 
 ## Building
 1. Clone the repo `git clone https://github.com/SleepiDreamer/Kyra.git`
@@ -35,7 +36,10 @@
 
 ## Showcase
 
+- DirectX 12 Agility SDK: Microsoft DirectX License (binaries), MIT (headers)
 
+NVIDIA, DLSS, and RTX are trademarks of NVIDIA Corporation. This project is not affiliated with or endorsed by NVIDIA. This software contains source code provided by NVIDIA Corporation.
 
 ## Credits
 
+The Kyra source code is licensed under MIT. This license does not cover third-party components, which remain under their own licenses listed above. See THIRD_PARTY_NOTICES.md for full license texts.
