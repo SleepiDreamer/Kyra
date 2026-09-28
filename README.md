@@ -1,6 +1,6 @@
 # Kyra
 
-### A real-time Path Tracer built with DX12 and Slang.
+### A real-time Path Tracer using DX12 and Slang.
 
 <img width="3072" height="1024" alt="KyraBanner" src="https://github.com/user-attachments/assets/b561547a-1817-45da-b558-9be00c55675a" />
 
@@ -9,7 +9,7 @@
 - glTF & HDRI loading
 - SHaRC radiance caching
 - Shader Execution Reordering
-- - DLSS Ray Reconstruction
+- DLSS Ray Reconstruction
 - Alias Table power sampling (NEE)
 - HDR Output
 - Bloom, DoF, AE, AF
@@ -36,10 +36,10 @@
 
 ## Showcase
 
+## Credits
+
 - DirectX 12 Agility SDK: Microsoft DirectX License (binaries), MIT (headers)
 
 NVIDIA, DLSS, and RTX are trademarks of NVIDIA Corporation. This project is not affiliated with or endorsed by NVIDIA. This software contains source code provided by NVIDIA Corporation.
-
-## Credits
 
 The Kyra source code is licensed under MIT. This license does not cover third-party components, which remain under their own licenses listed above. See THIRD_PARTY_NOTICES.md for full license texts.
