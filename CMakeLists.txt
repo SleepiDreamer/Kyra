@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24...4.4)
 
 project(
   Kyra
-  LANGUAGES CXX)
+  LANGUAGES C CXX)
 
 get_property(KYRA_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(KYRA_MULTI_CONFIG)
