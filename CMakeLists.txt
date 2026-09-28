@@ -26,15 +26,14 @@ file(GLOB_RECURSE KYRA_SHADERS CONFIGURE_DEPENDS
 set_source_files_properties(${KYRA_SHADERS} PROPERTIES HEADER_FILE_ONLY ON)
  
 set(KYRA_RESOURCES
-    ${CMAKE_SOURCE_DIR}/resources/Kyra.rc
-    ${CMAKE_SOURCE_DIR}/resources/resource.h)
+    ${CMAKE_SOURCE_DIR}/assets/icons/Kyra.rc
+    ${CMAKE_SOURCE_DIR}/assets/icons/resource.h)
  
 add_executable(Kyra ${KYRA_SOURCES} ${KYRA_SHADERS} ${KYRA_RESOURCES})
  
 target_include_directories(Kyra PRIVATE
     ${CMAKE_SOURCE_DIR}/include
-	${CMAKE_SOURCE_DIR}/include/renderer
-    ${CMAKE_SOURCE_DIR}/resources)
+	${CMAKE_SOURCE_DIR}/include/renderer)
  
 target_link_libraries(Kyra PRIVATE kyra_deps)
  

@@ -20,7 +20,7 @@ Window::Window(const int width, const int height, const char* title)
 	m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
 
 	GLFWimage images[1];
-	images[0].pixels = stbi_load("resources/Kyra.png", &images[0].width, &images[0].height, nullptr, 4);
+	images[0].pixels = stbi_load("assets/icons/Kyra.png", &images[0].width, &images[0].height, nullptr, 4);
 	glfwSetWindowIcon(m_window, 1, images);
 	stbi_image_free(images[0].pixels);
 
