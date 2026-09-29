@@ -20,7 +20,7 @@
 2. Build with CMake by running `build.bat`
 3. Open the solution in `build/`
 
-**Requirements**
+## Requirements
 - Nvidia RTX 20 series or higher
 - Windows 10 or higher
 
@@ -36,13 +36,11 @@
 | Fullscreen | UI | HDR | Denoising |
 
 ## Showcase
-<img width="49%" height="auto" alt="Screenshot 2026-03-02 235557-2" src="https://github.com/user-attachments/assets/4b546b58-2922-4054-a777-18a745a0a3ce" />
-<img width="49%" height="auto" alt="Screenshot 2026-09-06 003242" src="https://github.com/user-attachments/assets/70e85e40-65ab-4241-aee2-9a16adf8a7da" />
-
-<img width="100%" height="auto" alt="Screenshot 2026-09-26 014752" src="https://github.com/user-attachments/assets/0ab35615-1e65-4a71-9510-3f39d111982f" />
-
-<img width="49%" height="auto" alt="Screenshot 2026-07-01 153147" src="https://github.com/user-attachments/assets/863ea6e3-cbdc-418b-afdc-0c10fb51ef93" />
-<img width="49%" height="auto" alt="Screenshot 2026-07-09 132426" src="https://github.com/user-attachments/assets/2e589e12-82f9-45cc-80f2-8925b11396bf" />
+<img width="49.5%" border="2px solid black" alt="Screenshot 2026-03-02 235557-2" src="https://github.com/user-attachments/assets/4b546b58-2922-4054-a777-18a745a0a3ce" />
+<img width="49.5%" alt="Screenshot 2026-09-06 003242" src="https://github.com/user-attachments/assets/70e85e40-65ab-4241-aee2-9a16adf8a7da" />
+<img width="100%" alt="Screenshot 2026-09-26 014752" src="https://github.com/user-attachments/assets/0ab35615-1e65-4a71-9510-3f39d111982f" />
+<img width="49.5%" alt="Screenshot 2026-03-03 235546" src="https://github.com/user-attachments/assets/737a59f4-f54a-4559-80bc-749c640e39aa" />
+<img width="49.5%" alt="Screenshot 2026-07-09 132426" src="https://github.com/user-attachments/assets/2e589e12-82f9-45cc-80f2-8925b11396bf" />
 
 ### Disclaimer
 
