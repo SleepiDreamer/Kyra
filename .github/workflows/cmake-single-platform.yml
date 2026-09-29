@@ -1,10 +1,6 @@
-name: CMake on Windows
+name: Build with CMake
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+on: workflow_dispatch
 
 env:
   BUILD_TYPE: Release
@@ -59,6 +55,6 @@ jobs:
 
         gh release create latest Kyra-windows-x64.zip \
           --target "${{ github.sha }}" \
-          --title "Latest build (${GITHUB_SHA::7})" \
-          --notes "Automatic build of commit ${{ github.sha }} from main." \
+          --title "Latest version (${GITHUB_SHA::7})" \
+          --notes "Build of main ${{ github.sha }}." \
           --latest
