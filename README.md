@@ -2,7 +2,7 @@
 
 ### A real-time Path Tracer using DX12 and Slang.
 
-<img width="3072" height="1024" alt="Kyra logo banner image" src="https://github.com/user-attachments/assets/b561547a-1817-45da-b558-9be00c55675a" />
+<img width="3072" height="1024" alt="KyraBannerWhite" src="https://github.com/user-attachments/assets/4d1a650f-e279-4c1e-bdab-0d16fe49852f" />
 
 ## Features
 - Fully path traced PBR rendering
@@ -30,20 +30,19 @@
 | -- | -- | -- | -- | -- | -- |
 | Move | Down/Up | Look | Toggle Look | Speed up/down | Change speed |
 
-**Other**
+**Toggles**
 | Alt+Enter | U | H | N |
 | -- | -- | -- | -- |
-| Toggle Fullscreen | Toggle UI | Toggle HDR | Toggle Denoising |
+| Fullscreen | UI | HDR | Denoising |
 
 ## Showcase
+<img width="49%" height="auto" alt="Screenshot 2026-03-02 235557-2" src="https://github.com/user-attachments/assets/4b546b58-2922-4054-a777-18a745a0a3ce" />
+<img width="49%" height="auto" alt="Screenshot 2026-09-06 003242" src="https://github.com/user-attachments/assets/70e85e40-65ab-4241-aee2-9a16adf8a7da" />
 
-<img width="49%" height="auto" alt="Screenshot 2026-03-02 235557" src="https://github.com/user-attachments/assets/39d4638c-6cd9-4bac-a979-cbba4f7a8ed7" />
-<img width="49%" height="auto" alt="Screenshot 2026-09-06 003242" src="https://github.com/user-attachments/assets/78c1668d-9284-4d22-a543-79e81f5dbd9c" />
+<img width="100%" height="auto" alt="Screenshot 2026-09-26 014752" src="https://github.com/user-attachments/assets/0ab35615-1e65-4a71-9510-3f39d111982f" />
 
-<img width="100%" height="auto" alt="Screenshot 2026-09-26 015116" src="https://github.com/user-attachments/assets/efc819ad-6656-4af4-ba39-5e254af69be0" />
-
+<img width="49%" height="auto" alt="Screenshot 2026-07-01 153147" src="https://github.com/user-attachments/assets/863ea6e3-cbdc-418b-afdc-0c10fb51ef93" />
 <img width="49%" height="auto" alt="Screenshot 2026-07-09 132426" src="https://github.com/user-attachments/assets/2e589e12-82f9-45cc-80f2-8925b11396bf" />
-<img width="49%" height="auto" alt="Screenshot 2026-07-01 153147" src="https://github.com/user-attachments/assets/7743c8a6-e5e2-4d53-94a1-dd448005d2bc" />
 
 ### Disclaimer
 
