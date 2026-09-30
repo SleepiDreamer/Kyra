@@ -570,7 +570,7 @@ void AnyHitMask(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     uint i1 = indices[baseIdx + 1];
     uint i2 = indices[baseIdx + 2];
     float2 uv = sampleTriangle(vertices[i0].uv, vertices[i1].uv, vertices[i2].uv, attr.barycentrics);
-    float alpha = sampleOrDefault(material.albedoIndex, sampler, uv, float4(1)).a;
+    float alpha = sampleOrDefault(material.albedoIndex, sampler, uv, material.albedoFactor).a;
 
     if (alpha > material.alphaCutoff)
     {
@@ -589,7 +589,7 @@ void AnyHitBlend(inout Payload payload, in BuiltInTriangleIntersectionAttributes
     uint i1 = indices[baseIdx + 1];
     uint i2 = indices[baseIdx + 2];
     float2 uv = sampleTriangle(vertices[i0].uv, vertices[i1].uv, vertices[i2].uv, attr.barycentrics);
-    float alpha = sampleOrDefault(material.albedoIndex, sampler, uv, float4(1)).a;
+    float alpha = sampleOrDefault(material.albedoIndex, sampler, uv, material.albedoFactor).a;
 
     uint2 idx = DispatchRaysIndex().xy;
     uint surfaceIdx = InstanceIndex() * 0x9E3779B9u ^ PrimitiveIndex();
