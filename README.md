@@ -2,7 +2,7 @@
 
 ### A real-time Path Tracer using DX12 and Slang.
 
-<img width="3072" height="1024" alt="KyraBannerWhite" src="https://github.com/user-attachments/assets/4d1a650f-e279-4c1e-bdab-0d16fe49852f" />
+<img width="3072" height="1024" alt="KyraBannerWhite" src="https://github.com/user-attachments/assets/6bf788e5-502a-4de7-bdbb-dee4624f7c92" />
 
 ## Features
 - Fully path traced PBR rendering
