@@ -149,10 +149,12 @@ public struct Material
     public int normalIndex;
     public uint samplerIndex;
     public float ior;
+    public float alphaCutoff;
     public uint flags;
     public float3x2 uvTransform;
 };
 
-public static const uint MAT_FLAG_TRANSPARENT = (1 << 0);
-public static const uint MAT_FLAG_UV_TRANSFORM = (1 << 1);
-public static const uint MAT_FLAG_TRANSMISSION = 4;
+public static const uint MAT_FLAG_ALPHA_MASK = (1 << 0);
+public static const uint MAT_FLAG_ALPHA_BLEND = (1 << 1);
+public static const uint MAT_FLAG_UV_TRANSFORM = (1 << 2);
+public static const uint MAT_FLAG_TRANSMISSION = (1 << 3);

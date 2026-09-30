@@ -561,7 +561,7 @@ void Miss(inout Payload payload)
 }
 
 [shader("anyhit")]
-void AnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr)
+void AnyHitMask(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
     Material material = materials[materialIndex];
     SamplerState sampler = DescriptorHandle<SamplerState>(uint2(material.samplerIndex, 0));
@@ -572,7 +572,31 @@ void AnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr
     float2 uv = sampleTriangle(vertices[i0].uv, vertices[i1].uv, vertices[i2].uv, attr.barycentrics);
     float alpha = sampleOrDefault(material.albedoIndex, sampler, uv, float4(1)).a;
 
-    if (alpha > 0.5f)
+    if (alpha > material.alphaCutoff)
+    {
+        return;
+    }
+    IgnoreHit();
+}
+
+[shader("anyhit")]
+void AnyHitBlend(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr)
+{
+    Material material = materials[materialIndex];
+    SamplerState sampler = DescriptorHandle<SamplerState>(uint2(material.samplerIndex, 0));
+    uint baseIdx = PrimitiveIndex() * 3;
+    uint i0 = indices[baseIdx];
+    uint i1 = indices[baseIdx + 1];
+    uint i2 = indices[baseIdx + 2];
+    float2 uv = sampleTriangle(vertices[i0].uv, vertices[i1].uv, vertices[i2].uv, attr.barycentrics);
+    float alpha = sampleOrDefault(material.albedoIndex, sampler, uv, float4(1)).a;
+
+    uint2 idx = DispatchRaysIndex().xy;
+    uint surfaceIdx = InstanceIndex() * 0x9E3779B9u ^ PrimitiveIndex();
+
+    RNG rng = RNG.create(idx.y * DispatchRaysDimensions().x + idx.x, surfaceIdx, renderData.frame);
+    float rand = rng.nextFloat();
+    if (alpha > rand)
     {
         return;
     }

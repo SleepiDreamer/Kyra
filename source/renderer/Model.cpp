@@ -300,7 +300,7 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
         if (primitive.materialIndex.has_value())
         {
             const auto& mat = asset.materials[primitive.materialIndex.value()];
-			isAlphaTested = mat.alphaMode != fastgltf::AlphaMode::Opaque;
+            isAlphaTested = mat.alphaMode != fastgltf::AlphaMode::Opaque;
         }
 
         mesh.Upload(m_context, vertices, indices, meshName);
@@ -497,7 +497,9 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
         const fastgltf::math::nvec3& eFactor = mat.emissiveFactor * mat.emissiveStrength;
 		matData.emissiveFactor = { eFactor[0], eFactor[1], eFactor[2] };
 		matData.ior = mat.ior;
-        matData.flags = (mat.alphaMode != fastgltf::AlphaMode::Opaque) ? MAT_FLAG_TRANSPARENT : 0;
+        matData.alphaCutoff = mat.alphaCutoff;
+        matData.flags = (mat.alphaMode == fastgltf::AlphaMode::Mask) ? MAT_FLAG_ALPHA_MASK : 0;
+        matData.flags |= (mat.alphaMode == fastgltf::AlphaMode::Blend) ? MAT_FLAG_ALPHA_BLEND : 0;
         matData.flags |= hasUvTransform ? MAT_FLAG_UV_TRANSFORM : 0;
         matData.flags |= mat.transmission ? MAT_FLAG_TRANSMISSION : 0;
 

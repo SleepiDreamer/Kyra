@@ -186,6 +186,7 @@ void Scene::UploadMaterialData()
 				texture.normalIndex,
 				texture.samplerIndex,
 				texture.ior,
+				texture.alphaCutoff,
 				texture.flags,
 				texture.uvTransform
 			});
@@ -226,7 +227,19 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords()
 			record.materialIndex = mesh.m_materialIndex >= 0 ? static_cast<uint32_t>(mesh.m_materialIndex) : 0;
 			if (mesh.m_localMaterialIndex >= 0 && mesh.m_localMaterialIndex < model.GetMaterials().size())
 			{
-				record.isAlphaTested = model.GetMaterials()[mesh.m_localMaterialIndex].flags & MAT_FLAG_TRANSPARENT ? 1 : 0;
+				uint32_t matFlags = model.GetMaterials()[mesh.m_localMaterialIndex].flags;
+				if (matFlags & MAT_FLAG_ALPHA_MASK)
+				{
+					record.blendMode = BlendMode::AlphaMask;
+				}
+				else if (matFlags & MAT_FLAG_ALPHA_BLEND)
+				{
+					record.blendMode = BlendMode::AlphaBlend;
+				}
+				else
+				{
+					record.blendMode = BlendMode::Opaque;
+				}
 			}
 			records.push_back(record);
 		}

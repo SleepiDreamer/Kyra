@@ -106,13 +106,20 @@ struct PostProcessSettings
 };
 IMGUI_REFLECT(PostProcessSettings, autoExposure, exposure, targetExposure, bloomStrength)
 
+enum class BlendMode
+{
+	Opaque,
+	AlphaMask,
+	AlphaBlend,
+};
+
 struct HitGroupRecord
 {
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBuffer;
 	D3D12_GPU_VIRTUAL_ADDRESS indexBuffer;
 	D3D12_GPU_VIRTUAL_ADDRESS powerBuffer;
 	uint32_t materialIndex;
-	uint32_t isAlphaTested;
+	BlendMode blendMode;
 };
 
 struct MaterialData
@@ -126,11 +133,13 @@ struct MaterialData
 	int32_t metallicRoughnessIndex = -1;
 	int32_t normalIndex = -1;
 	uint32_t samplerIndex = 0;
-	float ior = 1.5;
+	float ior = 1.5f;
+	float alphaCutoff = 0.5f;
 	uint32_t flags = 0;
 	glm::mat3x2 uvTransform;
 };
 
-constexpr uint32_t MAT_FLAG_TRANSPARENT = (1 << 0);
-constexpr uint32_t MAT_FLAG_UV_TRANSFORM = (1 << 1);
-constexpr uint32_t MAT_FLAG_TRANSMISSION = (1 << 2);
+constexpr uint32_t MAT_FLAG_ALPHA_MASK = (1 << 0);
+constexpr uint32_t MAT_FLAG_ALPHA_BLEND = (1 << 1);
+constexpr uint32_t MAT_FLAG_UV_TRANSFORM = (1 << 2);
+constexpr uint32_t MAT_FLAG_TRANSMISSION = (1 << 3);
