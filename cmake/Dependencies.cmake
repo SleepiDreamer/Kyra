@@ -139,6 +139,8 @@ target_include_directories(stb INTERFACE ${STB_DIR})
 # --- mcphysics ---
 add_library(mcphysics INTERFACE)
 target_include_directories(mcphysics INTERFACE ${CMAKE_SOURCE_DIR}/external/mcphysics)
+list(APPEND KYRA_EXTRA_RUNTIME_FILES 
+	${CMAKE_SOURCE_DIR}/external/mcphysics/mcphysics.dll)
 
 # --- DXC ---
 FetchContent_Declare(dxc
@@ -151,7 +153,7 @@ set_target_properties(dxc PROPERTIES
     IMPORTED_LOCATION             ${dxc_SOURCE_DIR}/bin/x64/dxcompiler.dll
     IMPORTED_IMPLIB               ${dxc_SOURCE_DIR}/lib/x64/dxcompiler.lib
     INTERFACE_INCLUDE_DIRECTORIES ${dxc_SOURCE_DIR}/inc)
-list(APPEND KYRA_EXTRA_RUNTIME_FILES ${dxc_SOURCE_DIR}/bin/x64/dxil.dll)   # needed for DXIL signing
+list(APPEND KYRA_EXTRA_RUNTIME_FILES ${dxc_SOURCE_DIR}/bin/x64/dxil.dll)
 
 # --- Slang ---
 FetchContent_Declare(slang
