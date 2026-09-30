@@ -62,16 +62,22 @@ void RTPipeline::CreatePSO(ID3D12Device10* device)
     lib->SetDXILLibrary(&bytecode);
 
     // Hit group
-    auto hitGroup = psoDesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
-    hitGroup->SetClosestHitShaderImport(L"ClosestHit");
-    hitGroup->SetHitGroupExport(L"HitGroup");
-    hitGroup->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+    auto hitGroupOpaque = psoDesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    hitGroupOpaque->SetClosestHitShaderImport(L"ClosestHit");
+    hitGroupOpaque->SetHitGroupExport(L"HitGroupOpaque");
+    hitGroupOpaque->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
-    auto hitGroupAlpha = psoDesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
-    hitGroupAlpha->SetClosestHitShaderImport(L"ClosestHit");
-    hitGroupAlpha->SetAnyHitShaderImport(L"AnyHit");
-    hitGroupAlpha->SetHitGroupExport(L"HitGroupAlpha");
-    hitGroupAlpha->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+    auto hitGroupMask = psoDesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    hitGroupMask->SetClosestHitShaderImport(L"ClosestHit");
+    hitGroupMask->SetAnyHitShaderImport(L"AnyHitMask");
+    hitGroupMask->SetHitGroupExport(L"HitGroupMask");
+    hitGroupMask->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
+
+    auto hitGroupBlend = psoDesc.CreateSubobject<CD3DX12_HIT_GROUP_SUBOBJECT>();
+    hitGroupBlend->SetClosestHitShaderImport(L"ClosestHit");
+    hitGroupBlend->SetAnyHitShaderImport(L"AnyHitBlend");
+    hitGroupBlend->SetHitGroupExport(L"HitGroupBlend");
+    hitGroupBlend->SetHitGroupType(D3D12_HIT_GROUP_TYPE_TRIANGLES);
 
     const UINT payloadSize = m_shader->GetPayloadSize();
     const UINT attributeSize = m_shader->GetAttributeSize();
@@ -92,8 +98,9 @@ void RTPipeline::CreatePSO(ID3D12Device10* device)
 
     auto association = psoDesc.CreateSubobject<CD3DX12_SUBOBJECT_TO_EXPORTS_ASSOCIATION_SUBOBJECT>();
     association->SetSubobjectToAssociate(*localRootSig);
-    association->AddExport(L"HitGroup");
-    association->AddExport(L"HitGroupAlpha");
+    association->AddExport(L"HitGroupOpaque");
+    association->AddExport(L"HitGroupMask");
+    association->AddExport(L"HitGroupBlend");
 
     auto pipelineConfig = psoDesc.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
     pipelineConfig->Config(2); // max recursion depth
@@ -163,16 +170,18 @@ void RTPipeline::CreateShaderTables(ID3D12Device10* device, const std::vector<Hi
         void* mapped = nullptr;
         m_hitGroupTable->Map(0, nullptr, &mapped);
         auto* dst = static_cast<uint8_t*>(mapped);
-        auto* shaderId = props->GetShaderIdentifier(L"HitGroup");
-        auto* shaderAlphaId = props->GetShaderIdentifier(L"HitGroupAlpha");
+        auto* opaqueId = props->GetShaderIdentifier(L"HitGroupOpaque");
+        auto* maskId = props->GetShaderIdentifier(L"HitGroupMask");
+        auto* blendId = props->GetShaderIdentifier(L"HitGroupBlend");
 
         for (UINT i = 0; i < m_hitGroupCount; i++)
         {
-			bool isAlphaTested = hitGroupRecords[i].isAlphaTested == 1;
-			auto* shader = isAlphaTested ? shaderAlphaId : shaderId;
+			BlendMode blendMode = hitGroupRecords[i].blendMode;
+			auto* shader = blendMode == BlendMode::Opaque ? opaqueId
+        		: blendMode == BlendMode::AlphaMask ? maskId : blendId;
 
             auto* record = dst + i * m_hitGroupRecordSize;
-            memcpy(record, shader, shaderIdSize);
+			memcpy(record, shader, shaderIdSize);
             memcpy(record + shaderIdSize, &hitGroupRecords[i], sizeof(HitGroupRecord));
         }
 

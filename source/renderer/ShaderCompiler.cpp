@@ -293,7 +293,7 @@ ShaderCompiler::CompilationResult ShaderCompiler::Compile(const std::string& fil
     CompilationResult result;
 
     std::vector<std::string> epNames = entryPoints.empty()
-        ? std::vector<std::string>{"RayGen", "ClosestHit", "Miss", "ShadowMiss", "AnyHit"}
+        ? std::vector<std::string>{"RayGen", "ClosestHit", "Miss", "ShadowMiss", "AnyHitMask", "AnyHitBlend"}
 		: entryPoints;
 
     bool wholeProgram = isRaytracing;
