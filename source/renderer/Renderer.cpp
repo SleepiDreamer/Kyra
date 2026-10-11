@@ -42,6 +42,7 @@ using namespace Microsoft::WRL;
 // Performance:
 //   Normal packing
 //   Shader caching
+//   BVH merge & compaction
 // QoL:
 //   Sun controls
 //   Clearing models
