@@ -33,6 +33,7 @@ using namespace Microsoft::WRL;
 
 // TODO
 // Rendering:
+//   shadow ray transmission
 //   more DLSS guide buffers
 //   RIS
 //   ReSTIR (PT)
