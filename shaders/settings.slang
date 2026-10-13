@@ -12,7 +12,7 @@ public export static const uint RUSSIAN_ROULETTE_START_BOUNCE = 0;
 
 public export static const bool DEPTH_OF_FIELD = true;
 
-public export static const float BEER_ABSORPTION = 0.5;
+public export static const float BEER_ABSORPTION = 1.0;
 
 // SHaRC
 public export static const uint SHARC_CAPACITY = 1 << 22;

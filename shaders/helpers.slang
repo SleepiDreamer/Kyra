@@ -70,6 +70,11 @@ public float3 ACEScgToRec2020(float3 c) { return mul(
              -0.0022343695,  1.0045865019, -0.0023521324,
              -0.0050133515, -0.0252900718,  1.0303034233), c); }
 
+public float3x3 Cofactor(float3x3 m)
+{
+    return float3x3(cross(m[1], m[2]), cross(m[2], m[0]), cross(m[0], m[1]));
+}
+
 public float2 sampleTriangle(float2 x0, float2 x1, float2 x2, float2 bary)
 {
     float w = 1 - bary.x - bary.y;

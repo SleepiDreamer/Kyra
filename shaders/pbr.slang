@@ -81,7 +81,7 @@ float3 GetGGXMicrofacet(inout RNG rng, float roughness, float3 n, float3 v)
     return T * hLocal.x + B * hLocal.y + n * hLocal.z;
 }
 
-public float3 BeersLaw(float3 absorption, float distance)
+float3 BeersLaw(float3 absorption, float distance)
 {
     return exp(-absorption * distance * BEER_ABSORPTION);
 }
@@ -178,15 +178,16 @@ public float3 PBRTransmission(inout RNG rng, float3 n, float3 g, float3 v, float
         // Reflect
         l = reflect(-v, n);
         offsetN = g;
-        return float3(1);
     }
     else
     {
         // Refract
         l = normalize(refract(-v, n, eta));
         offsetN = -g;
-        return BeersLaw(1 - albedo, dist);
     }
+
+    float3 transmittance = BeersLaw(1.0 - albedo, dist);
+    return transmittance;
 }
 
 public float3 PBRDirect(float3 n, float3 l, float3 v, float3 albedo, float roughness, float metallic)

@@ -3,6 +3,7 @@
 #include "MikkT.h"
 #include "GPUAllocator.h"
 #include "CommandQueue.h"
+#include "BLAS.h"
 #include "StructsDX.h"
 #include "Log.h"
 
@@ -20,10 +21,90 @@ using namespace DirectX;
 Model::Model(RenderContext& context, ID3D12GraphicsCommandList4* commandList, const std::filesystem::path& path)
     : m_context(context), m_name(path.stem().string())
 {
+    m_transform = {
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1 };
+
     LoadGLTF(commandList, path);
 }
 
 Model::~Model() = default;
+Model::Model(Model&&) noexcept = default;
+Model& Model::operator=(Model&&) noexcept = default;
+
+void Model::BuildBLAS(ID3D12GraphicsCommandList4* commandList)
+{
+	const uint32_t numMeshes = m_meshes.size();
+
+    // Create transform buffer in upload heap
+	{
+		struct Transform3x4 { float m[3][4]; };
+
+		const UINT64 size = sizeof(Transform3x4) * numMeshes;
+
+		D3D12_HEAP_PROPERTIES heapProps = { D3D12_HEAP_TYPE_UPLOAD };
+		D3D12_RESOURCE_DESC desc = {};
+		desc.Dimension        = D3D12_RESOURCE_DIMENSION_BUFFER;
+		desc.Width            = size;
+		desc.Height           = 1;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels        = 1;
+		desc.SampleDesc.Count = 1;
+		desc.Layout           = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+		ThrowIfFailed(m_context.device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
+			&desc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_transformBuffer)));
+
+		Transform3x4* mapped = nullptr;
+		D3D12_RANGE noRead = { 0, 0 };
+		m_transformBuffer->Map(0, &noRead, reinterpret_cast<void**>(&mapped));
+
+		for (uint32_t i = 0; i < numMeshes; i++) {
+            XMMATRIX m = XMMatrixTranspose(XMLoadFloat4x4(&m_meshes[i].m_transform));
+            XMFLOAT4X4 t; XMStoreFloat4x4(&t, m);
+            memcpy(&mapped[i], &t, sizeof(Transform3x4));
+		}
+		m_transformBuffer->Unmap(0, nullptr);
+	}
+
+    D3D12_GPU_VIRTUAL_ADDRESS transformBase = m_transformBuffer->GetGPUVirtualAddress();
+
+	m_blas = std::make_unique<BLAS>(m_context);
+    std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries;
+    for (uint32_t i = 0; i < numMeshes; i++)
+    {
+        geometries.emplace_back(m_meshes[i].GetGeometryDesc(transformBase, i));
+    }
+	m_blas->Build(m_context.device, commandList, geometries);
+
+    // TODO: delete transform buffer after use
+}
+
+D3D12_RAYTRACING_INSTANCE_DESC Model::GetInstanceDesc(const UINT instanceId, const UINT hitGroupOffset) const
+{
+    if (!m_blas)
+    {
+        Log::Warning("[Model::GetInstanceDesc] Can't get instance desc for a model without a mesh");
+		return D3D12_RAYTRACING_INSTANCE_DESC{ 0 };
+    }
+
+	D3D12_RAYTRACING_INSTANCE_DESC desc = {};
+	desc.AccelerationStructure = m_blas->GetResult()->GetGPUVirtualAddress();
+	desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+	desc.InstanceMask = 0xFF;
+    desc.InstanceContributionToHitGroupIndex = hitGroupOffset;
+    desc.InstanceID = instanceId;
+
+	XMMATRIX m = XMLoadFloat4x4(&m_transform);
+	XMMATRIX transposed = XMMatrixTranspose(m);
+	XMFLOAT4X4 t;
+	XMStoreFloat4x4(&t, transposed);
+	memcpy(desc.Transform, &t, sizeof(desc.Transform));
+
+	return desc;
+}
 
 void Model::LoadGLTF(ID3D12GraphicsCommandList4* commandList, const std::filesystem::path& path)
 {
@@ -303,8 +384,9 @@ void Model::LoadMesh(ID3D12GraphicsCommandList4* commandList, const fastgltf::As
             isAlphaTested = mat.alphaMode != fastgltf::AlphaMode::Opaque;
         }
 
+        mesh.m_isAlphaTested = isAlphaTested;
         mesh.Upload(m_context, vertices, indices, meshName);
-        mesh.BuildBLAS(m_context, commandList, isAlphaTested);
+        //mesh.BuildBLAS(m_context, commandList, isAlphaTested);
         m_meshes.push_back(std::move(mesh));
     }
 }

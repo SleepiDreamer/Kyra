@@ -42,7 +42,7 @@ void RTPipeline::CreateLocalRootSignature(ID3D12Device10* device)
     params[0].InitAsShaderResourceView(0, 1); // t0:1 vertices
     params[1].InitAsShaderResourceView(1, 1); // t1:1 indices
     params[2].InitAsShaderResourceView(2, 1); // t2:1 powers
-	params[3].InitAsConstants(2, 0, 1);       // b0:1 material index
+	params[3].InitAsConstants(14, 0, 1);      // b0:1 material index, blending, transform
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
     desc.Init_1_1(_countof(params), params, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);

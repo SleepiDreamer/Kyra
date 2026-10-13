@@ -6,14 +6,16 @@
 #include "StructuredBuffer.h"
 #include "TypedBuffer.h"
 
+using namespace DirectX;
+
 Mesh::Mesh() = default;
 
 Mesh::~Mesh() = default;
 
 Mesh::Mesh(Mesh&& other) noexcept
-	: m_materialIndex(other.m_materialIndex), m_localMaterialIndex(other.m_localMaterialIndex), m_transform(other.m_transform),
-	  m_vertexBuffer(std::move(other.m_vertexBuffer)), m_indexBuffer(std::move(other.m_indexBuffer)), m_powerBuffer(std::move(other.m_powerBuffer)),
-	  m_vertexCount(other.m_vertexCount), m_indexCount(other.m_indexCount), m_blas(std::move(other.m_blas))
+	: m_isAlphaTested(other.m_isAlphaTested), m_materialIndex(other.m_materialIndex), m_localMaterialIndex(other.m_localMaterialIndex), 
+	  m_transform(other.m_transform), m_vertexBuffer(std::move(other.m_vertexBuffer)), m_indexBuffer(std::move(other.m_indexBuffer)), 
+	  m_powerBuffer(std::move(other.m_powerBuffer)), m_vertexCount(other.m_vertexCount), m_indexCount(other.m_indexCount)/*, m_blas(std::move(other.m_blas))*/
 {
 }
 
@@ -21,6 +23,7 @@ Mesh& Mesh::operator=(Mesh&& other) noexcept
 {
 	if (this != &other)
 	{
+		m_isAlphaTested = other.m_isAlphaTested;
 		m_vertexBuffer = std::move(other.m_vertexBuffer);
 		m_indexBuffer = std::move(other.m_indexBuffer);
 		m_powerBuffer = std::move(other.m_powerBuffer);
@@ -29,7 +32,6 @@ Mesh& Mesh::operator=(Mesh&& other) noexcept
 		m_materialIndex = other.m_materialIndex;
 		m_localMaterialIndex = other.m_localMaterialIndex;
 		m_transform = other.m_transform;
-		m_blas = std::move(other.m_blas);
 	}
 	return *this;
 }
@@ -48,26 +50,19 @@ void Mesh::Upload(RenderContext& context, const std::vector<Vertex>& vertices, c
 	m_indexBuffer = std::make_unique<TypedBuffer>(
 		context, m_indexCount, DXGI_FORMAT_R32_UINT, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_DEFAULT, (name + "_IB").c_str());
 
+	// This buffer is populated in LightManager::ParseEmissiveTris()
 	m_powerBuffer = std::make_unique<TypedBuffer>(
 		context, m_indexCount, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, (name + " Emissive Power Buffer").c_str());
-	// This buffer is populated in LightManager::ParseEmissiveTris()
 
 	context.uploadContext->Upload(m_vertexBuffer->GetBuffer(), vertices.data(), verticesSize);
 	context.uploadContext->Upload(m_indexBuffer->GetBuffer(), indices.data(), indicesSize);
 }
 
-void Mesh::BuildBLAS(RenderContext& context, ID3D12GraphicsCommandList4* commandList, const bool isAlphaTested)
-{
-	m_blas = std::make_unique<BLAS>(context);
-	std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometries = { GetGeometryDesc(isAlphaTested) };
-	m_blas->Build(context.device, commandList, geometries);
-}
-
-D3D12_RAYTRACING_GEOMETRY_DESC Mesh::GetGeometryDesc(const bool isAlphaTested) const
+D3D12_RAYTRACING_GEOMETRY_DESC Mesh::GetGeometryDesc(const UINT64 transformBase, const uint32_t idx) const
 {
 	D3D12_RAYTRACING_GEOMETRY_DESC desc = {};
 	desc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
-	desc.Flags = isAlphaTested == 0 ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+	desc.Flags = m_isAlphaTested == 0 ? D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE : D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
 	desc.Triangles.VertexBuffer.StartAddress = m_vertexBuffer->GetResource()->GetGPUVirtualAddress();
 	desc.Triangles.VertexBuffer.StrideInBytes = sizeof(Vertex);
 	desc.Triangles.VertexCount = m_vertexCount;
@@ -75,6 +70,7 @@ D3D12_RAYTRACING_GEOMETRY_DESC Mesh::GetGeometryDesc(const bool isAlphaTested) c
 	desc.Triangles.IndexBuffer = m_indexBuffer->GetResource()->GetGPUVirtualAddress();
 	desc.Triangles.IndexCount = m_indexCount;
 	desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+	desc.Triangles.Transform3x4 = transformBase + idx * sizeof(float) * 12;
 	return desc;
 }
 
@@ -119,23 +115,4 @@ Descriptor Mesh::GetVertexSRV() const
 Descriptor Mesh::GetIndexSRV() const
 {
 	return m_indexBuffer->GetSRV();
-}
-
-D3D12_RAYTRACING_INSTANCE_DESC Mesh::GetInstanceDesc(const UINT instanceId) const
-{
-	D3D12_RAYTRACING_INSTANCE_DESC desc = {};
-	desc.AccelerationStructure = m_blas->GetResult()->GetGPUVirtualAddress();
-	desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-	desc.InstanceMask = 0xFF;
-	desc.InstanceContributionToHitGroupIndex = instanceId;
-	desc.InstanceID = instanceId;
-
-	DirectX::XMMATRIX m = XMLoadFloat4x4(&m_transform);
-	DirectX::XMMATRIX transposed = XMMatrixTranspose(m);
-	DirectX::XMFLOAT4X4 t;
-	DirectX::XMStoreFloat4x4(&t, transposed);
-
-	memcpy(desc.Transform, &t, sizeof(desc.Transform));
-
-	return desc;
 }

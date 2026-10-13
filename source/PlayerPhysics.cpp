@@ -167,7 +167,6 @@ bool PlayerPhysics::OnModelLoaded(const std::string& modelPath)
 	std::error_code error;
 	if (!std::filesystem::is_directory(folder / "region", error))
 	{
-		Log::Info("No Minecraft save for '{}' in {}", name, m_worldsRoot.string());
 		return false;
 	}
 
@@ -186,8 +185,7 @@ bool PlayerPhysics::OnModelLoaded(const std::string& modelPath)
 	double offset[3] = {};
 	int flipZ = 0;
 	m_api->get_offset(m_world, offset, &flipZ);
-	Log::Success("Physics world '{}' loaded (offset {:+.1f} {:+.1f} {:+.1f}, flip_z {})",
-		name, offset[0], offset[1], offset[2], flipZ);
+	Log::Success("Physics world '{}' loaded", name);
 	return true;
 }
 

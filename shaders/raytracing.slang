@@ -37,6 +37,7 @@ StructuredBuffer<uint> indices                : register(t1, space1);
 StructuredBuffer<float> powers                : register(t2, space1);
 cbuffer HitGroupConstants                     : register(b0, space1)
 {
+    row_major float3x4 transform;
     uint materialIndex;
 };
 
@@ -133,7 +134,7 @@ void RayGen()
 
         if (SER && SHARC_UPDATE)
         {
-            HitObject hitObj = HitObject.TraceRay<Payload>(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
+            HitObject hitObj = HitObject.TraceRay<Payload>(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
             uint hint = hitObj.IsHit();
             ReorderThread(hitObj, hint, 1);
@@ -142,7 +143,7 @@ void RayGen()
         }
         else
         {
-            TraceRay(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 0, 0, ray, payload);
+            TraceRay(sceneBVH, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
         }
 
 #if SHARC_UPDATE
@@ -244,13 +245,16 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     float2 uv = sampleTriangle(vertices[i0].uv, vertices[i1].uv, vertices[i2].uv, attr.barycentrics);
     if (material.flags & MAT_FLAG_UV_TRANSFORM) uv = mul(float3(uv, 1.0), material.uvTransform);
 
+    float3x3 meshTransform = (float3x3)transform;
+    float3x3 normalTransform = Cofactor(meshTransform);
+
     float3 flatNormal = cross(vertices[i1].position - vertices[i0].position, vertices[i2].position - vertices[i0].position);
-    flatNormal = normalize(mul(flatNormal, (float3x3)WorldToObject3x4()));
+    flatNormal = normalize(mul(mul(normalTransform, flatNormal), (float3x3)WorldToObject3x4()));
     float3 smoothNormal = sampleTriangle(vertices[i0].normal, vertices[i1].normal, vertices[i2].normal, attr.barycentrics);
-    smoothNormal = normalize(mul(smoothNormal, (float3x3)WorldToObject3x4()));
+    smoothNormal = normalize(mul(mul(normalTransform, smoothNormal), (float3x3)WorldToObject3x4()));
     float tangentW = vertices[i0].tangent.w * -1;
     float3 tangent = sampleTriangle(vertices[i0].tangent.xyz, vertices[i1].tangent.xyz, vertices[i2].tangent.xyz, attr.barycentrics);
-    tangent = normalize(mul((float3x3)ObjectToWorld3x4(), tangent));
+    tangent = normalize(mul((float3x3)ObjectToWorld3x4(), mul(meshTransform, tangent)));
     float3 bitangent = cross(smoothNormal, tangent) * tangentW;
 
     float3 normal = smoothNormal;
@@ -281,7 +285,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
                                                float3(1, material.roughnessFactor, material.metallicFactor)).gb;
     float roughness = max(metallicRoughness.x * metallicRoughness.x, 0.00025);
     float metallic = metallicRoughness.y;
-    bool isTransmission = material.flags & MAT_FLAG_TRANSMISSION;
+    bool isTransmission = material.flags & MAT_FLAG_TRANSMISSION && metallic < 0.2;
 
     bool sharcCacheable = !isTransmission && roughness > SHARC_MIN_ROUGHNESS;
 
@@ -459,7 +463,8 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         float3 wo;
         float3 offsetN;
         float eta = backfacing ? material.ior / 1.0 : 1.0 / material.ior;
-        bsdfWeight = PBRTransmission(payload.rng, normal, flatNormal, -WorldRayDirection(), albedo, eta, RayTCurrent(), wo, offsetN);
+        float depth = backfacing ? RayTCurrent() : 0.0;
+        bsdfWeight = PBRTransmission(payload.rng, normal, flatNormal, -WorldRayDirection(), albedo, eta, depth, wo, offsetN);
         payload.throughput *= bsdfWeight;
         payload.nextDirection = wo;
         payload.nextOrigin = hitPoint;
