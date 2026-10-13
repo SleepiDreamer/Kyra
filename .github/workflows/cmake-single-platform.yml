@@ -64,7 +64,7 @@ jobs:
           RANGE="${GITHUB_SHA}"
         fi
 
-        COMMITS=$(git log --format='- %h %s (%an)' "$RANGE")
+        COMMITS=$(git log --format='- %s' "$RANGE")
 
         NOTES="Build of main (${GITHUB_SHA}).
 
