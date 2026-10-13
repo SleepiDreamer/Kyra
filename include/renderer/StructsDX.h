@@ -4,6 +4,7 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <glm/mat3x2.hpp>
+#include <DirectXMath.h>
 #include <ImReflect.hpp>
 
 struct CameraData
@@ -118,6 +119,7 @@ struct HitGroupRecord
 	D3D12_GPU_VIRTUAL_ADDRESS vertexBuffer;
 	D3D12_GPU_VIRTUAL_ADDRESS indexBuffer;
 	D3D12_GPU_VIRTUAL_ADDRESS powerBuffer;
+	DirectX::XMFLOAT3X4 transform;
 	uint32_t materialIndex;
 	BlendMode blendMode;
 };

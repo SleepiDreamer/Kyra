@@ -37,24 +37,33 @@ bool Scene::LoadModel(const std::string& path)
 
 	auto commandList = m_context.commandQueue->GetCommandList();
 	m_models.emplace_back(m_context, commandList.Get(), path);
+	auto& model = m_models.back();
+
+	bool hasMeshes = !model.GetMeshes().empty();
+	if (hasMeshes)
+	{
+		model.BuildBLAS(commandList.Get());
+	}
 
 	m_context.uploadContext->Flush();
 
 	m_context.commandQueue->ExecuteCommandList(commandList);
 	m_context.commandQueue->Flush();
 
-	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instances = {};
-	int instanceId = 0;
-	for (auto& model : m_models)
+	if (hasMeshes)
 	{
-		for (auto& mesh : model.GetMeshes())
+		std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instances;
+		UINT instanceId = 0;
+		UINT hitGroupOffset = 0;
+		for (auto& model : m_models)
 		{
-			instances.emplace_back(mesh.GetInstanceDesc(instanceId++));
+			instances.emplace_back(model.GetInstanceDesc(instanceId++, hitGroupOffset));
+			hitGroupOffset += static_cast<UINT>(model.GetMeshes().size());
 		}
-	}
 
-	m_tlas = std::make_unique<TLAS>(m_context);
-	m_tlas->Build(m_context.device, instances);
+		m_tlas = std::make_unique<TLAS>(m_context);
+		m_tlas->Build(m_context.device, instances);
+	}
 
 	UploadMaterialData();
 
@@ -65,33 +74,32 @@ bool Scene::LoadModel(const std::string& path)
 	ID3D12DescriptorHeap* heap = { m_context.descriptorHeap->GetHeap() };
 	commandList->SetDescriptorHeaps(1, &heap);
 
-	auto& newModel = m_models.back();
-	for (auto& tex : newModel.GetTextures())
+	for (auto& tex : model.GetTextures())
 	{
 		if (tex.GetResource())
 		{
 			TransitionResource(commandList.Get(), tex.GetResource(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		}
 	}
-	for (auto& mesh : newModel.GetMeshes())
+	for (auto& mesh : model.GetMeshes())
 	{
 		if (mesh.m_materialIndex >= 0)
 		{
 			mesh.m_materialIndex += m_materialIdxOffset;
 		}
 	}
-	m_materialIdxOffset += static_cast<uint32_t>(newModel.GetMaterials().size());
+	m_materialIdxOffset += static_cast<uint32_t>(model.GetMaterials().size());
 
 	uint32_t numLightsBefore = m_lightManager->GetNumLights();
 
-	if (!newModel.GetLights().empty())
+	if (!model.GetLights().empty())
 	{
-		AddLights(newModel.GetLights(), commandList.Get());
+		AddLights(model.GetLights(), commandList.Get());
 		m_lightManager->CopyLightsToCPU(commandList.Get());
 		m_lightManager->UploadPendingLights(commandList.Get());
 	}
 
-	m_lightManager->ParseEmissiveTris(newModel, m_materialBuffer.get(), commandList.Get());
+	m_lightManager->ParseEmissiveTris(model, m_materialBuffer.get(), commandList.Get());
 
 	m_context.commandQueue->ExecuteCommandList(commandList);
 	m_context.commandQueue->Flush();
@@ -241,6 +249,8 @@ std::vector<HitGroupRecord> Scene::GetHitGroupRecords()
 					record.blendMode = BlendMode::Opaque;
 				}
 			}
+			XMStoreFloat3x4(&record.transform, XMLoadFloat4x4(&mesh.m_transform));
+
 			records.push_back(record);
 		}
 	}
