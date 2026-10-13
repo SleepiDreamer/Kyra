@@ -295,7 +295,7 @@ void Application::ScrollCallback(GLFWwindow* window, double xoffset, double yoff
 	auto* app = static_cast<Application*>(glfwGetWindowUserPointer(window));
 	if (app)
 	{
-		app->m_movementSpeed = app->m_movementSpeed * powf(1.1f, static_cast<float>(yoffset));
+		app->m_movementSpeed = app->m_movementSpeed * powf(1.3f, static_cast<float>(yoffset));
 	}
 }
 
