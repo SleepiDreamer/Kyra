@@ -18,6 +18,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0   # full history, needed for the commit range
 
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build
@@ -45,16 +47,31 @@ jobs:
         name: Kyra-windows-x64
         path: Kyra-windows-x64.zip
 
-    - name: Publish rolling release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    - name: Publish release
+      if: github.ref == 'refs/heads/main'
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh release delete latest --cleanup-tag --yes || true
+        TAG="build-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
 
-        gh release create latest Kyra-windows-x64.zip \
-          --target "${{ github.sha }}" \
+        # Find the commit the previous release was built from
+        PREV_TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName' || true)
+        if [ -n "$PREV_TAG" ]; then
+          PREV_SHA=$(gh release view "$PREV_TAG" --json targetCommitish -q .targetCommitish)
+          RANGE="${PREV_SHA}..${GITHUB_SHA}"
+        else
+          RANGE="${GITHUB_SHA}"
+        fi
+
+        COMMITS=$(git log --format='- %h %s (%an)' "$RANGE")
+
+        NOTES="Build of main (${GITHUB_SHA}).
+
+        ${COMMITS:-No new commits.}"
+
+        gh release create "$TAG" Kyra-windows-x64.zip \
+          --target "${GITHUB_SHA}" \
           --title "Latest version (${GITHUB_SHA::7})" \
-          --notes "Build of main ${{ github.sha }}." \
+          --notes "$NOTES" \
           --latest
