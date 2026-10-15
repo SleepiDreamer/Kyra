@@ -49,7 +49,6 @@ public struct RenderData
     public uint numLights;
     public float totalPower;
     public float deltaTime;
-    public bool hdrEnabled;
 }
 
 public enum DebugMode
@@ -119,6 +118,7 @@ public struct PostProcessSettings
     public float targetExposure;
     public float exposure;
     public float bloomStrength;
+    public bool skipTonemap = false;
 }
 
 public struct MipData

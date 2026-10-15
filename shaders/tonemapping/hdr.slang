@@ -1,5 +1,6 @@
 module hdr;
 
+// Expects Rec.2020
 public float3 LinearToPQ(float3 linearNits)
 {
     float3 L = linearNits / 10000.0;

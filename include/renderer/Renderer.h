@@ -25,6 +25,7 @@ class ShaderCompiler;
 class RootSignature;
 class RTPipeline;
 class PostProcessPass;
+class Tonemapper;
 class ComputePass;
 class ImGuiWrapper;
 class NGXWrapper;
@@ -49,7 +50,7 @@ public:
 	void Resize(int width, int height);
 	void ResetAccumulation() { m_resetAccumulation = true; }
 
-	RenderSettings m_renderSettings{};
+	RTSettings m_renderSettings{};
 
 private:
 	void ClearSharcBuffers(ID3D12GraphicsCommandList* commandList) const;
@@ -83,9 +84,9 @@ private:
 	RenderData m_renderData{};
 	bool m_resetAccumulation = false;
 	PostProcessSettings m_postProcessSettings{};
-	std::unique_ptr<CBVBuffer<RenderSettings>> m_renderSettingsCB;
+	std::unique_ptr<CBVBuffer<RTSettings>> m_renderSettingsCB;
 	std::unique_ptr<CBVBuffer<RenderData>> m_renderDataCB;
-	std::unique_ptr<CBVBuffer<PostProcessSettings>> m_postProcessSettingsCB;
+	std::shared_ptr<CBVBuffer<PostProcessSettings>> m_postProcessSettingsCB;
 	float m_reloadTimer = 0.0f;
 
 	std::unique_ptr<ComputePass> m_sharcResolvePass;
@@ -104,8 +105,8 @@ private:
 	std::unique_ptr<RenderTexture> m_finalColorBuffer;
 	std::vector<std::unique_ptr<RenderTexture>> m_bloomBuffers;
 
+	std::unique_ptr<Tonemapper> m_tonemapper;
 	std::unique_ptr<PostProcessPass> m_copyRtPass;
-	std::unique_ptr<PostProcessPass> m_tonemappingPass;
 	std::unique_ptr<PostProcessPass> m_autoExposurePass;
 	std::unique_ptr<PostProcessPass> m_autoFocusPass;
 	std::unique_ptr<TypedBuffer> m_exposureFocusBuffer;

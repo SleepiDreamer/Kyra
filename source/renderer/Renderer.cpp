@@ -17,6 +17,7 @@
 #include "RTPipeline.h"
 #include "ComputePass.h"
 #include "PostProcessPass.h"
+#include "Tonemapper.h"
 #include "ImGuiWrapper.h"
 #include "NGXWrapper.h"
 #include "Scene.h"
@@ -26,8 +27,6 @@
 
 #include <pix3.h>
 #include <imgui.h>
-#include <iostream>
-#include <chrono>
 
 using namespace Microsoft::WRL;
 
@@ -43,12 +42,17 @@ using namespace Microsoft::WRL;
 // Performance:
 //   Normal packing
 //   Shader caching
-//   BVH merge & compaction
 // QoL:
 //   Sun controls
 //   Clearing models
-// Support:
+// Other:
 //   Disable DLSS if not supported
+//   Use Streamline instead of NGX
+// Refactor:
+//   PostProcessing class
+//   Settings structs[1]
+
+// [1] Separate CPU from GPU data. GPU struct in shared C++/Slang header
 
 Renderer::Renderer(Window& window, bool debug)
 	: m_window(window), m_prevCamData()
@@ -142,10 +146,13 @@ Renderer::Renderer(Window& window, bool debug)
 		}
 	});
 
+	m_renderSettingsCB = std::make_unique<CBVBuffer<RTSettings>>(*m_allocator, "Render Settings CB");
+	m_renderDataCB = std::make_unique<CBVBuffer<RenderData>>(*m_allocator, "Render Data CB");
+	m_postProcessSettingsCB = std::make_shared<CBVBuffer<PostProcessSettings>>(*m_allocator, "Post Process Settings CB");
+
 	// Post-process passes
 	{
 		m_copyRtPass = std::make_unique<PostProcessPass>(m_context, "shaders/copy_rt.slang", "CopyRT");
-		m_tonemappingPass = std::make_unique<PostProcessPass>(m_context, "shaders/tonemapping_pass.slang", "Tonemapping");
 		m_autoExposurePass = std::make_unique<PostProcessPass>(m_context, "shaders/autoexposure_pass.slang", "AutoExposure");
 		m_autoFocusPass = std::make_unique<PostProcessPass>(m_context, "shaders/autofocus_pass.slang", "AutoFocus");
 		
@@ -153,16 +160,14 @@ Renderer::Renderer(Window& window, bool debug)
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, "shaders/bloom_downsample.slang", "BloomDownsample", bloomSampler));
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, "shaders/bloom_upsample.slang", "BloomUpsample", bloomSampler));
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, "shaders/bloom_composite.slang", "BloomComposite", bloomSampler));
+		m_tonemapper = std::make_unique<Tonemapper>(m_context, m_postProcessSettingsCB);
+		
+		m_exposureFocusBuffer = std::make_unique<TypedBuffer>(
+			m_context, 2, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
+		m_exposureFocusReadback = m_allocator->CreateBuffer(
+			sizeof(float) * 2, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Auto Exposure Readback");
 	}
 
-	m_exposureFocusBuffer = std::make_unique<TypedBuffer>(
-		m_context, 2, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
-	m_exposureFocusReadback = m_allocator->CreateBuffer(
-		sizeof(float) * 2, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_FLAG_NONE, D3D12_HEAP_TYPE_READBACK, "Auto Exposure Readback");
-
-	m_renderSettingsCB = std::make_unique<CBVBuffer<RenderSettings>>(*m_allocator, "Render Settings CB");
-	m_renderDataCB = std::make_unique<CBVBuffer<RenderData>>(*m_allocator, "Render Data CB");
-	m_postProcessSettingsCB = std::make_unique<CBVBuffer<PostProcessSettings>>(*m_allocator, "Post Process Settings CB");
 
 	constexpr uint32_t SHARC_CAPACITY = 1 << 22;
 	m_sharcHashEntriesBuffer = std::make_unique<StructuredBuffer>(
@@ -345,13 +350,13 @@ void Renderer::Render(const float deltaTime)
 	m_renderData.numLights = m_scene->GetNumLights();
 	m_renderData.totalPower = m_scene->GetTotalLightPower();
 	m_renderData.deltaTime = deltaTime;
-	m_renderData.hdrEnabled = m_swapChain->IsHDR() ? 1u : 0u;
 	glm::vec2 jitter = m_ngx->GetJitter(static_cast<int>(m_renderData.frame));
 	m_renderData.camera.jitterX = jitter.x;
 	m_renderData.camera.jitterY = jitter.y;
 	m_renderSettingsCB->Update(backBufferIndex, m_renderSettings);
 	m_renderDataCB->Update(backBufferIndex, m_renderData);
 	m_postProcessSettings.hdr = m_swapChain->IsHDR();
+	m_postProcessSettings.skipTonemap = (m_renderSettings.debugMode != DebugMode::None);
 	m_postProcessSettingsCB->Update(backBufferIndex, m_postProcessSettings);
 
 	// Record commands
@@ -549,10 +554,8 @@ void Renderer::Render(const float deltaTime)
 					PostProcessPass::PostProcessBindings bindings;
 					bindings.inputSrv = bloomInput->GetSRV().gpuHandle;
 					bindings.outputUav = bloomOutput->GetUAV().gpuHandle;
-					bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-					bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-					bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-					bindings.cbvCount = 3;
+					bindings.cbvs[0] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+					bindings.cbvCount = 1;
 					bindings.rootConstants[0] = bloomInput->GetWidth();
 					bindings.rootConstants[1] = bloomInput->GetHeight();
 					bindings.rootConstants[2] = bloomOutput->GetWidth();
@@ -589,10 +592,8 @@ void Renderer::Render(const float deltaTime)
 					PostProcessPass::PostProcessBindings bindings;
 					bindings.inputSrv = bloomInput->GetSRV().gpuHandle;
 					bindings.outputUav = bloomOutput->GetUAV().gpuHandle;
-					bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-					bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-					bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-					bindings.cbvCount = 3;
+					bindings.cbvs[0] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+					bindings.cbvCount = 1;
 					bindings.rootConstants[0] = bloomInput->GetWidth();
 					bindings.rootConstants[1] = bloomInput->GetHeight();
 					bindings.rootConstants[2] = bloomOutput->GetWidth();
@@ -609,6 +610,7 @@ void Renderer::Render(const float deltaTime)
 
 			// Final upsample to output buffer
 			{
+				// TODO: merge this into upsample pass
 				PIXScopedEvent(commandList.Get(), 0xffdc7d, "Bloom Combine");
 
 				bloomInput = m_bloomBuffers[0].get();
@@ -618,10 +620,8 @@ void Renderer::Render(const float deltaTime)
 				PostProcessPass::PostProcessBindings bindings;
 				bindings.inputSrv = bloomInput->GetSRV().gpuHandle;
 				bindings.outputUav = currentBuffer->GetUAV().gpuHandle;
-				bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-				bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-				bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-				bindings.cbvCount = 3;
+				bindings.cbvs[0] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+				bindings.cbvCount = 1;
 				bindings.rootConstants[0] = bloomInput->GetWidth();
 				bindings.rootConstants[1] = bloomInput->GetHeight();
 				bindings.rootConstants[2] = currentBuffer->GetWidth();
@@ -646,10 +646,9 @@ void Renderer::Render(const float deltaTime)
 			PostProcessPass::PostProcessBindings bindings;
 			bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
 			bindings.outputUav = m_exposureFocusBuffer->GetUAV().gpuHandle;
-			bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-			bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.cbvCount = 3;
+			bindings.cbvs[0] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvs[1] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvCount = 2;
 			bindings.width = 1;
 			bindings.height = 1;
 
@@ -672,10 +671,8 @@ void Renderer::Render(const float deltaTime)
 			PostProcessPass::PostProcessBindings bindings;
 			bindings.inputSrv = m_depthBuffer->GetSRV().gpuHandle;
 			bindings.outputUav = m_exposureFocusBuffer->GetUAV().gpuHandle;
-			bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-			bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.cbvCount = 3;
+			bindings.cbvs[0] = m_renderDataCB->GetGPUAddress(backBufferIndex);
+			bindings.cbvCount = 1;
 			bindings.width = 1;
 			bindings.height = 1;
 
@@ -690,22 +687,7 @@ void Renderer::Render(const float deltaTime)
 
 		// Tonemapping pass
 		{
-			PIXScopedEvent(commandList.Get(), 0x6bfa8c, "Tonemapping");
-
-			currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-			m_finalColorBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-			PostProcessPass::PostProcessBindings bindings;
-			bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
-			bindings.outputUav = m_finalColorBuffer->GetUAV().gpuHandle;
-			bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
-			bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
-			bindings.cbvCount = 3;
-			bindings.width = static_cast<uint32_t>(m_swapChain->GetViewport().Width);
-			bindings.height = static_cast<uint32_t>(m_swapChain->GetViewport().Height);
-
-			m_tonemappingPass->Dispatch(commandList.Get(), bindings);
+			m_tonemapper->Tonemap(commandList.Get(), *currentBuffer, *m_finalColorBuffer, backBufferIndex);
 
 			currentBuffer = m_finalColorBuffer.get();
 		}
@@ -756,16 +738,16 @@ void Renderer::Render(const float deltaTime)
 
 			auto responseRender = ImReflect::Input("Render Settings", m_renderSettings, config);
 			auto responsePost = ImReflect::Input("Post Process Settings", m_postProcessSettings, config);
-			if (responseRender.get<RenderSettings>().is_changed()) { ResetAccumulation(); }
-			if (responseRender.get_member<&RenderSettings::maxFPS>().is_changed())
+			if (responseRender.get<RTSettings>().is_changed()) { ResetAccumulation(); }
+			if (responseRender.get_member<&RTSettings::maxFPS>().is_changed())
 			{
 				m_frameLimiter->SetTargetFps(m_renderSettings.maxFPS);
 			}
-			if (responseRender.get_member<&RenderSettings::denoising>().is_changed())
+			if (responseRender.get_member<&RTSettings::denoising>().is_changed())
 			{
 				m_pendingResize = true;
 			}
-			if (responseRender.get_member<&RenderSettings::dlssQuality>().is_changed())
+			if (responseRender.get_member<&RTSettings::dlssQuality>().is_changed())
 			{
 				m_pendingResize = true;
 			}

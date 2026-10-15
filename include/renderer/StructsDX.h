@@ -33,7 +33,6 @@ struct RenderData
 	uint32_t numLights = 0;
 	float totalPower = 0.0f;
 	float deltaTime = 0.0f;
-	uint32_t hdrEnabled = 0;
 };
 
 enum DebugMode
@@ -63,7 +62,7 @@ enum DLSSQuality
 	DLAA = 4,
 };
 
-struct RenderSettings
+struct RTSettings
 {
 	float maxFPS = 0.0f;
 	DebugMode debugMode = None;
@@ -77,7 +76,7 @@ struct RenderSettings
 	DLSSQuality dlssQuality = Balanced;
 	BOOL sharc = true;
 };
-IMGUI_REFLECT(RenderSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality, sharc)
+IMGUI_REFLECT(RTSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality, sharc)
 
 enum class TonemapOperatorSDR
 {
@@ -104,6 +103,7 @@ struct PostProcessSettings
 	float targetExposure = 1.0f;
 	float exposure = 10.0f;
 	float bloomStrength = 0.015f;
+	BOOL skipTonemap = false;
 };
 IMGUI_REFLECT(PostProcessSettings, autoExposure, exposure, targetExposure, bloomStrength)
 

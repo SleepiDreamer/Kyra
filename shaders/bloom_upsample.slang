@@ -5,9 +5,7 @@ import structs;
 
 Texture2D<float4> inputTexture : register(t0, space0);
 RWTexture2D<float4> outputTexture : register(u0, space0);
-ConstantBuffer<RenderSettings> renderSettings : register(b0, space0);
-ConstantBuffer<RenderData> renderData : register(b1, space0);
-ConstantBuffer<PostProcessSettings> settings : register(b2, space0);
+ConstantBuffer<PostProcessSettings> settings : register(b0, space0);
 ConstantBuffer<MipData> mipData : register(b4, space0);
 SamplerState bloomSampler : register(s0, space0);
 

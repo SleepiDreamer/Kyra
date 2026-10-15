@@ -4,9 +4,7 @@ import settings;
 
 Texture2D<float4> inputTexture : register(t0, space0);
 RWBuffer<float> outputUav : register(u0, space0);
-ConstantBuffer<RenderSettings> renderSettings : register(b0, space0);
-ConstantBuffer<RenderData> renderData : register(b1, space0);
-ConstantBuffer<PostProcessSettings> settings : register(b2, space0);
+ConstantBuffer<RenderData> renderData : register(b0, space0);
 SamplerState linearSampler : register(s0, space0);
 
 [shader("compute")]

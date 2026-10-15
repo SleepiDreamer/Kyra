@@ -4,9 +4,8 @@ import settings;
 
 Texture2D<float4> inputTexture : register(t0, space0);
 RWBuffer<float> outputUav : register(u0, space0);
-ConstantBuffer<RenderSettings> renderSettings : register(b0, space0);
-ConstantBuffer<RenderData> renderData : register(b1, space0);
-ConstantBuffer<PostProcessSettings> settings : register(b2, space0);
+ConstantBuffer<RenderData> renderData : register(b0, space0);
+ConstantBuffer<PostProcessSettings> postProcessSettings : register(b1, space0);
 SamplerState linearSampler : register(s0, space0);
 
 static const int AE_SAMPLES2 = AE_SAMPLES * AE_SAMPLES;
@@ -31,7 +30,7 @@ void AutoExposure(uint3 dtid : SV_DispatchThreadID)
     float avgLuminance = exp(avgLogLum);
 
     float prevExposure = outputUav[0];
-    float targetExposure = clamp(settings.targetExposure / avgLuminance, AE_MIN_EXPOSURE, AE_MAX_EXPOSURE);
+    float targetExposure = clamp(postProcessSettings.targetExposure / avgLuminance, AE_MIN_EXPOSURE, AE_MAX_EXPOSURE);
     float adaptationSpeed = targetExposure > prevExposure ? AE_ADAPTATION_SPEED_UP : AE_ADAPTATION_SPEED_DOWN;
     float deltaTime = min(renderData.deltaTime, 0.1f);
     float newExposure = lerp(prevExposure, targetExposure, 1.0 - exp(-adaptationSpeed * deltaTime));
