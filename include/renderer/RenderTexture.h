@@ -5,11 +5,11 @@
 
 class GPUAllocator;
 
-class OutputBuffer
+class RenderTexture
 {
 public:
-    OutputBuffer(RenderContext& context, DXGI_FORMAT format, int width, int height, std::wstring name);
-    ~OutputBuffer();
+    RenderTexture(RenderContext& context, DXGI_FORMAT format, int width, int height, std::wstring name);
+    ~RenderTexture();
 
     void Resize(ID3D12Device* device, uint32_t width, uint32_t height);
     void Transition(ID3D12GraphicsCommandList* commandList, D3D12_RESOURCE_STATES newState);

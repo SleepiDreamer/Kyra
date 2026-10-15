@@ -11,7 +11,7 @@
 #include "TypedBuffer.h"
 #include "SwapChain.h"
 #include "FrameLimiter.h"
-#include "OutputTexture.h"
+#include "RenderTexture.h"
 #include "ShaderCompiler.h"
 #include "RootSignature.h"
 #include "RTPipeline.h"
@@ -81,19 +81,19 @@ Renderer::Renderer(Window& window, bool debug)
 	const int height = window.GetHeight();
 	const int renderWidth = m_ngx->GetRenderWidth();
 	const int renderHeight = m_ngx->GetRenderHeight();
-	m_rtOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, L"RT Output Buffer");
-	m_albedoBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R8G8B8A8_UNORM, renderWidth, renderHeight, L"Albedo Buffer");
-	m_specularAlbedoBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R8G8B8A8_UNORM, renderWidth, renderHeight, L"Specular Albedo Buffer");
-	m_normalRoughnessBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, renderWidth, renderHeight, L"Normal Roughness Buffer");
-	m_depthBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32_FLOAT, renderWidth, renderHeight, L"Depth Buffer");
-	m_motionVectorsBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R32G32_FLOAT, renderWidth, renderHeight, L"Motion Vectors Buffer");
-	m_dlssOutputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"DLSS Output Buffer");
-	m_postProcessBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"Post Process Buffer");
-	m_outputBuffer = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R10G10B10A2_UNORM, width, height, L"Output Buffer");
+	m_rtOutputBuffer = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, L"RT Output Buffer");
+	m_albedoBuffer = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R8G8B8A8_UNORM, renderWidth, renderHeight, L"Albedo Buffer");
+	m_specularAlbedoBuffer = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R8G8B8A8_UNORM, renderWidth, renderHeight, L"Specular Albedo Buffer");
+	m_normalRoughnessBuffer = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, renderWidth, renderHeight, L"Normal Roughness Buffer");
+	m_depthBuffer = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R32_FLOAT, renderWidth, renderHeight, L"Depth Buffer");
+	m_motionVectorsBuffer = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R32G32_FLOAT, renderWidth, renderHeight, L"Motion Vectors Buffer");
+	m_dlssOutputBuffer = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"DLSS Output Buffer");
+	m_postProcessBuffer = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"Post Process Buffer");
+	m_finalColorBuffer = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R10G10B10A2_UNORM, width, height, L"Output Buffer");
 	m_bloomBuffers.resize(6);
 	for (size_t i = 0; i < m_bloomBuffers.size(); i++)
 	{
-		m_bloomBuffers[i] = std::make_unique<OutputBuffer>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width >> (i + 1), height >> (i + 1), L"Bloom Buffer " + std::to_wstring(i));
+		m_bloomBuffers[i] = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width >> (i + 1), height >> (i + 1), L"Bloom Buffer " + std::to_wstring(i));
 	}
 
 	m_rootSignature = std::make_unique<RootSignature>();
@@ -243,7 +243,7 @@ void Renderer::Resize(const int width, const int height)
 	glm::ivec2 renderSize = m_renderSettings.denoising ? m_ngx->Resize() : glm::ivec2(width, height);
 	m_dlssOutputBuffer->Resize(device, width, height);
 	m_postProcessBuffer->Resize(device, width, height);
-	m_outputBuffer->Resize(device, width, height);
+	m_finalColorBuffer->Resize(device, width, height);
 	m_rtOutputBuffer->Resize(device, renderSize.x, renderSize.y);
 	m_albedoBuffer->Resize(device, renderSize.x, renderSize.y);
 	m_specularAlbedoBuffer->Resize(device, renderSize.x, renderSize.y);
@@ -503,7 +503,7 @@ void Renderer::Render(const float deltaTime)
 			}
 		}
 
-		OutputBuffer* currentBuffer = m_renderSettings.denoising ? m_dlssOutputBuffer.get() : m_rtOutputBuffer.get();
+		RenderTexture* currentBuffer = m_renderSettings.denoising ? m_dlssOutputBuffer.get() : m_rtOutputBuffer.get();
 
 		// Copy to post process buffer
 		{
@@ -534,7 +534,7 @@ void Renderer::Render(const float deltaTime)
 		{
 			PIXScopedEvent(commandList.Get(), 0xffdc7d, "Bloom Passes");
 
-			OutputBuffer* bloomInput = currentBuffer;
+			RenderTexture* bloomInput = currentBuffer;
 
 			// Downsample passes
 			{
@@ -542,7 +542,7 @@ void Renderer::Render(const float deltaTime)
 
 				for (size_t i = 0; i < m_bloomBuffers.size(); i++) // [0:numMips-1]
 				{
-					OutputBuffer* bloomOutput = m_bloomBuffers[i].get();
+					RenderTexture* bloomOutput = m_bloomBuffers[i].get();
 					bloomInput->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 					bloomOutput->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -582,7 +582,7 @@ void Renderer::Render(const float deltaTime)
 				for (size_t i = m_bloomBuffers.size(); i-- > 1;) // [numMips-1:1]
 				{
 					bloomInput = m_bloomBuffers[i].get();
-					OutputBuffer* bloomOutput = m_bloomBuffers[i - 1].get();
+					RenderTexture* bloomOutput = m_bloomBuffers[i - 1].get();
 					bloomInput->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 					bloomOutput->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -693,11 +693,11 @@ void Renderer::Render(const float deltaTime)
 			PIXScopedEvent(commandList.Get(), 0x6bfa8c, "Tonemapping");
 
 			currentBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-			m_outputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+			m_finalColorBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 			PostProcessPass::PostProcessBindings bindings;
 			bindings.inputSrv = currentBuffer->GetSRV().gpuHandle;
-			bindings.outputUav = m_outputBuffer->GetUAV().gpuHandle;
+			bindings.outputUav = m_finalColorBuffer->GetUAV().gpuHandle;
 			bindings.cbvs[0] = m_renderSettingsCB->GetGPUAddress(backBufferIndex);
 			bindings.cbvs[1] = m_renderDataCB->GetGPUAddress(backBufferIndex);
 			bindings.cbvs[2] = m_postProcessSettingsCB->GetGPUAddress(backBufferIndex);
@@ -707,7 +707,7 @@ void Renderer::Render(const float deltaTime)
 
 			m_tonemappingPass->Dispatch(commandList.Get(), bindings);
 
-			currentBuffer = m_outputBuffer.get();
+			currentBuffer = m_finalColorBuffer.get();
 		}
 	}
 
@@ -817,9 +817,9 @@ void Renderer::Render(const float deltaTime)
 	{
 		PIXSetMarker(0xffffff, "Present");
 
-		m_outputBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+		m_finalColorBuffer->Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
 		m_swapChain->Transition(commandList.Get(), D3D12_RESOURCE_STATE_COPY_DEST);
-		commandList->CopyResource(backBuffer, m_outputBuffer->GetResource());
+		commandList->CopyResource(backBuffer, m_finalColorBuffer->GetResource());
 
 		// ImGui
 		{

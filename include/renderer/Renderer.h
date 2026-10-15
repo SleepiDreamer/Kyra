@@ -20,7 +20,7 @@ class UploadContext;
 class GPUAllocator;
 class StructuredBuffer;
 class TypedBuffer;
-class OutputBuffer;
+class RenderTexture;
 class ShaderCompiler;
 class RootSignature;
 class RTPipeline;
@@ -93,16 +93,16 @@ private:
 	std::unique_ptr<StructuredBuffer> m_sharcAccumulationBuffer;
 	std::unique_ptr<StructuredBuffer> m_sharcResolvedBuffer;
 
-	std::unique_ptr<OutputBuffer> m_rtOutputBuffer;
-	std::unique_ptr<OutputBuffer> m_albedoBuffer;
-	std::unique_ptr<OutputBuffer> m_specularAlbedoBuffer;
-	std::unique_ptr<OutputBuffer> m_normalRoughnessBuffer;
-	std::unique_ptr<OutputBuffer> m_motionVectorsBuffer;
-	std::unique_ptr<OutputBuffer> m_depthBuffer;
-	std::unique_ptr<OutputBuffer> m_dlssOutputBuffer;
-	std::unique_ptr<OutputBuffer> m_postProcessBuffer;
-	std::unique_ptr<OutputBuffer> m_outputBuffer;
-	std::vector<std::unique_ptr<OutputBuffer>> m_bloomBuffers;
+	std::unique_ptr<RenderTexture> m_rtOutputBuffer;
+	std::unique_ptr<RenderTexture> m_albedoBuffer;
+	std::unique_ptr<RenderTexture> m_specularAlbedoBuffer;
+	std::unique_ptr<RenderTexture> m_normalRoughnessBuffer;
+	std::unique_ptr<RenderTexture> m_motionVectorsBuffer;
+	std::unique_ptr<RenderTexture> m_depthBuffer;
+	std::unique_ptr<RenderTexture> m_dlssOutputBuffer;
+	std::unique_ptr<RenderTexture> m_postProcessBuffer;
+	std::unique_ptr<RenderTexture> m_finalColorBuffer;
+	std::vector<std::unique_ptr<RenderTexture>> m_bloomBuffers;
 
 	std::unique_ptr<PostProcessPass> m_copyRtPass;
 	std::unique_ptr<PostProcessPass> m_tonemappingPass;
