@@ -48,14 +48,16 @@ GPUBuffer GPUAllocator::CreateBuffer(const uint64_t size, const D3D12_RESOURCE_S
     return buffer;
 }
 
-GPUBuffer GPUAllocator::CreateTexture(const uint32_t width, const uint32_t height, const DXGI_FORMAT format,
+GPUBuffer GPUAllocator::CreateTexture(const uint32_t width, const uint32_t height, const uint16_t depth, const DXGI_FORMAT format,
     const D3D12_RESOURCE_STATES initialState, const D3D12_RESOURCE_FLAGS flags, const wchar_t* name) const
 {
     D3D12_RESOURCE_DESC resourceDesc = TEXTURE_RESOURCE;
     resourceDesc.Format = format;
     resourceDesc.Width = width;
     resourceDesc.Height = height;
+    resourceDesc.DepthOrArraySize = depth;
     resourceDesc.Flags = flags;
+	resourceDesc.Dimension = depth > 1 ? D3D12_RESOURCE_DIMENSION_TEXTURE3D : D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
     D3D12MA::ALLOCATION_DESC allocDesc{};
     allocDesc.HeapType = D3D12_HEAP_TYPE_DEFAULT;

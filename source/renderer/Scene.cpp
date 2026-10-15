@@ -7,7 +7,6 @@
 #include "Texture.h"
 #include "CommandQueue.h"
 #include "UploadContext.h"
-#include "GPUAllocator.h"
 #include "StructuredBuffer.h"
 #include "ComputePass.h"
 #include "StructsDX.h"
@@ -150,7 +149,7 @@ void Scene::LoadHDRI(const std::string& path)
 	float* data = stbi_loadf(path.c_str(), &width, &height, &nrChannels, 4);
 	if (data)
 	{
-		m_hdri->Create(m_context, data, width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, path);
+		m_hdri->Create2D(m_context, data, width, height, DXGI_FORMAT_R32G32B32A32_FLOAT, path);
 		stbi_image_free(data);
 
 		m_context.uploadContext->Flush();

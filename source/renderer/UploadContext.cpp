@@ -33,7 +33,7 @@ void UploadContext::Upload(const GPUBuffer& dest, const void* data, const uint64
     m_staged.push_back(std::move(staging));
 }
 
-void UploadContext::UploadTexture(const GPUBuffer& dest, const void* data, const uint32_t width, const uint32_t height, const DXGI_FORMAT format)
+void UploadContext::UploadTexture(const GPUBuffer& dest, const void* data, const uint32_t width, const uint32_t height, const uint16_t depth, const DXGI_FORMAT format)
 {
     auto commandList = m_queue->GetCommandList();
 
@@ -55,8 +55,9 @@ void UploadContext::UploadTexture(const GPUBuffer& dest, const void* data, const
 	case DXGI_FORMAT_R32G32B32A32_FLOAT:
 		bytesPerPixel = 16;
         break;
+    default:
+		Log::Warning("[UploadContext::UploadTexture] Unsupported texture format. Defaulting to 4 BPP");
     }
-
 
     D3D12_SUBRESOURCE_DATA subresourceData{};
     subresourceData.pData = data;

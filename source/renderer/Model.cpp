@@ -504,7 +504,7 @@ void Model::LoadMaterials(const fastgltf::Asset& asset)
         if (data)
         {
             DXGI_FORMAT fmt = linearImages.contains(index) ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-            tex.Create(m_context, data, width, height, fmt, image.name.c_str());
+            tex.Create2D(m_context, data, width, height, fmt, image.name.c_str());
             stbi_image_free(data);
         }
         else

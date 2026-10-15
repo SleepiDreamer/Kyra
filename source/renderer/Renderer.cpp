@@ -610,7 +610,6 @@ void Renderer::Render(const float deltaTime)
 
 			// Final upsample to output buffer
 			{
-				// TODO: merge this into upsample pass
 				PIXScopedEvent(commandList.Get(), 0xffdc7d, "Bloom Combine");
 
 				bloomInput = m_bloomBuffers[0].get();

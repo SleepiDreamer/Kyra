@@ -9,7 +9,7 @@
 using namespace Microsoft::WRL;
 
 PostProcessPass::PostProcessPass(RenderContext& context, const std::string& shaderPath, 
-								 const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler)
+	const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler)
     : m_context(context), m_entryPoint(entryPoint), m_customSampler(customSampler)
 {
     std::vector<std::pair<std::string, std::string>> defines {};

@@ -19,14 +19,14 @@ public:
     struct PostProcessBindings
     {
 
-        D3D12_GPU_DESCRIPTOR_HANDLE inputSrv;
-        D3D12_GPU_DESCRIPTOR_HANDLE outputUav;
+        D3D12_GPU_DESCRIPTOR_HANDLE inputSrv = {};
+        D3D12_GPU_DESCRIPTOR_HANDLE outputUav = {};
         D3D12_GPU_VIRTUAL_ADDRESS cbvs[4] = {};
         uint32_t cbvCount = 0;
         uint32_t rootConstants[16] = {};
         uint32_t rootConstantCount = 0;
-        uint32_t width;
-        uint32_t height;
+        uint32_t width = 0;
+        uint32_t height = 0;
     };
 
 	void Dispatch(ID3D12GraphicsCommandList4* commandList, const PostProcessBindings& bindings) const;

@@ -12,7 +12,7 @@ public:
     ~UploadContext();
 
     void Upload(const GPUBuffer& dest, const void* data, uint64_t size);
-    void UploadTexture(const GPUBuffer& dest, const void* data, uint32_t width, uint32_t height, DXGI_FORMAT format);
+    void UploadTexture(const GPUBuffer& dest, const void* data, uint32_t width, uint32_t height, uint16_t depth, DXGI_FORMAT format);
     void Flush();
 private:
 	GPUAllocator& m_allocator;
