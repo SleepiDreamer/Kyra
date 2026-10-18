@@ -1,7 +1,10 @@
 module reinhard;
+import helpers;
 
-public float3 TonemapReinhard(float3 color)
+public float3 TonemapReinhard(float3 luminance)
 {
-    color = max(color, 0.0);
-    return color / (1.0 + color);
+    luminance = max(luminance, 0.0);
+    luminance = luminance / (1.0 + luminance);
+    luminance = ACEScgToRec709(luminance);
+    return luminance;
 }

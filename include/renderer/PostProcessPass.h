@@ -20,6 +20,7 @@ public:
     {
 
         D3D12_GPU_DESCRIPTOR_HANDLE inputSrv = {};
+        D3D12_GPU_DESCRIPTOR_HANDLE inputSrv2 = {};
         D3D12_GPU_DESCRIPTOR_HANDLE outputUav = {};
         D3D12_GPU_VIRTUAL_ADDRESS cbvs[4] = {};
         uint32_t cbvCount = 0;

@@ -3,6 +3,7 @@
 // MIT License — Copyright (c) 2025 Polyphony Digital Inc.
 
 module gt7;
+import helpers;
 
 // -----------------------------------------------------------------------------
 // Mode options.
@@ -412,13 +413,13 @@ float3 rec2020ToRec709(float3 c)
     );
 }
 
-public float3 TonemapGT7(float3 rgb)
+public float3 TonemapGT7(float3 luminance)
 {
-    rgb = rec709ToRec2020(rgb);
+    luminance = ACEScgToRec2020(luminance);
 
     GT7ToneMapping toneMapper;
     toneMapper.initializeAsSDR();
 
-    float3 result = toneMapper.applyToneMapping(rgb);
+    float3 result = toneMapper.applyToneMapping(luminance);
     return max(rec2020ToRec709(result), 0.0);
 }

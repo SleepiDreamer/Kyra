@@ -69,15 +69,13 @@ Renderer::Renderer(Window& window, bool debug)
 	m_shaderCompiler = std::make_unique<ShaderCompiler>("shaders/");
 
 	m_context = { device, m_allocator.get(), m_commandQueue.get(), m_descriptorHeap.get(), m_cpuDescriptorHeap.get(), 
-				  m_samplerHeap.get(), m_uploadContext.get(), m_shaderCompiler.get() };
+		m_samplerHeap.get(), m_uploadContext.get(), m_shaderCompiler.get() };
 
 	m_swapChain = std::make_unique<SwapChain>(window, m_context, *m_device);
 	m_frameLimiter = std::make_unique<FrameLimiter>(m_swapChain->GetRefreshRate() - 3);
 	m_renderSettings.maxFPS = m_frameLimiter->GetTargetFps();
 	m_imgui = std::make_unique<ImGuiWrapper>(window, m_context, m_swapChain->GetFormat(), NUM_FRAMES_IN_FLIGHT);
-
-	m_scene = std::make_unique<Scene>(m_context);
-
+	
 	m_ngx = std::make_unique<NGXWrapper>(m_context, window);
 	m_ngx->Initialize();
 
@@ -99,6 +97,8 @@ Renderer::Renderer(Window& window, bool debug)
 	{
 		m_bloomBuffers[i] = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width >> (i + 1), height >> (i + 1), L"Bloom Buffer " + std::to_wstring(i));
 	}
+	
+	m_scene = std::make_unique<Scene>(m_context);
 
 	m_rootSignature = std::make_unique<RootSignature>();
 	m_rootSignature->AddDescriptorTable(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0, "rtOutputBuffer");		// u0:0 RT output buffer
@@ -122,9 +122,9 @@ Renderer::Renderer(Window& window, bool debug)
 	m_rootSignature->Build(device, L"RT Root Signature");
 
 	std::vector<std::pair<std::string, std::string>> defines =
-	{ {"SHARC_UPDATE", "0"}, {"SHARC_QUERY", "1"}, { "SHARC_ENABLE_64_BIT_ATOMICS", "1" }, { "SHARC_ENABLE_GLSL", "0" } };
+		{ {"SHARC_UPDATE", "0"}, {"SHARC_QUERY", "1"}, { "SHARC_ENABLE_64_BIT_ATOMICS", "1" }, { "SHARC_ENABLE_GLSL", "0" } };
 	std::vector<std::pair<std::string, std::string>> definesUpdate =
-	{ {"SHARC_UPDATE", "1"}, {"SHARC_QUERY", "0"}, { "SHARC_ENABLE_64_BIT_ATOMICS", "1" }, { "SHARC_ENABLE_GLSL", "0" } };
+		{ {"SHARC_UPDATE", "1"}, {"SHARC_QUERY", "0"}, { "SHARC_ENABLE_64_BIT_ATOMICS", "1" }, { "SHARC_ENABLE_GLSL", "0" } };
 	m_rtPipeline = std::make_unique<RTPipeline>(
 		m_context, m_rootSignature->Get(), *m_shaderCompiler, m_scene->GetHitGroupRecords(), "shaders/raytracing.slang", defines);
 	m_sharcUpdatePipeline = std::make_unique<RTPipeline>(
@@ -186,95 +186,6 @@ Renderer::Renderer(Window& window, bool debug)
 Renderer::~Renderer()
 {
 	m_commandQueue->Flush();
-}
-
-void Renderer::ToggleHDR()
-{
-	m_postProcessSettings.hdr = m_swapChain->ToggleHDR();
-}
-
-void Renderer::ToggleFullscreen()
-{
-	m_ngx->SetDLSSQuality(m_renderSettings.dlssQuality);
-	m_swapChain->ToggleFullscreen();
-	Resize(m_window.GetWidth(), m_window.GetHeight());
-}
-
-void Renderer::ToggleImGui()
-{
-	m_showImgui = !m_showImgui;
-}
-
-void Renderer::ToggleDenoising()
-{
-	m_renderSettings.denoising = !m_renderSettings.denoising;
-	m_pendingResize = true;
-}
-
-void Renderer::LoadModel(const std::string& path)
-{
-	if (m_scene->LoadModel(path))
-	{
-		m_rtPipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
-		m_sharcUpdatePipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
-		ResetAccumulation();
-
-		auto commandList = m_commandQueue->GetCommandList();
-		ClearSharcBuffers(commandList.Get());
-		m_commandQueue->ExecuteCommandList(commandList);
-		m_commandQueue->Flush();
-	}
-}
-
-void Renderer::LoadHDRI(const std::string& path)
-{
-	m_scene->LoadHDRI(path);
-	ResetAccumulation();
-}
-
-void Renderer::Resize(const int width, const int height)
-{
-	if (width == 0 || height == 0)
-	{
-		return;
-	}
-
-	Log::Info("Window resized: {}x{}", width, height);
-	auto device = m_device->GetDevice();
-	ResetAccumulation();
-	m_commandQueue->Flush();
-	m_swapChain->Resize(m_context, width, height);
-
-	glm::ivec2 renderSize = m_renderSettings.denoising ? m_ngx->Resize() : glm::ivec2(width, height);
-	m_dlssOutputBuffer->Resize(device, width, height);
-	m_postProcessBuffer->Resize(device, width, height);
-	m_finalColorBuffer->Resize(device, width, height);
-	m_rtOutputBuffer->Resize(device, renderSize.x, renderSize.y);
-	m_albedoBuffer->Resize(device, renderSize.x, renderSize.y);
-	m_specularAlbedoBuffer->Resize(device, renderSize.x, renderSize.y);
-	m_normalRoughnessBuffer->Resize(device, renderSize.x, renderSize.y);
-	m_depthBuffer->Resize(device, renderSize.x, renderSize.y);
-	m_motionVectorsBuffer->Resize(device, renderSize.x, renderSize.y);
-	for (size_t i = 0; i < m_bloomBuffers.size(); i++)
-	{
-		m_bloomBuffers[i]->Resize(device, width >> (i + 1), height >> (i + 1));
-	}
-}
-
-void Renderer::ClearSharcBuffers(ID3D12GraphicsCommandList* commandList) const
-{
-	ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap() };
-	commandList->SetDescriptorHeaps(_countof(heaps), heaps);
-	constexpr UINT clearValue[4] = { 0, 0, 0, 0 };
-	commandList->ClearUnorderedAccessViewUint(
-		m_sharcHashEntriesBuffer->GetClearUAVGPU().gpuHandle, m_sharcHashEntriesBuffer->GetClearUAV().cpuHandle,
-		m_sharcHashEntriesBuffer->GetResource(), clearValue, 0, nullptr);
-	commandList->ClearUnorderedAccessViewUint(
-		m_sharcAccumulationBuffer->GetClearUAVGPU().gpuHandle, m_sharcAccumulationBuffer->GetClearUAV().cpuHandle,
-		m_sharcAccumulationBuffer->GetResource(), clearValue, 0, nullptr);
-	commandList->ClearUnorderedAccessViewUint(
-		m_sharcResolvedBuffer->GetClearUAVGPU().gpuHandle, m_sharcResolvedBuffer->GetClearUAV().cpuHandle,
-		m_sharcResolvedBuffer->GetResource(), clearValue, 0, nullptr);
 }
 
 void Renderer::Render(const float deltaTime)
@@ -570,9 +481,9 @@ void Renderer::Render(const float deltaTime)
 
 					bloomInput = m_bloomBuffers[i].get();
 
-					for (size_t i = 0; i < m_bloomBuffers.size(); i++)
+					for (size_t barrierIdx = 0; barrierIdx < m_bloomBuffers.size(); barrierIdx++)
 					{
-						D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(m_bloomBuffers[i].get()->GetResource());
+						D3D12_RESOURCE_BARRIER uavBarrier = CD3DX12_RESOURCE_BARRIER::UAV(m_bloomBuffers[barrierIdx].get()->GetResource());
 						commandList->ResourceBarrier(1, &uavBarrier);
 					}
 				}
@@ -686,7 +597,7 @@ void Renderer::Render(const float deltaTime)
 
 		// Tonemapping pass
 		{
-			m_tonemapper->Tonemap(commandList.Get(), *currentBuffer, *m_finalColorBuffer, backBufferIndex);
+			m_tonemapper->Tonemap(commandList.Get(), *currentBuffer, *m_finalColorBuffer, backBufferIndex, m_postProcessSettings.hdr);
 
 			currentBuffer = m_finalColorBuffer.get();
 		}
@@ -713,8 +624,10 @@ void Renderer::Render(const float deltaTime)
 		}
 
 		auto config = ImSettings();
+		// ReSharper disable once CppExpressionWithoutSideEffects
 		config.push<float>().as_drag().min(0).max(10).speed(0.02f).pop();
 		auto config2 = ImSettings();
+		// ReSharper disable once CppExpressionWithoutSideEffects
 		config2.push<float>().as_drag().min(0).max(100).speed(0.02f).pop();
 
 		ImGui::SetNextWindowPos(ImVec2(0, 0));
@@ -752,18 +665,46 @@ void Renderer::Render(const float deltaTime)
 			}
 			if (m_postProcessSettings.hdr)
 			{
-				const char* enumNames[] = { "Linear", "Custom", "Psycho" };
-				static int currentIndex = static_cast<int>(m_postProcessSettings.tonemapperHDR);
-				if (ImGui::Combo("Tonemapper", &currentIndex, enumNames, IM_ARRAYSIZE(enumNames))) {
-					m_postProcessSettings.tonemapperHDR = static_cast<TonemapOperatorHDR>(currentIndex);
+				const std::vector<std::string>& names = m_tonemapper->GetTonemapNamesHDR();
+				int currentIndex = m_tonemapper->GetActiveTonemapHDR();
+
+				if (ImGui::BeginCombo("Tonemapper", names[currentIndex].c_str())) 
+				{
+					for (int i = 0; i < static_cast<int>(names.size()); ++i) 
+					{
+						const bool selected = (i == currentIndex);
+						if (ImGui::Selectable(names[i].c_str(), selected)) 
+						{
+							m_tonemapper->SetActiveTonemapHDR(names[i]);
+						}
+						if (selected) 
+						{
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
 				}
 			}
 			else
 			{
-				const char* enumNames[] = { "Linear", "ACES", "Reinhard", "AgX", "GT7" };
-				static int currentIndex = static_cast<int>(m_postProcessSettings.tonemapperSDR);
-				if (ImGui::Combo("Tonemapper", &currentIndex, enumNames, IM_ARRAYSIZE(enumNames))) {
-					m_postProcessSettings.tonemapperSDR = static_cast<TonemapOperatorSDR>(currentIndex);
+				const std::vector<std::string>& names = m_tonemapper->GetTonemapNamesSDR();
+				int currentIndex = m_tonemapper->GetActiveTonemapSDR();
+
+				if (ImGui::BeginCombo("Tonemapper", names[currentIndex].c_str())) 
+				{
+					for (int i = 0; i < static_cast<int>(names.size()); ++i) 
+					{
+						const bool selected = (i == currentIndex);
+						if (ImGui::Selectable(names[i].c_str(), selected)) 
+						{
+							m_tonemapper->SetActiveTonemapSDR(names[i]);
+						}
+						if (selected) 
+						{
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
 				}
 			}
 			ImGui::EndTabItem();
@@ -830,4 +771,93 @@ void Renderer::Render(const float deltaTime)
 		m_renderData.frame++;
 		m_prevCamData = camData;
 	}
+}
+
+void Renderer::ToggleHDR()
+{
+	m_postProcessSettings.hdr = m_swapChain->ToggleHDR();
+}
+
+void Renderer::ToggleFullscreen()
+{
+	m_ngx->SetDLSSQuality(m_renderSettings.dlssQuality);
+	m_swapChain->ToggleFullscreen();
+	Resize(m_window.GetWidth(), m_window.GetHeight());
+}
+
+void Renderer::ToggleImGui()
+{
+	m_showImgui = !m_showImgui;
+}
+
+void Renderer::ToggleDenoising()
+{
+	m_renderSettings.denoising = !m_renderSettings.denoising;
+	m_pendingResize = true;
+}
+
+void Renderer::LoadModel(const std::string& path)
+{
+	if (m_scene->LoadModel(path))
+	{
+		m_rtPipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
+		m_sharcUpdatePipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
+		ResetAccumulation();
+
+		auto commandList = m_commandQueue->GetCommandList();
+		ClearSharcBuffers(commandList.Get());
+		m_commandQueue->ExecuteCommandList(commandList);
+		m_commandQueue->Flush();
+	}
+}
+
+void Renderer::LoadHDRI(const std::string& path)
+{
+	m_scene->LoadHDRI(path);
+	ResetAccumulation();
+}
+
+void Renderer::Resize(const int width, const int height)
+{
+	if (width == 0 || height == 0)
+	{
+		return;
+	}
+
+	Log::Info("Window resized: {}x{}", width, height);
+	auto device = m_device->GetDevice();
+	ResetAccumulation();
+	m_commandQueue->Flush();
+	m_swapChain->Resize(m_context, width, height);
+
+	glm::ivec2 renderSize = m_renderSettings.denoising ? m_ngx->Resize() : glm::ivec2(width, height);
+	m_dlssOutputBuffer->Resize(device, width, height);
+	m_postProcessBuffer->Resize(device, width, height);
+	m_finalColorBuffer->Resize(device, width, height);
+	m_rtOutputBuffer->Resize(device, renderSize.x, renderSize.y);
+	m_albedoBuffer->Resize(device, renderSize.x, renderSize.y);
+	m_specularAlbedoBuffer->Resize(device, renderSize.x, renderSize.y);
+	m_normalRoughnessBuffer->Resize(device, renderSize.x, renderSize.y);
+	m_depthBuffer->Resize(device, renderSize.x, renderSize.y);
+	m_motionVectorsBuffer->Resize(device, renderSize.x, renderSize.y);
+	for (size_t i = 0; i < m_bloomBuffers.size(); i++)
+	{
+		m_bloomBuffers[i]->Resize(device, width >> (i + 1), height >> (i + 1));
+	}
+}
+
+void Renderer::ClearSharcBuffers(ID3D12GraphicsCommandList* commandList) const
+{
+	ID3D12DescriptorHeap* heaps[] = { m_descriptorHeap->GetHeap() };
+	commandList->SetDescriptorHeaps(_countof(heaps), heaps);
+	constexpr UINT clearValue[4] = { 0, 0, 0, 0 };
+	commandList->ClearUnorderedAccessViewUint(
+		m_sharcHashEntriesBuffer->GetClearUAVGPU().gpuHandle, m_sharcHashEntriesBuffer->GetClearUAV().cpuHandle,
+		m_sharcHashEntriesBuffer->GetResource(), clearValue, 0, nullptr);
+	commandList->ClearUnorderedAccessViewUint(
+		m_sharcAccumulationBuffer->GetClearUAVGPU().gpuHandle, m_sharcAccumulationBuffer->GetClearUAV().cpuHandle,
+		m_sharcAccumulationBuffer->GetResource(), clearValue, 0, nullptr);
+	commandList->ClearUnorderedAccessViewUint(
+		m_sharcResolvedBuffer->GetClearUAVGPU().gpuHandle, m_sharcResolvedBuffer->GetClearUAV().cpuHandle,
+		m_sharcResolvedBuffer->GetResource(), clearValue, 0, nullptr);
 }

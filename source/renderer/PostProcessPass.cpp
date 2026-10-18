@@ -9,7 +9,7 @@
 using namespace Microsoft::WRL;
 
 PostProcessPass::PostProcessPass(RenderContext& context, const std::string& shaderPath, 
-	const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler)
+								 const std::string& entryPoint, const std::optional<D3D12_STATIC_SAMPLER_DESC>& customSampler)
     : m_context(context), m_entryPoint(entryPoint), m_customSampler(customSampler)
 {
     std::vector<std::pair<std::string, std::string>> defines {};
@@ -47,17 +47,21 @@ void PostProcessPass::BuildRootSignature()
     CD3DX12_DESCRIPTOR_RANGE1 srvRange;
     srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
 
+    CD3DX12_DESCRIPTOR_RANGE1 srvRange2;
+    srvRange2.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1, 0);
+
     CD3DX12_DESCRIPTOR_RANGE1 uavRange;
     uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0);
 
-    CD3DX12_ROOT_PARAMETER1 params[7] = {};
+    CD3DX12_ROOT_PARAMETER1 params[8] = {};
     params[0].InitAsDescriptorTable(1, &srvRange);  // t0:0
-    params[1].InitAsDescriptorTable(1, &uavRange);  // u0:0
-    params[2].InitAsConstantBufferView(0, 0);       // b0:0
-    params[3].InitAsConstantBufferView(1, 0);       // b1:0
-    params[4].InitAsConstantBufferView(2, 0);       // b2:0
-    params[5].InitAsConstantBufferView(3, 0);       // b3:0
-	params[6].InitAsConstants(16, 4, 0);            // b4:0
+    params[1].InitAsDescriptorTable(1, &srvRange2); // t1:0
+    params[2].InitAsDescriptorTable(1, &uavRange);  // u0:0
+    params[3].InitAsConstantBufferView(0, 0);       // b0:0
+    params[4].InitAsConstantBufferView(1, 0);       // b1:0
+    params[5].InitAsConstantBufferView(2, 0);       // b2:0
+    params[6].InitAsConstantBufferView(3, 0);       // b3:0
+	params[7].InitAsConstants(16, 4, 0);            // b4:0
 
     D3D12_STATIC_SAMPLER_DESC sampler;
     if (m_customSampler.has_value())
@@ -113,14 +117,18 @@ void PostProcessPass::Dispatch(ID3D12GraphicsCommandList4* commandList, const Po
     commandList->SetPipelineState(m_pso.Get());
 
     commandList->SetComputeRootDescriptorTable(0, bindings.inputSrv);
-    commandList->SetComputeRootDescriptorTable(1, bindings.outputUav);
+    if (bindings.inputSrv2.ptr != 0)
+    {
+        commandList->SetComputeRootDescriptorTable(1, bindings.inputSrv2);
+    }
+    commandList->SetComputeRootDescriptorTable(2, bindings.outputUav);
     for (uint32_t i = 0; i < bindings.cbvCount; i++)
     {
-	    commandList->SetComputeRootConstantBufferView(2 + i, bindings.cbvs[i]);
+	    commandList->SetComputeRootConstantBufferView(3 + i, bindings.cbvs[i]);
     }
     if (bindings.rootConstantCount > 0)
     {
-        commandList->SetComputeRoot32BitConstants(6, bindings.rootConstantCount, bindings.rootConstants, 0);
+        commandList->SetComputeRoot32BitConstants(7, bindings.rootConstantCount, bindings.rootConstants, 0);
     }
 
     uint32_t groupsX = (bindings.width + THREAD_GROUP_SIZE - 1) / THREAD_GROUP_SIZE;

@@ -30,20 +30,26 @@ ComputePass::ComputePass(RenderContext& context, const std::string& shaderPath,
     // Shader hot reload callback
     m_context.shaderCompiler->RegisterShaderReload(m_shader.get());
     m_context.shaderCompiler->ShaderRecompileCallback([this](const Shader* shader)
+    {
+        if (shader == m_shader.get())
         {
-            if (shader == m_shader.get())
-            {
-                m_context.commandQueue->Flush();
-                m_pso.Reset();
-                BuildPSO();
-            }
-        });
+            m_context.commandQueue->Flush();
+            m_pso.Reset();
+            BuildPSO();
+        }
+    });
 }
 
 ComputePass::~ComputePass() = default;
 
 void ComputePass::BuildRootSignature()
 {
+    CD3DX12_DESCRIPTOR_RANGE1 srvRange;
+    srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0);
+
+    CD3DX12_DESCRIPTOR_RANGE1 uavRange;
+    uavRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0, 0);
+
     CD3DX12_ROOT_PARAMETER1 params[CONSTANTS_OFFSET + 1] = {};
     for (uint32_t i = 0; i < MAX_SRVS; i++)
     {

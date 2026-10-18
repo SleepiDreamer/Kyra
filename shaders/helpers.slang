@@ -70,6 +70,13 @@ public float3 ACEScgToRec2020(float3 c) { return mul(
              -0.0022343695,  1.0045865019, -0.0023521324,
              -0.0050133515, -0.0252900718,  1.0303034233), c); }
 
+public float3 ACEScgToACEScct(float3 c)
+{
+    float3 lin = (10.5402377416545 * c) + 0.0729055341958355;
+    float3 log = (log2(max(c, 1e-10)) + 9.72) / 17.52;
+    return lerp(log, lin, step(c, 0.0078125));
+}
+
 public float3x3 Cofactor(float3x3 m)
 {
     return float3x3(cross(m[1], m[2]), cross(m[2], m[0]), cross(m[0], m[1]));

@@ -493,5 +493,8 @@ float3 psychotm_test11(
 public float3 TonemapPsycho(float3 luminance, float maxNits)
 {
     luminance *= 30.0;
-    return renodx::tonemap::psycho::psychotm_test11(luminance, maxNits);
+    float3 nits = renodx::tonemap::psycho::psychotm_test11(luminance, maxNits);
+
+    float3 PQ = LinearToPQ(nits);
+    return PQ;
 }

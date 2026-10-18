@@ -1,4 +1,5 @@
 module agx;
+import helpers;
 
 // Original sigmoid fit: MIT License, Copyright (c) 2024 Missing Deadlines (Benjamin Wrensch). 
 // Matrices from Blender's config.ocio / EaryChow's AgX.
@@ -96,15 +97,17 @@ float3 agxEotf(float3 val)
     return max(val, 0.0f);
 }
 
-public float3 TonemapAgX(float3 color)
+float3 Contrast(float3 luminance, float cont)
 {
-    color = agx(color);
-    color = agxLook(color);
-    color = agxEotf(color);
-    return color;
+    luminance = ACEScgToRec709(luminance);
+    return pow(luminance, cont);
 }
 
-float3 Contrast(float3 color, float cont)
+public float3 TonemapAgX(float3 luminance)
 {
-    return pow(color, cont);
+    luminance = ACEScgToRec709(luminance);
+    luminance = agx(luminance);
+    luminance = agxLook(luminance);
+    luminance = agxEotf(luminance);
+    return luminance;
 }

@@ -13,6 +13,7 @@ public:
 
 	[[nodiscard]] int32_t GetDescriptorIndex() const;
 	[[nodiscard]] ID3D12Resource* GetResource() const { return m_resource.resource; }
+	[[nodiscard]] Descriptor GetSRV() const { return m_srv; }
 
 private:
     GPUBuffer m_resource;

@@ -93,26 +93,8 @@ public struct RenderSettings
     public bool sharc;
 };
 
-public enum class TonemapOperatorSDR
-{
-    Linear,
-    Aces,
-    Reinhard,
-    AgX,
-    GT7,
-};
-
-public enum class TonemapOperatorHDR
-{
-    Linear,
-    Custom,
-    Psycho,
-};
-
 public struct PostProcessSettings
 {
-    public TonemapOperatorSDR tonemapperSDR;
-    public TonemapOperatorHDR tonemapperHDR;
     public bool hdr;
     public bool autoExposure;
     public float targetExposure;

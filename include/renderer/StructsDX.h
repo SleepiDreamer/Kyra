@@ -78,26 +78,8 @@ struct RTSettings
 };
 IMGUI_REFLECT(RTSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality, sharc)
 
-enum class TonemapOperatorSDR
-{
-	Linear,
-	Aces,
-	Reinhard,
-	AgX,
-	GT7,
-};
-
-enum class TonemapOperatorHDR
-{
-	Linear,
-	Custom,
-	Psycho,
-};
-
 struct PostProcessSettings
 {
-	TonemapOperatorSDR tonemapperSDR = TonemapOperatorSDR::AgX;
-	TonemapOperatorHDR tonemapperHDR = TonemapOperatorHDR::Custom;
 	BOOL hdr = false;
 	BOOL autoExposure = true;
 	float targetExposure = 1.0f;

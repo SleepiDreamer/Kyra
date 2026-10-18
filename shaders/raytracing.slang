@@ -8,6 +8,10 @@ import emissive.emissive_common;
 import pbr;
 import camera;
 
+#ifndef SHARC_UPDATE
+#define SHARC_UPDATE false
+#endif
+
 #include "sharc/SharcCommon.h"
 
 RWTexture2D<float4> rtOutputBuffer            : register(u0, space0);

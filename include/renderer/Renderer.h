@@ -5,7 +5,6 @@
 #include "CommonDX.h"
 
 #include <d3d12.h>
-#include <d3dx12.h>
 #include <memory>
 
 class Window;
@@ -38,7 +37,6 @@ class Renderer
 public:
 	explicit Renderer(Window& window, bool debug);
 	~Renderer();
-	void Render(float deltaTime);
 
 	void SetCamera(std::shared_ptr<Camera> camera) { m_camera = std::move(camera); }
 	void ToggleHDR();
@@ -50,6 +48,8 @@ public:
 	void Resize(int width, int height);
 	void ResetAccumulation() { m_resetAccumulation = true; }
 
+	void Render(float deltaTime);
+	
 	RTSettings m_renderSettings{};
 
 private:

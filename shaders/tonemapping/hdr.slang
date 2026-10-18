@@ -88,8 +88,9 @@ public float3 TonemapHDRLinear(float3 luminance, float maxNits)
     luminance *= 0.05;
 
     float3 nits = luminance * maxNits;
+    float3 PQ = LinearToPQ(nits);
     
-    return nits;
+    return PQ;
 }
 
 public float3 TonemapHDRCustom(float3 luminance, float maxNits)
@@ -111,5 +112,6 @@ public float3 TonemapHDRCustom(float3 luminance, float maxNits)
     float rolloff = 0.7;
     nits = SoftShoulder(nits, maxNits * (1.0 - rolloff), maxNits);
 
-    return nits;
+    PQ = LinearToPQ(nits);
+    return PQ;
 }

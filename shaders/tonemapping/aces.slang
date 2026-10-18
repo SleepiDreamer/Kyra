@@ -1,4 +1,5 @@
 module aces;
+import helpers;
 
 // based on https://64.github.io/tonemapping/
 static const float3x3 acesInputMatrix = float3x3(
@@ -20,9 +21,10 @@ float3 rttAndOdtFit(float3 v)
     return a / b;
 }
 
-public float3 TonemapACES(float3 color)
+public float3 TonemapACES(float3 luminance)
 {
-    color = mul(acesInputMatrix, color);
-    color = rttAndOdtFit(color);
-    return mul(acesOutputMatrix, color);
+    luminance = ACEScgToRec709(luminance);
+    luminance = mul(acesInputMatrix, luminance);
+    luminance = rttAndOdtFit(luminance);
+    return mul(acesOutputMatrix, luminance);
 }
