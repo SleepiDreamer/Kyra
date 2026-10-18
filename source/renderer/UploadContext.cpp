@@ -46,6 +46,12 @@ void UploadContext::UploadTexture(const GPUBuffer& dest, const void* data, const
     UINT bytesPerPixel = 4;
     switch (format)
     {
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+        bytesPerPixel = 4;
+        break;
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+        bytesPerPixel = 4;
+        break;
     case DXGI_FORMAT_R16G16B16A16_FLOAT:
         bytesPerPixel = 8;
 		break;
