@@ -15,6 +15,7 @@ DepthOfField::DepthOfField(RenderContext& context, const uint32_t width, const u
 
 	m_nearFieldTexture = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"DoF Near Field Texture");
 	m_farFieldTexture = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"DoF Far Field Texture");
+	m_outputTexture = std::make_unique<RenderTexture>(m_context, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height, L"DoF Output Texture");
 }
 
 DepthOfField::~DepthOfField() = default;
@@ -23,25 +24,32 @@ void DepthOfField::Resize(const uint32_t width, const uint32_t height) const
 {
 	m_nearFieldTexture->Resize(m_context.device, width, height);
 	m_farFieldTexture->Resize(m_context.device, width, height);
+	m_outputTexture->Resize(m_context.device, width, height);
 }
 
-void DepthOfField::Render(ID3D12GraphicsCommandList4* commandList, RenderTexture& input, RenderTexture& output, uint32_t backBufferIndex) const
+void DepthOfField::Render(ID3D12GraphicsCommandList4* commandList, const DepthOfFieldInput& inputs, uint32_t backBufferIndex) const
 {
-	input.Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-	output.Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	inputs.color->Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	inputs.depth->Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	m_nearFieldTexture->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	m_farFieldTexture->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	m_outputTexture->Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
 	PostProcessPass::PostProcessBindings bindings;
-	bindings.inputSrv = input.GetSRV().gpuHandle; // placeholder
-	bindings.outputUav = output.GetUAV().gpuHandle; // placeholder
 	bindings.cbvs[0] = m_settings->GetGPUAddress(backBufferIndex);
 	bindings.cbvCount = 1;
-	bindings.rootConstants[0] = input.GetSRV().index; // albedo
-	bindings.rootConstants[1] = input.GetSRV().index; // depth
-	bindings.rootConstants[2] = output.GetUAV().index; // near
-	bindings.rootConstants[3] = output.GetUAV().index; // far
-	bindings.rootConstantCount = 3;
-	bindings.width = output.GetWidth();
-	bindings.height = output.GetHeight();
+	bindings.rootConstants[0] = inputs.color->GetSRV().index; 		// color
+	bindings.rootConstants[1] = inputs.depth->GetSRV().index;  		// depth
+	bindings.rootConstants[2] = m_nearFieldTexture->GetUAV().index; // near field
+	bindings.rootConstants[3] = m_farFieldTexture->GetUAV().index;  // far field
+	bindings.rootConstants[4] = m_outputTexture->GetUAV().index;    // output
+	bindings.rootConstantCount = 5;
+	bindings.width  = m_outputTexture->GetWidth();
+	bindings.height = m_outputTexture->GetHeight();
 
 	m_fieldPass->Dispatch(commandList, bindings);
+
+	m_outputTexture->Transition(commandList, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	inputs.color->Transition(commandList, D3D12_RESOURCE_STATE_COPY_DEST);
+	commandList->CopyResource(inputs.color->GetResource(), m_outputTexture->GetResource());
 }

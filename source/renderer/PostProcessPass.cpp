@@ -85,7 +85,7 @@ void PostProcessPass::BuildRootSignature()
     }
 
     CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-    desc.Init_1_1(std::size(params), params, 1, &sampler);
+    desc.Init_1_1(std::size(params), params, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED);
 
     ComPtr<ID3DBlob> sigBlob, errorBlob;
     HRESULT hr = D3DX12SerializeVersionedRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_1, &sigBlob, &errorBlob);
@@ -116,12 +116,18 @@ void PostProcessPass::Dispatch(ID3D12GraphicsCommandList4* commandList, const Po
     commandList->SetComputeRootSignature(m_rootSignature.Get());
     commandList->SetPipelineState(m_pso.Get());
 
-    commandList->SetComputeRootDescriptorTable(0, bindings.inputSrv);
+    if (bindings.inputSrv.ptr != 0)
+    {
+        commandList->SetComputeRootDescriptorTable(0, bindings.inputSrv);
+    }
     if (bindings.inputSrv2.ptr != 0)
     {
         commandList->SetComputeRootDescriptorTable(1, bindings.inputSrv2);
     }
-    commandList->SetComputeRootDescriptorTable(2, bindings.outputUav);
+    if (bindings.outputUav.ptr != 0)
+    {
+        commandList->SetComputeRootDescriptorTable(2, bindings.outputUav);
+    }
     for (uint32_t i = 0; i < bindings.cbvCount; i++)
     {
 	    commandList->SetComputeRootConstantBufferView(3 + i, bindings.cbvs[i]);

@@ -17,8 +17,13 @@ public:
 
 	void Resize(uint32_t width, uint32_t height) const;
 
-	void Render(ID3D12GraphicsCommandList4* commandList, RenderTexture& input,
-		RenderTexture& output, uint32_t backBufferIndex) const;
+	struct DepthOfFieldInput
+	{
+		RenderTexture* color;
+		RenderTexture* depth;
+	};
+
+	void Render(ID3D12GraphicsCommandList4* commandList, const DepthOfFieldInput&, uint32_t backBufferIndex) const;
 
 private:
 	RenderContext& m_context;

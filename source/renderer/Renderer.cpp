@@ -604,7 +604,11 @@ void Renderer::Render(const float deltaTime)
 		{
 			PIXScopedEvent(commandList.Get(), 0xac6bfa, "Depth of Field");
 
-			m_depthOfField->Render(commandList.Get(), *currentBuffer, *currentBuffer, backBufferIndex);
+			DepthOfField::DepthOfFieldInput dofInputs = {};
+			dofInputs.color = currentBuffer;
+			dofInputs.depth = m_depthBuffer.get();
+
+			m_depthOfField->Render(commandList.Get(), dofInputs, backBufferIndex);
 		}
 
 		// Tonemapping pass
