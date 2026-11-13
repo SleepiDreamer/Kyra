@@ -75,8 +75,6 @@ void Tonemapper::SetActiveTonemapHDR(const std::string& name)
 
 void Tonemapper::Tonemap(ID3D12GraphicsCommandList4* commandList, RenderTexture& input, RenderTexture& output, uint32_t backBufferIndex, bool hdrEnabled) const
 {
-	PIXScopedEvent(commandList, 0x6bfa8c, "Tonemapping");
-
 	input.Transition(commandList, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	output.Transition(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	

@@ -17,6 +17,7 @@
 #include "RTPipeline.h"
 #include "ComputePass.h"
 #include "PostProcessPass.h"
+#include "DepthOfField.h"
 #include "Tonemapper.h"
 #include "ImGuiWrapper.h"
 #include "NGXWrapper.h"
@@ -160,8 +161,9 @@ Renderer::Renderer(Window& window, bool debug)
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, "shaders/bloom_downsample.slang", "BloomDownsample", bloomSampler));
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, "shaders/bloom_upsample.slang", "BloomUpsample", bloomSampler));
 		m_bloomPasses.push_back(std::make_unique<PostProcessPass>(m_context, "shaders/bloom_composite.slang", "BloomComposite", bloomSampler));
+		m_depthOfField = std::make_unique<DepthOfField>(m_context, width, height, m_postProcessSettingsCB);
 		m_tonemapper = std::make_unique<Tonemapper>(m_context, m_postProcessSettingsCB);
-		
+
 		m_exposureFocusBuffer = std::make_unique<TypedBuffer>(
 			m_context, 2, DXGI_FORMAT_R32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_HEAP_TYPE_DEFAULT, "Auto Exposure Buffer");
 		m_exposureFocusReadback = m_allocator->CreateBuffer(
@@ -268,6 +270,8 @@ void Renderer::Render(const float deltaTime)
 	m_renderDataCB->Update(backBufferIndex, m_renderData);
 	m_postProcessSettings.hdr = m_swapChain->IsHDR();
 	m_postProcessSettings.skipTonemap = (m_renderSettings.debugMode != DebugMode::None);
+	m_postProcessSettings.focusDistance = m_camera->m_focusDistance;
+	m_postProcessSettings.aperture = m_camera->m_aperture;
 	m_postProcessSettingsCB->Update(backBufferIndex, m_postProcessSettings);
 
 	// Record commands
@@ -595,8 +599,18 @@ void Renderer::Render(const float deltaTime)
 			m_exposureFocusBuffer->GetBuffer().Transition(commandList.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		}
 
+		// Depth of Field pass
+		if (m_postProcessSettings.fakeDof)
+		{
+			PIXScopedEvent(commandList.Get(), 0xac6bfa, "Depth of Field");
+
+			m_depthOfField->Render(commandList.Get(), *currentBuffer, *currentBuffer, backBufferIndex);
+		}
+
 		// Tonemapping pass
 		{
+			PIXScopedEvent(commandList.Get(), 0xac6bfa, "Tonemapping");
+
 			m_tonemapper->Tonemap(commandList.Get(), *currentBuffer, *m_finalColorBuffer, backBufferIndex, m_postProcessSettings.hdr);
 
 			currentBuffer = m_finalColorBuffer.get();
@@ -844,6 +858,7 @@ void Renderer::Resize(const int width, const int height)
 	{
 		m_bloomBuffers[i]->Resize(device, width >> (i + 1), height >> (i + 1));
 	}
+	m_depthOfField->Resize(width, height);
 }
 
 void Renderer::ClearSharcBuffers(ID3D12GraphicsCommandList* commandList) const

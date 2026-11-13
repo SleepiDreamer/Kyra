@@ -100,6 +100,9 @@ public struct PostProcessSettings
     public float targetExposure;
     public float exposure;
     public float bloomStrength;
+    public float focusDistance;
+    public float aperture;
+    public bool fakeDof;
     public bool skipTonemap = false;
 }
 

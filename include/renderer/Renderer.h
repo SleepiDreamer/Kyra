@@ -24,6 +24,7 @@ class ShaderCompiler;
 class RootSignature;
 class RTPipeline;
 class PostProcessPass;
+class DepthOfField;
 class Tonemapper;
 class ComputePass;
 class ImGuiWrapper;
@@ -106,6 +107,7 @@ private:
 	std::vector<std::unique_ptr<RenderTexture>> m_bloomBuffers;
 
 	std::unique_ptr<Tonemapper> m_tonemapper;
+	std::unique_ptr<DepthOfField> m_depthOfField;
 	std::unique_ptr<PostProcessPass> m_copyRtPass;
 	std::unique_ptr<PostProcessPass> m_autoExposurePass;
 	std::unique_ptr<PostProcessPass> m_autoFocusPass;

@@ -85,9 +85,12 @@ struct PostProcessSettings
 	float targetExposure = 1.0f;
 	float exposure = 10.0f;
 	float bloomStrength = 0.015f;
+	float focusDistance = 0.0f;
+	float aperture = 0.0f;
+	BOOL fakeDof = true;
 	BOOL skipTonemap = false;
 };
-IMGUI_REFLECT(PostProcessSettings, autoExposure, exposure, targetExposure, bloomStrength)
+IMGUI_REFLECT(PostProcessSettings, autoExposure, exposure, targetExposure, bloomStrength, fakeDof)
 
 enum class BlendMode
 {
