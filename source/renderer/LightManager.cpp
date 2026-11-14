@@ -29,13 +29,19 @@ void CopyBuffersToReadback(ID3D12GraphicsCommandList4* cmd, const std::vector<Re
 	if (copies.empty()) return;
 
 	for (const auto& c : copies)
+	{
 		c.src->Transition(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
+	}
 
 	for (const auto& c : copies)
+	{
 		cmd->CopyBufferRegion(c.dst, 0, c.src->GetResource(), 0, c.bytes);
+	}
 
 	for (const auto& c : copies)
+	{
 		c.src->Transition(cmd, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	}
 }
 
 LightManager::LightManager(RenderContext& context)
@@ -438,6 +444,7 @@ void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 		m_counters->UAVBarrier(commandList);
 	}
 
+#if 0 // for debug printing
 	std::vector<ReadbackCopy> copies = {
 		{ m_lightBuffer.get(),       m_lightsReadback.resource,            m_numLights * sizeof(Light)          },
 		{ m_powerBuffer.get(),       m_powerReadback.resource,             m_numLights * sizeof(uint32_t)       },
@@ -450,6 +457,7 @@ void LightManager::BuildAliasTable(ID3D12GraphicsCommandList4* commandList)
 		{ m_aliasTable.get(),        m_tableReadback.resource,             m_numLights * sizeof(uint32_t) * 2   },
 		{ m_counters.get(),          m_countersReadback.resource,          sizeof(uint32_t) * 4                 } };
 	CopyBuffersToReadback(commandList, copies);
+#endif
 }
 
 void LightManager::UpdateAliasCounters(const uint32_t numLights, const float totalPower) const

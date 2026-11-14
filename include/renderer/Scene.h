@@ -20,6 +20,7 @@ public:
 	~Scene();
 
 	bool LoadModel(const std::string& path);
+	void RemoveModels(const std::vector<uint32_t>& indices);
 	void LoadHDRI(const std::string& path);
 	void AddLights(const std::vector<Light>& lights, ID3D12GraphicsCommandList4* commandList) const;
 
@@ -37,7 +38,7 @@ public:
 
 private:
 	void UploadMaterialData();
-
+	[[nodiscard]] std::vector<D3D12_RAYTRACING_INSTANCE_DESC> GetModelInstances();
 	RenderContext& m_context;
 
 	std::unique_ptr<TLAS> m_tlas;

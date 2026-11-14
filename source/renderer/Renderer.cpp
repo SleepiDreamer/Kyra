@@ -28,6 +28,8 @@
 #include <pix3.h>
 #include <imgui.h>
 
+#include "Model.h"
+
 using namespace Microsoft::WRL;
 
 // TODO
@@ -190,6 +192,19 @@ Renderer::~Renderer()
 
 void Renderer::Render(const float deltaTime)
 {
+	if (!m_pendingModelRemoves.empty())
+	{
+		m_commandQueue->Flush();
+		
+		std::sort(m_pendingModelRemoves.begin(), m_pendingModelRemoves.end(), std::greater<>());
+		m_pendingModelRemoves.erase(std::ranges::unique(m_pendingModelRemoves).begin(),
+									m_pendingModelRemoves.end());
+		m_scene->RemoveModels(m_pendingModelRemoves);
+		m_pendingModelRemoves.clear();
+		
+		Reset();
+		
+	}
 	if (m_pendingResize)
 	{
 		m_ngx->SetDLSSQuality(m_renderSettings.dlssQuality);
@@ -606,15 +621,18 @@ void Renderer::Render(const float deltaTime)
 	// ImGui window
 	if (m_showImgui)
 	{
+		// Shader compilation error window
 		if (!m_shaderCompiler->GetReloadError().empty())
 		{
+			// Red background
 			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 0.0f, 0.0f, 0.3f));
 			ImGui::Begin("Border", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 			ImGui::SetWindowPos(ImVec2(0, 0));
 			ImGui::SetWindowSize(ImGui::GetIO().DisplaySize);
 			ImGui::End();
 			ImGui::PopStyleColor();
-
+			
+			// Error window
 			ImGui::SetNextWindowPos(ImVec2(windowSize.x / 2.0f - 400.0f, windowSize.y / 2.0f - 200.0f));
 			ImGui::Begin("Shader Compile Errors", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 			ImGui::PushTextWrapPos(800.0f);
@@ -629,7 +647,8 @@ void Renderer::Render(const float deltaTime)
 		auto config2 = ImSettings();
 		// ReSharper disable once CppExpressionWithoutSideEffects
 		config2.push<float>().as_drag().min(0).max(100).speed(0.02f).pop();
-
+		
+		// Settings window
 		ImGui::SetNextWindowPos(ImVec2(0, 0));
 		ImGui::Begin("Settings");
 		ImGui::BeginTabBar("SettingsTabBar");
@@ -729,8 +748,63 @@ void Renderer::Render(const float deltaTime)
 			}
 			ImGui::EndTabItem();
 		}
-		ImGui::PopItemWidth();
+		if (ImGui::BeginTabItem("Models"))
+		{
+			const auto& models = m_scene->GetModels();
+			std::vector<std::string> modelNames;
+			modelNames.reserve(models.size());
+			for (const auto& model : models)
+			{
+				modelNames.emplace_back(model.GetName());
+			}
+			
+			static int selected = -1;
+			int toDelete = -1;
 
+			ImGui::Text("Models");
+			if (ImGui::BeginListBox("##Models"))
+			{
+				const ImGuiStyle& style = ImGui::GetStyle();
+				const float buttonWidth = ImGui::CalcTextSize("X").x + style.FramePadding.x * 2.0f;
+
+				for (int i = 0; i < static_cast<int>(modelNames.size()); ++i)
+				{
+					ImGui::PushID(i);
+
+					const bool isSelected = (selected == i);
+					const float selectableWidth = ImGui::GetContentRegionAvail().x - buttonWidth - style.ItemSpacing.x;
+
+					if (ImGui::Selectable(modelNames[i].c_str(), isSelected, 0, ImVec2(selectableWidth, 0)))
+					{
+						selected = i;
+					}
+					if (isSelected)
+					{
+						ImGui::SetItemDefaultFocus();
+					}
+
+					ImGui::SameLine();
+					if (ImGui::SmallButton("X"))
+					{
+						toDelete = i;
+					}
+
+					ImGui::PopID();
+				}
+				ImGui::EndListBox();
+			}
+
+			if (toDelete != -1)
+			{
+				m_pendingModelRemoves.emplace_back(toDelete);
+				
+				if (selected == toDelete) selected = -1;
+				else if (selected > toDelete) --selected;
+			}
+			ImGui::EndTabItem();
+		}
+
+		ImGui::PopItemWidth();
 		ImGui::EndTabBar();
 		ImGui::End();
 	}
@@ -800,15 +874,20 @@ void Renderer::LoadModel(const std::string& path)
 {
 	if (m_scene->LoadModel(path))
 	{
-		m_rtPipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
-		m_sharcUpdatePipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
-		ResetAccumulation();
-
-		auto commandList = m_commandQueue->GetCommandList();
-		ClearSharcBuffers(commandList.Get());
-		m_commandQueue->ExecuteCommandList(commandList);
-		m_commandQueue->Flush();
+		Reset();
 	}
+}
+
+void Renderer::Reset()
+{
+	m_rtPipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
+	m_sharcUpdatePipeline->RebuildShaderTables(m_device->GetDevice(), m_scene->GetHitGroupRecords());
+	ResetAccumulation();
+
+	auto commandList = m_commandQueue->GetCommandList();
+	ClearSharcBuffers(commandList.Get());
+	m_commandQueue->ExecuteCommandList(commandList);
+	m_commandQueue->Flush();
 }
 
 void Renderer::LoadHDRI(const std::string& path)

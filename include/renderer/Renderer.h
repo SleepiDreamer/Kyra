@@ -53,6 +53,7 @@ public:
 	RTSettings m_renderSettings{};
 
 private:
+	void Reset();
 	void ClearSharcBuffers(ID3D12GraphicsCommandList* commandList) const;
 	
 	Window& m_window;
@@ -81,6 +82,7 @@ private:
 	bool m_showImgui = true;
 
 	std::unique_ptr<Scene> m_scene;
+	std::vector<uint32_t> m_pendingModelRemoves;
 	RenderData m_renderData{};
 	bool m_resetAccumulation = false;
 	PostProcessSettings m_postProcessSettings{};

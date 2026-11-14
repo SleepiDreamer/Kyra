@@ -51,17 +51,8 @@ bool Scene::LoadModel(const std::string& path)
 
 	if (hasMeshes)
 	{
-		std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instances;
-		UINT instanceId = 0;
-		UINT hitGroupOffset = 0;
-		for (auto& model : m_models)
-		{
-			instances.emplace_back(model.GetInstanceDesc(instanceId++, hitGroupOffset));
-			hitGroupOffset += static_cast<UINT>(model.GetMeshes().size());
-		}
-
 		m_tlas = std::make_unique<TLAS>(m_context);
-		m_tlas->Build(m_context.device, instances);
+		m_tlas->Build(m_context.device, GetModelInstances());
 	}
 
 	UploadMaterialData();
@@ -123,6 +114,80 @@ bool Scene::LoadModel(const std::string& path)
 	Log::Success("Loaded model: {}. Took {:.2f} s.", path, std::chrono::duration_cast<std::chrono::milliseconds>(time).count() / 1000.0);
 
 	return true;
+}
+
+void Scene::RemoveModels(const std::vector<uint32_t>& indices)
+{
+	Log::Error("[Scene::RemoveModel] Function is not yet implemented");
+	
+	m_context.commandQueue->Flush();
+	for (const uint32_t idx : indices)
+	{
+		m_models.erase(m_models.begin() + idx);
+	}
+	
+	// Recalculate material offset
+	uint32_t offset = 1;
+	for (auto& model : m_models)
+	{
+		for (auto& mesh : model.GetMeshes())
+		{
+			if (mesh.m_localMaterialIndex >= 0)
+			{
+				mesh.m_materialIndex = static_cast<int32_t>(offset) + mesh.m_localMaterialIndex;
+			}
+		}
+		offset += static_cast<uint32_t>(model.GetMaterials().size());
+	}
+	m_materialIdxOffset = offset;
+	
+	UploadMaterialData();
+	m_context.uploadContext->Flush();
+	
+	// Create new TLAS
+	if (m_models.empty())
+	{
+		m_tlas.reset();
+	}
+	else
+	{
+		m_tlas = std::make_unique<TLAS>(m_context);
+		m_tlas->Build(m_context.device, GetModelInstances());
+	}
+	
+	// Recalculate lights in LightManager
+	{
+		m_lightManager = std::make_unique<LightManager>(m_context); // or add a Clear() to LightManager
+
+		auto commandList = m_context.commandQueue->GetCommandList();
+		ID3D12DescriptorHeap* heap = m_context.descriptorHeap->GetHeap();
+		commandList->SetDescriptorHeaps(1, &heap);
+
+		for (auto& model : m_models)
+		{
+			if (!model.GetLights().empty())
+			{
+				AddLights(model.GetLights(), commandList.Get());
+				m_lightManager->CopyLightsToCPU(commandList.Get());
+				m_lightManager->UploadPendingLights(commandList.Get());
+			}
+			m_lightManager->ParseEmissiveTris(model, m_materialBuffer.get(), commandList.Get());
+			
+			commandList = m_context.commandQueue->GetCommandList();
+			commandList->SetDescriptorHeaps(1, &heap);
+
+			m_lightManager->NumLightsCallback();
+			if (m_lightManager->GetNumLights() > 0)
+			{
+				m_lightManager->BuildAliasTable(commandList.Get());
+			}
+
+			m_context.commandQueue->ExecuteCommandList(commandList);
+			m_context.commandQueue->Flush();
+
+			m_lightManager->UpdateAliasCounters(m_lightManager->GetNumLights(), m_lightManager->GetTotalPower());
+		}
+	}
 }
 
 void Scene::LoadHDRI(const std::string& path)
@@ -208,6 +273,19 @@ void Scene::UploadMaterialData()
 
 	m_context.uploadContext->Upload(
 		m_materialBuffer->GetBuffer(), materials.data(), numMaterials * sizeof(MaterialData));
+}
+
+std::vector<D3D12_RAYTRACING_INSTANCE_DESC> Scene::GetModelInstances()
+{
+	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instances;
+	UINT instanceId = 0;
+	UINT hitGroupOffset = 0;
+	for (auto& model : m_models)
+	{
+		instances.emplace_back(model.GetInstanceDesc(instanceId++, hitGroupOffset));
+		hitGroupOffset += static_cast<UINT>(model.GetMeshes().size());
+	}
+	return instances;
 }
 
 D3D12_GPU_VIRTUAL_ADDRESS Scene::GetTLASAddress() const
