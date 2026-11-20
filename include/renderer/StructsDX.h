@@ -75,8 +75,9 @@ struct RTSettings
 	BOOL denoising = true;
 	DLSSQuality dlssQuality = DLSSQuality::Balanced;
 	BOOL sharc = true;
+	BOOL fakeDof = true;
 };
-IMGUI_REFLECT(RTSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality, sharc)
+IMGUI_REFLECT(RTSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality, sharc, fakeDof)
 
 enum class DOFDebugMode
 {
@@ -99,11 +100,10 @@ struct PostProcessSettings
 	float bloomStrength = 0.015f;
 	float focusDistance = 0.0f;
 	float aperture = 0.0f;
-	BOOL fakeDof = true;
 	BOOL skipTonemap = false;
 	DOFDebugMode dofDebugMode = DOFDebugMode::None; // TODO: remove?
 };
-IMGUI_REFLECT(PostProcessSettings, autoExposure, exposure, targetExposure, bloomStrength, fakeDof, dofDebugMode)
+IMGUI_REFLECT(PostProcessSettings, autoExposure, exposure, targetExposure, bloomStrength, dofDebugMode)
 
 enum class BlendMode
 {

@@ -22,16 +22,18 @@ void FieldPass(uint3 dtid : SV_DispatchThreadID)
     float2 uv = float2(dtid.xy + 0.5) / resolution.xy;
 
     float3 color = colorTex.SampleLevel(linearSampler, uv, 0).rgb;
-#if 1 // Use minimum depth texel
+#if 1 // Use maximum depth texel
     float4 depthSamples = depthTex.GatherRed(linearSampler, uv, 0);
-    float depth = min(depthSamples.x, min(depthSamples.y, min(depthSamples.z, depthSamples.w)));
+    float depth = max(depthSamples.x, max(depthSamples.y, max(depthSamples.z, depthSamples.w)));
 #else
     float depth = depthTex.SampleLevel(linearSampler, uv, 0).r;
 #endif
 
     const float focusDist = postProcessSettings.focusDistance;
-    const float aperture = postProcessSettings.aperture;
-    float coc = abs(CalculateCircleOfConfusion(focusDist, depth, aperture));
+    const float lensRadius = postProcessSettings.aperture * 0.01;
+    const float fov = float(inputIdx) / 100.0;
+    float coc = CalculateCircleOfConfusion(focusDist, depth, lensRadius, fov);
+    coc *= resolution.y;
 
     if (depth < focusDist) // near
     {

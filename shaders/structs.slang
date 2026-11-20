@@ -91,6 +91,7 @@ public struct RenderSettings
     public bool denoising;
     DLSSQuality dlssQuality;
     public bool sharc;
+    public bool fakeDof;
 };
 
 public struct PostProcessSettings
@@ -102,7 +103,6 @@ public struct PostProcessSettings
     public float bloomStrength;
     public float focusDistance;
     public float aperture;
-    public bool fakeDof;
     public bool skipTonemap;
     public uint dofDebugMode;
 }

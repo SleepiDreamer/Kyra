@@ -26,7 +26,7 @@ void BlurFarPass(uint3 dtid : SV_DispatchThreadID)
     float3 pixelColor = farFieldPixel.rgb;
     float pixelCoc = farFieldPixel.a;
 
-    float blurRadius = postProcessSettings.aperture * pixelCoc;
+    float blurRadius = pixelCoc;
 
     float3 result = float3(0);
     float weight = 0.0;
@@ -57,5 +57,4 @@ void BlurFarPass(uint3 dtid : SV_DispatchThreadID)
 
     weight = saturate(weight * 10);
     outputTex[dtid.xy] = float4(result, weight);
-    outputTex[dtid.xy] = float4(result, 1.0);
 }

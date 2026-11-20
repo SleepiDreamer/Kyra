@@ -113,7 +113,7 @@ void RayGen()
     RayDesc ray;
     Camera cam;
 
-    if (DEPTH_OF_FIELD)
+    if (DEPTH_OF_FIELD && !renderSettings.fakeDof)
     {
         float3 origin;
         ray.Direction = cam.AnamorphicCamera(payload.rng, uv, renderData.camera, origin);

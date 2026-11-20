@@ -600,7 +600,7 @@ void Renderer::Render(const float deltaTime)
 		}
 
 		// Depth of Field pass
-		if (m_postProcessSettings.fakeDof)
+		if (m_renderSettings.fakeDof)
 		{
 			PIXScopedEvent(commandList.Get(), 0xac6bfa, "Depth of Field");
 
@@ -608,6 +608,7 @@ void Renderer::Render(const float deltaTime)
 			dofInputs.settings = &m_postProcessSettings;
 			dofInputs.color = currentBuffer;
 			dofInputs.depth = m_depthBuffer.get();
+			dofInputs.fov = camData.fov;
 
 			m_depthOfField->Render(commandList.Get(), dofInputs, backBufferIndex);
 		}

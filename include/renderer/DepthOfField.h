@@ -19,9 +19,10 @@ public:
 
 	struct DepthOfFieldInput
 	{
-		PostProcessSettings* settings;
-		RenderTexture* color;
-		RenderTexture* depth;
+		PostProcessSettings* settings = nullptr;
+		RenderTexture* color = nullptr;
+		RenderTexture* depth = nullptr;
+		float fov = 60.0f;
 	};
 
 	void Render(ID3D12GraphicsCommandList4* commandList, const DepthOfFieldInput&, uint32_t backBufferIndex) const;

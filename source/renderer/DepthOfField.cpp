@@ -73,6 +73,7 @@ void DepthOfField::Render(ID3D12GraphicsCommandList4* commandList, const DepthOf
 
 	// Field extraction
 	{
+		bindings.rootConstants[6] = static_cast<uint32_t>(inputs.fov * 100.0); // repurposing input as fov
 		bindings.rootConstants[7] = m_outputTexture->GetUAV().index; // output
 		bindings.width  = m_farFieldTexture->GetWidth();
 		bindings.height = m_farFieldTexture->GetHeight();

@@ -12,18 +12,24 @@ public cbuffer DescriptorIndices : register(b4, space0)
     public uint outputIdx;
 };
 
-public float CalculateCircleOfConfusion(float focusDist, float sampleDist, float aperture)
-{
-    float coc = aperture * ((sampleDist - focusDist) / sampleDist);
-    return coc;
-}
-
-// sample code from https://www.adriancourreges.com/blog/2018/12/02/ue4-optimized-post-effects/
 static const float PI = 3.1415926;
 static const float PI_OVER_2 = 1.5707963;
 static const float PI_OVER_4 = 0.785398;
 static const float EPSILON = 1e-6;
 
+//public float CalculateCircleOfConfusion(float focusDist, float sampleDist, float aperture)
+//{
+//    float coc = aperture * ((sampleDist - focusDist) / sampleDist);
+//    return coc;
+//}
+
+public float CalculateCircleOfConfusion(float focusDist, float depth, float aperture, float vFovDeg)
+{
+    float tanHalf = tan(0.5f * vFovDeg * PI / 180.0f);
+    return aperture * 0.5 * abs(depth - focusDist) / (depth * focusDist * tanHalf);
+}
+
+// sample code from https://www.adriancourreges.com/blog/2018/12/02/ue4-optimized-post-effects/
 // Maps a unit square in [-1, 1] to a unit disk in [-1, 1]. Shirley 97 "A Low Distortion Map Between Disk and Square"
 // Inputs: cartesian coordinates
 // Return: new circle-mapped polar coordinates (radius, angle)
