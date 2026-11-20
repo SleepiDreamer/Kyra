@@ -498,7 +498,7 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
         albedoBuffer[idx].xyz = albedo;
         normalRoughnessBuffer[idx].xyz = normal;
         normalRoughnessBuffer[idx].w = roughness;
-        depthBuffer[idx] = RayTCurrent();
+        depthBuffer[idx] = RayTCurrent() * dot(WorldRayDirection(), renderData.camera.forward);
         specularAlbedoBuffer[idx].xyz = EnvBRDFApprox2(lerp(0.04, albedo, metallic), roughness, saturate(dot(normal, -WorldRayDirection())));
     }
 #endif

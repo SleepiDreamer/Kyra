@@ -5,7 +5,10 @@ public cbuffer DescriptorIndices : register(b4, space0)
     public uint colorIdx;
     public uint depthIdx;
     public uint nearIdx;
+    public uint nearCoCIdx;
+    public uint nearCoCBlurIdx;
     public uint farIdx;
+    public uint inputIdx;
     public uint outputIdx;
 };
 
@@ -64,9 +67,12 @@ public float2 SquareToPolygonMapping(float2 uv, float edgeCount, float shapeRota
     float2 PolarCoord = UnitSquareToUnitDiskPolar(p.x, p.y); // (radius, angle)
 
     // Re-scale radius to match a polygon shape
-    PolarCoord.x *=                                      cos(PI / edgeCount)
-                    / //----------------------------------------------------------------------------------------------
-                    cos(PolarCoord.y - (2.0f * PI / edgeCount) * floor((edgeCount*PolarCoord.y + PI) / 2.0f / PI ) );
+    if (edgeCount > 0)
+    {
+        PolarCoord.x *=                                      cos(PI / edgeCount)
+                        / //----------------------------------------------------------------------------------------------
+                        cos(PolarCoord.y - (2.0f * PI / edgeCount) * floor((edgeCount*PolarCoord.y + PI) / 2.0f / PI ) );
+    }
 
     // Apply a rotation to the polygon shape
     PolarCoord.y +=  shapeRotation;

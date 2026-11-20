@@ -19,6 +19,7 @@ public:
 
 	struct DepthOfFieldInput
 	{
+		PostProcessSettings* settings;
 		RenderTexture* color;
 		RenderTexture* depth;
 	};
@@ -30,10 +31,15 @@ private:
 	std::shared_ptr<CBVBuffer<PostProcessSettings>> m_settings;
 
 	std::unique_ptr<PostProcessPass> m_fieldPass;
+	std::unique_ptr<PostProcessPass> m_blurFarPass;
 	std::unique_ptr<PostProcessPass> m_downscalePass;
-	std::unique_ptr<PostProcessPass> m_combinePass;
+	std::unique_ptr<PostProcessPass> m_recombinePass;
+	std::unique_ptr<PostProcessPass> m_debugPass;
 
 	std::unique_ptr<RenderTexture> m_nearFieldTexture;
+	std::vector<std::unique_ptr<RenderTexture>> m_nearCoCTextures; // 3 downsample levels
 	std::unique_ptr<RenderTexture> m_farFieldTexture;
-	std::unique_ptr<RenderTexture> m_outputTexture;
+	std::unique_ptr<RenderTexture> m_blurNearTexture;
+	std::unique_ptr<RenderTexture> m_blurFarTexture;
+	std::unique_ptr<RenderTexture> m_outputTexture; // TODO: unused?
 };

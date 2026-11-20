@@ -103,7 +103,8 @@ public struct PostProcessSettings
     public float focusDistance;
     public float aperture;
     public bool fakeDof;
-    public bool skipTonemap = false;
+    public bool skipTonemap;
+    public uint dofDebugMode;
 }
 
 public struct MipData

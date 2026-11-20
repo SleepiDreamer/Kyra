@@ -35,7 +35,7 @@ struct RenderData
 	float deltaTime = 0.0f;
 };
 
-enum DebugMode
+enum class DebugMode
 {
 	None,
 	Albedo,
@@ -53,7 +53,7 @@ enum DebugMode
 	SharcGrid,
 };
 
-enum DLSSQuality
+enum class DLSSQuality
 {
 	UltraPerformance = 0,
 	Performance = 1,
@@ -65,7 +65,7 @@ enum DLSSQuality
 struct RTSettings
 {
 	float maxFPS = 0.0f;
-	DebugMode debugMode = None;
+	DebugMode debugMode = DebugMode::None;
 	uint32_t bounces = 5;
 	float compSlider = 0.5f;
 	float skyIntensity = 1.0f;
@@ -73,10 +73,22 @@ struct RTSettings
 	BOOL whiteAlbedo = false;
 	BOOL whiteLighting = false;
 	BOOL denoising = true;
-	DLSSQuality dlssQuality = Balanced;
+	DLSSQuality dlssQuality = DLSSQuality::Balanced;
 	BOOL sharc = true;
 };
 IMGUI_REFLECT(RTSettings, maxFPS, debugMode, bounces, skyIntensity, lightIntensity, whiteAlbedo, whiteLighting, denoising, dlssQuality, sharc)
+
+enum class DOFDebugMode
+{
+	None,
+	Near,
+	NearCoc,
+	NearCocSmall,
+	NearBlur,
+	Far,
+	FarCoc,
+	FarBlur,
+};
 
 struct PostProcessSettings
 {
@@ -89,8 +101,9 @@ struct PostProcessSettings
 	float aperture = 0.0f;
 	BOOL fakeDof = true;
 	BOOL skipTonemap = false;
+	DOFDebugMode dofDebugMode = DOFDebugMode::None; // TODO: remove?
 };
-IMGUI_REFLECT(PostProcessSettings, autoExposure, exposure, targetExposure, bloomStrength, fakeDof)
+IMGUI_REFLECT(PostProcessSettings, autoExposure, exposure, targetExposure, bloomStrength, fakeDof, dofDebugMode)
 
 enum class BlendMode
 {

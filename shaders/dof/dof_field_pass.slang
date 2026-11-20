@@ -10,45 +10,39 @@ SamplerState linearSampler : register(s0, space0);
 [numthreads(8, 8, 1)]
 void FieldPass(uint3 dtid : SV_DispatchThreadID)
 {
-    Texture2D<float4>   colorTex  = DescriptorHandle<Texture2D>(uint2(colorIdx, 0));
-    Texture2D<float>    depthTex  = DescriptorHandle<Texture2D<float>>(uint2(depthIdx, 0));
-    RWTexture2D<float4> nearTex   = DescriptorHandle<RWTexture2D>(uint2(nearIdx, 0));
-    RWTexture2D<float4> farTex    = DescriptorHandle<RWTexture2D>(uint2(farIdx, 0));
-    RWTexture2D<float4> outputTex = DescriptorHandle<RWTexture2D>(uint2(outputIdx, 0));
+    Texture2D<float4>   colorTex   = DescriptorHandle<Texture2D>(uint2(colorIdx, 0));
+    Texture2D<float>    depthTex   = DescriptorHandle<Texture2D<float>>(uint2(depthIdx, 0));
+    RWTexture2D<float4> nearTex    = DescriptorHandle<RWTexture2D>(uint2(nearIdx, 0));
+    RWTexture2D<float>  nearCocTex = DescriptorHandle<RWTexture2D<float>>(uint2(nearCoCIdx, 0));
+    RWTexture2D<float4> farTex     = DescriptorHandle<RWTexture2D>(uint2(farIdx, 0));
 
     uint2 resolution;
-    outputTex.GetDimensions(resolution.x, resolution.y);
+    farTex.GetDimensions(resolution.x, resolution.y);
     if (dtid.x >= resolution.x || dtid.y >= resolution.y) return;
     float2 uv = float2(dtid.xy + 0.5) / resolution.xy;
 
     float3 color = colorTex.SampleLevel(linearSampler, uv, 0).rgb;
-    float  depth = depthTex.SampleLevel(linearSampler, uv, 0).r;
+#if 1 // Use minimum depth texel
+    float4 depthSamples = depthTex.GatherRed(linearSampler, uv, 0);
+    float depth = min(depthSamples.x, min(depthSamples.y, min(depthSamples.z, depthSamples.w)));
+#else
+    float depth = depthTex.SampleLevel(linearSampler, uv, 0).r;
+#endif
 
     const float focusDist = postProcessSettings.focusDistance;
     const float aperture = postProcessSettings.aperture;
-    float coc = CalculateCircleOfConfusion(focusDist, depth, aperture);
+    float coc = abs(CalculateCircleOfConfusion(focusDist, depth, aperture));
 
-    if (coc < 0.0) // near
+    if (depth < focusDist) // near
     {
-        nearTex[dtid.xy] = float4(color, abs(coc));
-        farTex[dtid.xy] = 0;
+        nearTex[dtid.xy] = float4(color, coc);
+        nearCocTex[dtid.xy] = coc;
+        farTex[dtid.xy] = 0.0;
     }
-    else // far
+    else if (depth >= focusDist + 0.0) // far, TODO: focal region
     {
-        nearTex[dtid.xy] = 0;
-        farTex[dtid.xy] = float4(color, abs(coc));
+        nearTex[dtid.xy] = float4(0.0, 0.0, 0.0, 1.0);
+        nearCocTex[dtid.xy] = 0.0;
+        farTex[dtid.xy] = float4(color, coc);
     }
-
-    // float3 output = abs(coc).xxx;
-    // float3 output = (abs(focusDist - depth) / depth).xxx;
-
-    // float3 output = depth > focusDist ? depth.xxx : 0;
-    // output *= coc > 0.0 ? float3(0, 1, 0) : float3(1, 0, 0);
-
-    float4 nearSample = nearTex[dtid.xy].rgba;
-    float4 farSample  = farTex[dtid.xy].rgba * 0;
-
-    float3 output = nearSample.rgb * float3(0.5,1.0,0.0) * nearSample.a + farSample.rgb * float3(1.0,0.5,0.5) * farSample.a;
-
-    outputTex[dtid.xy] = float4(output, 1.0);
 }

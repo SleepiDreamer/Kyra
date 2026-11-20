@@ -207,19 +207,19 @@ void NGXWrapper::SetDLSSQuality(const DLSSQuality qualityMode)
 {
     switch (qualityMode)
     {
-    case UltraPerformance:
+    case DLSSQuality::UltraPerformance:
         m_dlssQuality = NVSDK_NGX_PerfQuality_Value_UltraPerformance;
 		break;
-	case Performance:
+	case DLSSQuality::Performance:
 		m_dlssQuality = NVSDK_NGX_PerfQuality_Value_MaxPerf;
 		break;
-	case Balanced:
+	case DLSSQuality::Balanced:
 		m_dlssQuality = NVSDK_NGX_PerfQuality_Value_Balanced;
 		break;
-	case Quality:
+	case DLSSQuality::Quality:
 		m_dlssQuality = NVSDK_NGX_PerfQuality_Value_MaxQuality;
 		break;
-	case DLAA:
+	case DLSSQuality::DLAA:
 		m_dlssQuality = NVSDK_NGX_PerfQuality_Value_DLAA;
 		break;
     default: 
@@ -240,17 +240,17 @@ DLSSQuality NGXWrapper::GetDLSSQuality() const
     switch (m_dlssQuality)
     {
     case NVSDK_NGX_PerfQuality_Value_UltraPerformance:
-        return UltraPerformance;
+        return DLSSQuality::UltraPerformance;
     case NVSDK_NGX_PerfQuality_Value_MaxPerf:
-        return Performance;
+        return DLSSQuality::Performance;
     case NVSDK_NGX_PerfQuality_Value_Balanced:
-        return Balanced;
+        return DLSSQuality::Balanced;
     case NVSDK_NGX_PerfQuality_Value_MaxQuality:
-        return Quality;
+        return DLSSQuality::Quality;
     case NVSDK_NGX_PerfQuality_Value_DLAA:
-        return DLAA;
+        return DLSSQuality::DLAA;
     default:
-        return Balanced;
+        return DLSSQuality::Balanced;
 	}
 }
 

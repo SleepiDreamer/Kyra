@@ -605,6 +605,7 @@ void Renderer::Render(const float deltaTime)
 			PIXScopedEvent(commandList.Get(), 0xac6bfa, "Depth of Field");
 
 			DepthOfField::DepthOfFieldInput dofInputs = {};
+			dofInputs.settings = &m_postProcessSettings;
 			dofInputs.color = currentBuffer;
 			dofInputs.depth = m_depthBuffer.get();
 

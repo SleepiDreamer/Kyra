@@ -23,9 +23,9 @@ public:
 
 	float m_fovMultiplier = 1.0f;
 
-	float m_aperture = 0.0f;
+	float m_aperture = 2.0f;
 	float m_focusDistance = 3.0f;
-	bool m_autoFocus = false;
+	bool m_autoFocus = true;
 	float m_squeezeFactor = 1.0f;
 	float m_swirliness = 0.8f;
 private:
